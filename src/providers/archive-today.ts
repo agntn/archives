@@ -2,12 +2,12 @@ import { $fetch } from "ofetch";
 import { cleanDoubleSlashes } from "ufo";
 import { consola } from "consola";
 import type {
-  ArchiveOptions,
   ArchiveProvider,
   ArchiveResponse,
   ArchivedPage,
   ArchiveTodayMetadata,
 } from "../types";
+import type { ArchiveTodayOptions } from "../_providers";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -18,10 +18,10 @@ import {
 /**
  * Create an Archive.today archive provider.
  *
- * @param initOptions - Initial options for Archive.today (e.g., maxRedirects, cache settings).
+ * @param initOptions - Initial archive options for Archive.today.
  * @returns ArchiveProvider instance for fetching snapshots from Archive.today.
  */
-export default function archiveToday(initOptions: ArchiveOptions = {}): ArchiveProvider {
+export default function archiveToday(initOptions: ArchiveTodayOptions = {}): ArchiveProvider {
   return {
     name: "Archive.today",
     slug: "archive-today",
@@ -33,7 +33,7 @@ export default function archiveToday(initOptions: ArchiveOptions = {}): ArchiveP
      * @param reqOptions - Request-specific options overriding initial settings.
      * @returns Promise resolving to ArchiveResponse containing pages and metadata.
      */
-    async snapshots(domain: string, reqOptions: ArchiveOptions = {}): Promise<ArchiveResponse> {
+    async snapshots(domain: string, reqOptions: ArchiveTodayOptions = {}): Promise<ArchiveResponse> {
       const cleanDomain = normalizeDomain(domain, false);
 
       try {

@@ -67,6 +67,27 @@ describe("wayback machine", () => {
     expect(result._meta?.source).toBe("wayback");
   });
 
+  it("passes CDX collapse and filter options", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+
+    const archive = createArchive(
+      createWayback({ collapse: "digest", filter: "statuscode:200", limit: 25 }),
+    );
+    const result = await archive.snapshots("example.com");
+
+    expect(result.success).toBe(true);
+    expect($fetch).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          collapse: "digest",
+          filter: "statuscode:200",
+          limit: "25",
+        }),
+      }),
+    );
+  });
+
   it("returns an error response when fetching fails", async () => {
     vi.mocked($fetch).mockRejectedValueOnce(new Error("API error"));
 

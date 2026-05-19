@@ -32,7 +32,7 @@ export const providers = {
    * @returns The Archive.today provider
    * @example
    * ```js
-   * const archiveTodayProvider = providers.archiveToday({ maxRedirects: 5 })
+   * const archiveTodayProvider = providers.archiveToday({ timeout: 15000 })
    * ```
    */
   async archiveToday(options?: ArchiveTodayOptions): Promise<ArchiveProvider> {

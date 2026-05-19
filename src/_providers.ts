@@ -5,9 +5,7 @@ export interface WaybackOptions extends ArchiveOptions {
   filter?: string;
 }
 
-export interface ArchiveTodayOptions extends ArchiveOptions {
-  maxRedirects?: number;
-}
+export type ArchiveTodayOptions = ArchiveOptions;
 
 export interface PermaccOptions extends ArchiveOptions {
   apiKey: string; // API key is required for Perma.cc
