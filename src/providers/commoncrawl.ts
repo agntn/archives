@@ -12,6 +12,15 @@ import {
   mergeOptions,
 } from "../utils";
 
+function getCollectionCacheKey(
+  initOptions: Partial<CommonCrawlOptions>,
+  requestOptions?: Partial<CommonCrawlOptions>,
+): string | undefined {
+  const collection = requestOptions?.collection ?? initOptions.collection;
+
+  return collection === undefined ? undefined : `collection=${encodeURIComponent(collection)}`;
+}
+
 /**
  * Create a Common Crawl archive provider.
  *
@@ -24,6 +33,7 @@ export default function commonCrawl(
   return {
     name: "Common Crawl",
     slug: "commoncrawl",
+    cacheKey: (options) => getCollectionCacheKey(initOptions, options),
 
     /**
      * Fetch archived snapshots from Common Crawl.

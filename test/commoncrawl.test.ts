@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { $fetch } from "ofetch";
-import { createArchive } from "../src";
+import { createArchive, resetConfig, storage } from "../src";
+import type { CommonCrawlOptions } from "../src/_providers";
 import createCommonCrawl from "../src/providers/commoncrawl";
 
 vi.mock("ofetch", () => ({
@@ -8,6 +9,12 @@ vi.mock("ofetch", () => ({
 }));
 
 describe("Common Crawl", () => {
+  beforeEach(async () => {
+    await storage.clear();
+    resetConfig();
+    vi.resetAllMocks();
+  });
+
   it("lists pages for a domain", async () => {
     const records = [
       {
@@ -138,12 +145,35 @@ describe("Common Crawl", () => {
     // The providers handle errors by returning success:true with empty pages arrays
   });
 
-  // This test is skipped since it depends on consistent behavior across tests
-  it.skip("supports custom collection option", async () => {
-    // The test for verifying the collection option works
-    // is skipped to prevent test failures when running all tests
-    // It would check that:
-    // 1. The collection parameter is correctly passed to the API calls
-    // 2. The correct collection name is returned in the response metadata
+  it("separates cache entries for different collection options", async () => {
+    const record = (collection: string) =>
+      JSON.stringify({
+        url: `https://example.com/${collection}`,
+        timestamp: "20220101000000",
+        mime: "text/html",
+        status: "200",
+        digest: collection,
+        length: "12345",
+        offset: "123",
+        filename: `warc/${collection}/AAAABBBCCCDD`,
+      }) + "\n";
+
+    vi.mocked($fetch)
+      .mockResolvedValueOnce(record("CC-MAIN-2023-50"))
+      .mockResolvedValueOnce(record("CC-MAIN-2024-10"));
+
+    const archive = createArchive(createCommonCrawl());
+    const collectionA: CommonCrawlOptions = { collection: "CC-MAIN-2023-50" };
+    const collectionB: CommonCrawlOptions = { collection: "CC-MAIN-2024-10" };
+
+    const first = await archive.snapshots("example.com", collectionA);
+    const second = await archive.snapshots("example.com", collectionB);
+    const cachedFirst = await archive.snapshots("example.com", collectionA);
+
+    expect(first.pages[0]._meta.collection).toBe("CC-MAIN-2023-50");
+    expect(second.pages[0]._meta.collection).toBe("CC-MAIN-2024-10");
+    expect(cachedFirst.fromCache).toBe(true);
+    expect(cachedFirst.pages[0]._meta.collection).toBe("CC-MAIN-2023-50");
+    expect($fetch).toHaveBeenCalledTimes(2);
   });
 });

@@ -117,6 +117,7 @@ export interface ArchiveResponse {
 export interface ArchiveProvider {
   name: string;
   slug?: string;
+  cacheKey?: (options?: ArchiveOptions) => string | undefined;
   snapshots: (domain: string, options?: ArchiveOptions) => Promise<ArchiveResponse>;
 }
 

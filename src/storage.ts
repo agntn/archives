@@ -28,12 +28,32 @@ function isStoredArchiveResponse(value: unknown): value is StoredArchiveResponse
   return isRecord(value) && isArchiveResponse(value.response);
 }
 
+interface CacheKeyProvider {
+  name: string;
+  slug?: string;
+  cacheKey?: (options?: ArchiveOptions) => string | undefined;
+}
+
 function getExpiresAt(ttl: ArchiveOptions["ttl"]): number | undefined {
   if (typeof ttl !== "number" || !Number.isFinite(ttl)) {
     return undefined;
   }
 
   return Date.now() + Math.max(0, ttl);
+}
+
+function getCacheKeyParts(
+  provider: CacheKeyProvider,
+  options?: ArchiveOptions,
+): string[] {
+  const parts: string[] = [];
+
+  if (options?.limit !== undefined) parts.push(`limit=${options.limit}`);
+
+  const providerKey = provider.cacheKey?.(options);
+  if (providerKey) parts.push(providerKey);
+
+  return parts;
 }
 
 /**
@@ -63,20 +83,22 @@ export async function initStorage(): Promise<void> {
  * Generate a storage key for a domain request
  */
 export function generateStorageKey(
-  provider: { name: string; slug?: string },
+  provider: CacheKeyProvider,
   domain: string,
-  options?: Pick<ArchiveOptions, "limit">,
+  options?: ArchiveOptions,
 ): string {
   const providerKey = provider.slug ?? provider.name;
   const baseKey = `${storagePrefix}:${providerKey}:${domain}`;
-  return options?.limit ? `${baseKey}:${options.limit}` : baseKey;
+  const cacheKeyParts = getCacheKeyParts(provider, options);
+
+  return cacheKeyParts.length === 0 ? baseKey : `${baseKey}:${cacheKeyParts.join(":")}`;
 }
 
 /**
  * Get stored response if available
  */
 export async function getStoredResponse(
-  provider: { name: string; slug?: string },
+  provider: CacheKeyProvider,
   domain: string,
   options?: ArchiveOptions,
 ): Promise<ArchiveResponse | undefined> {
@@ -92,35 +114,30 @@ export async function getStoredResponse(
 
   try {
     const cachedData = await storage.getItem(key);
+    if (!cachedData) return undefined;
 
-    if (cachedData) {
-      try {
-        const parsedData = typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
+    const parsedData = typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
 
-        if (isStoredArchiveResponse(parsedData)) {
-          if (parsedData.expiresAt !== undefined && parsedData.expiresAt <= Date.now()) {
-            await storage.removeItem(key);
-            return undefined;
-          }
-
-          return {
-            ...parsedData.response,
-            fromCache: true,
-          };
-        }
-
-        if (isArchiveResponse(parsedData)) {
-          return {
-            ...parsedData,
-            fromCache: true,
-          };
-        }
-      } catch (parseError) {
-        consola.error(`Storage parse error for ${key}:`, parseError);
-      }
+    if (isArchiveResponse(parsedData)) {
+      return {
+        ...parsedData,
+        fromCache: true,
+      };
     }
+
+    if (!isStoredArchiveResponse(parsedData)) return undefined;
+
+    if (parsedData.expiresAt !== undefined && parsedData.expiresAt <= Date.now()) {
+      await storage.removeItem(key);
+      return undefined;
+    }
+
+    return {
+      ...parsedData.response,
+      fromCache: true,
+    };
   } catch (error) {
-    consola.error(`Storage read error for ${key}:`, error);
+    consola.error(`Storage read/parse error for ${key}:`, error);
   }
 
   return undefined;
@@ -130,7 +147,7 @@ export async function getStoredResponse(
  * Store response in storage
  */
 export async function storeResponse(
-  provider: { name: string; slug?: string },
+  provider: CacheKeyProvider,
   domain: string,
   response: ArchiveResponse,
   options?: ArchiveOptions,
