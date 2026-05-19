@@ -90,39 +90,25 @@ describe("Cache", () => {
   });
 
   it("should respect TTL setting", async () => {
-    // Create a custom driver with TTL support
-    const customDriver = memoryDriver();
-
-    // Configure storage with very short TTL (10ms)
     await configureStorage({
-      driver: customDriver,
+      driver: memoryDriver(),
       ttl: 10,
       cache: true,
     });
 
     const archive = createArchive(mockProvider);
 
-    // First call should hit the API
     await archive.snapshots("example.com");
-
-    // Wait for TTL to expire
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    // Clear the cache to simulate TTL expiration since the memoryDriver doesn't support TTL
-    await storage.clear();
-
-    // After TTL expired, should hit API again
     const secondResponse = await archive.snapshots("example.com");
 
     expect(secondResponse.success).toBe(true);
     expect(secondResponse.fromCache).toBeUndefined();
-
-    // Check that API was called twice due to TTL expiration
     expect(mockProvider.snapshots).toHaveBeenCalledTimes(2);
   });
 
   it("should use different cache keys for different limits", async () => {
-    // Configure storage
     await configureStorage({
       driver: memoryDriver(),
       cache: true,
@@ -130,23 +116,15 @@ describe("Cache", () => {
 
     const archive = createArchive(mockProvider);
 
-    // Call with limit=10
     await archive.snapshots("example.com", { limit: 10 });
-
-    // Call with limit=20 should hit API again
     const response = await archive.snapshots("example.com", { limit: 20 });
 
     expect(response.fromCache).toBeUndefined();
-
-    // API should be called twice due to different limits
     expect(mockProvider.snapshots).toHaveBeenCalledTimes(2);
 
-    // Call with limit=10 again should use cache
     const cachedResponse = await archive.snapshots("example.com", { limit: 10 });
 
     expect(cachedResponse.fromCache).toBe(true);
-
-    // API should still have been called only twice
     expect(mockProvider.snapshots).toHaveBeenCalledTimes(2);
   });
 

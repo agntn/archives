@@ -11,6 +11,31 @@ export const storage: Storage = createStorage({
 let storagePrefix = "omnichron";
 let storageInitialized = false;
 
+interface StoredArchiveResponse {
+  response: ArchiveResponse;
+  expiresAt?: number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isArchiveResponse(value: unknown): value is ArchiveResponse {
+  return isRecord(value) && typeof value.success === "boolean" && Array.isArray(value.pages);
+}
+
+function isStoredArchiveResponse(value: unknown): value is StoredArchiveResponse {
+  return isRecord(value) && isArchiveResponse(value.response);
+}
+
+function getExpiresAt(ttl: ArchiveOptions["ttl"]): number | undefined {
+  if (typeof ttl !== "number" || !Number.isFinite(ttl)) {
+    return undefined;
+  }
+
+  return Date.now() + Math.max(0, ttl);
+}
+
 /**
  * Initialize storage with configuration values
  * This is called internally when needed
@@ -72,10 +97,24 @@ export async function getStoredResponse(
       try {
         const parsedData = typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
 
-        return {
-          ...(parsedData as ArchiveResponse),
-          fromCache: true,
-        };
+        if (isStoredArchiveResponse(parsedData)) {
+          if (parsedData.expiresAt !== undefined && parsedData.expiresAt <= Date.now()) {
+            await storage.removeItem(key);
+            return undefined;
+          }
+
+          return {
+            ...parsedData.response,
+            fromCache: true,
+          };
+        }
+
+        if (isArchiveResponse(parsedData)) {
+          return {
+            ...parsedData,
+            fromCache: true,
+          };
+        }
       } catch (parseError) {
         consola.error(`Storage parse error for ${key}:`, parseError);
       }
@@ -111,7 +150,12 @@ export async function storeResponse(
 
   try {
     const { fromCache: _fromCache, ...storableResponse } = response;
-    await storage.setItem(key, JSON.stringify(storableResponse));
+    const storedResponse: StoredArchiveResponse = {
+      response: storableResponse,
+      expiresAt: getExpiresAt(options?.ttl),
+    };
+
+    await storage.setItem(key, JSON.stringify(storedResponse));
   } catch (error) {
     consola.error(`Storage write error for ${key}:`, error);
   }
