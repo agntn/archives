@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { $fetch } from "ofetch";
-import { createArchive } from "../src";
+import { createArchive, resetConfig, storage } from "../src";
 import createWayback from "../src/providers/wayback";
 
 vi.mock("ofetch", () => ({
@@ -8,6 +8,12 @@ vi.mock("ofetch", () => ({
 }));
 
 describe("wayback machine", () => {
+  beforeEach(async () => {
+    await storage.clear();
+    resetConfig();
+    vi.resetAllMocks();
+  });
+
   it("lists pages for a domain", async () => {
     const mockResponse = [
       ["original", "timestamp", "statuscode"],
@@ -61,9 +67,15 @@ describe("wayback machine", () => {
     expect(result._meta?.source).toBe("wayback");
   });
 
-  // Test expects error states to update the test
-  it.skip("handles fetch errors", async () => {
-    // This test is skipped to prevent failures
-    // The providers handle errors by returning success:true with empty pages arrays
+  it("returns an error response when fetching fails", async () => {
+    vi.mocked($fetch).mockRejectedValueOnce(new Error("API error"));
+
+    const archive = createArchive(createWayback());
+    const result = await archive.snapshots("example.com");
+
+    expect(result.success).toBe(false);
+    expect(result.pages).toEqual([]);
+    expect(result.error).toBe("API error");
+    expect(result._meta?.source).toBe("wayback");
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { $fetch } from "ofetch";
-import { createArchive as createArchiveClient } from "../src";
+import { createArchive as createArchiveClient, resetConfig, storage } from "../src";
 import createArchiveToday from "../src/providers/archive-today";
 
 vi.mock("ofetch", () => ({
@@ -8,7 +8,9 @@ vi.mock("ofetch", () => ({
 }));
 
 describe("archive.today", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await storage.clear();
+    resetConfig();
     vi.resetAllMocks();
   });
 
@@ -49,19 +51,17 @@ describe("archive.today", () => {
     );
   });
 
-  it("falls back to HTML parsing when Memento API fails", async () => {
-    // First request (Memento API) fails
+  it("returns an error response when the Memento API fails", async () => {
     vi.mocked($fetch).mockRejectedValueOnce(new Error("API error"));
 
-    // Mock the fallback HTML parsing request with error
-    vi.mocked($fetch).mockRejectedValueOnce(new Error("HTML parsing error"));
-
-    const archiveInstance = createArchiveToday();
-    const archive = createArchiveClient(archiveInstance);
+    const archive = createArchiveClient(createArchiveToday());
     const result = await archive.snapshots("example.com");
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.pages).toEqual([]);
+    expect(result.error).toBe("API error");
     expect(result._meta?.source).toBe("archive-today");
+    expect($fetch).toHaveBeenCalledTimes(1);
   });
 
   it("handles empty results from Memento API", async () => {
@@ -77,13 +77,6 @@ describe("archive.today", () => {
     expect(result.success).toBe(true);
     expect(result.pages).toHaveLength(0);
     expect(result._meta?.source).toBe("archive-today");
-  });
-
-  // Test expects error states to update the test
-  it.skip("handles fetch errors", async () => {
-    // The error handling aspect is tested in the falls back test
-    // This test is skipped to prevent failures
-    // The archive providers handle errors by returning success:true with empty pages arrays
   });
 
   it("handles empty response from both APIs", async () => {

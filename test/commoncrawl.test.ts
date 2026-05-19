@@ -47,7 +47,6 @@ describe("Common Crawl", () => {
     const archive = createArchive(ccInstance);
     const result = await archive.snapshots("example.com");
 
-    // Adjust expectations to match actual implementation
     expect(result.success).toBe(true);
     expect(result.pages).toHaveLength(2);
 
@@ -96,7 +95,6 @@ describe("Common Crawl", () => {
     const archive = createArchive(ccInstance);
     const result = await archive.snapshots("nonexistentdomain.com");
 
-    // Adjust expectations to match actual implementation
     expect(result.success).toBe(true);
     expect(result.pages).toHaveLength(0);
     expect(result._meta?.source).toBe("commoncrawl");
@@ -139,10 +137,18 @@ describe("Common Crawl", () => {
     expect(result.pages[0].url).toBe("https://example.com/ok");
   });
 
-  // Test expects error states to update the test
-  it.skip("handles fetch errors", async () => {
-    // This test is skipped to prevent failures
-    // The providers handle errors by returning success:true with empty pages arrays
+  it("returns an error response when fetching the selected index fails", async () => {
+    vi.mocked($fetch).mockRejectedValueOnce(new Error("API error"));
+
+    const archive = createArchive(createCommonCrawl());
+    const result = await archive.snapshots("example.com", { collection: "CC-MAIN-2023-50" });
+
+    expect(result.success).toBe(false);
+    expect(result.pages).toEqual([]);
+    expect(result.error).toBe("API error");
+    expect(result._meta?.source).toBe("commoncrawl");
+    expect(result._meta?.collection).toBe("CC-MAIN-2023-50");
+    expect($fetch).toHaveBeenCalledTimes(1);
   });
 
   it("separates cache entries for different collection options", async () => {
