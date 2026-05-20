@@ -19,8 +19,8 @@ export async function processInParallel<T, R>(
   options: { concurrency?: number; batchSize?: number } = {},
 ): Promise<R[]> {
   const config = await getConfig();
-  const concurrency = options.concurrency ?? config.performance.concurrency;
-  const batchSize = options.batchSize ?? config.performance.batchSize;
+  const concurrency = options.concurrency ?? config.performance.concurrency ?? 3;
+  const batchSize = options.batchSize ?? config.performance.batchSize ?? 20;
 
   // Process small datasets directly
   if (items.length <= concurrency) {
@@ -309,8 +309,7 @@ export async function mapCdxRows(
 ): Promise<ArchivedPage[]> {
   const config = await getConfig();
 
-  // Get batch size from options or use default
-  const batchSize = options.batchSize ?? config.performance.batchSize;
+  const batchSize = options.batchSize ?? config.performance.batchSize ?? 20;
 
   // For small datasets, process directly without batching
   if (dataRows.length <= batchSize) {

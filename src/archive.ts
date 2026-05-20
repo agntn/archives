@@ -197,7 +197,7 @@ export function createArchive(
   }
 
   // Create the archive instance
-  const archive = {
+  const archive: ArchiveInterface = {
     // Store options for external access
     options,
 
@@ -331,7 +331,7 @@ export function createArchive(
      *   .use(providers.commoncrawl())
      * ```
      */
-    async use(provider: ArchiveProvider | Promise<ArchiveProvider>): Promise<typeof archive> {
+    async use(provider: ArchiveProvider | Promise<ArchiveProvider>): Promise<ArchiveInterface> {
       const resolvedProvider = await Promise.resolve(provider);
       const currentProviders = await getProviders();
 
@@ -363,7 +363,7 @@ export function createArchive(
      */
     async useAll(
       newProviders: (ArchiveProvider | Promise<ArchiveProvider>)[],
-    ): Promise<typeof archive> {
+    ): Promise<ArchiveInterface> {
       const resolvedNewProviders = await Promise.all(newProviders.map((p) => Promise.resolve(p)));
 
       const currentProviders = await getProviders();

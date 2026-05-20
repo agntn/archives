@@ -60,7 +60,7 @@
     "obuild": "0.0.4",
     "oxfmt": "0.36.0",
     "oxlint": "1.51.0",
-    "typescript": "5.8.3",
+    "typescript": "6.0.3",
     "vitest": "3.1.1"
   },
   "resolutions": {
