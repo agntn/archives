@@ -45,19 +45,19 @@
     "release": "pnpm test && changelogen --release --push && pnpm publish"
   },
   "dependencies": {
-    "c12": "3.0.3",
+    "c12": "4.0.0-beta.5",
     "consola": "3.4.2",
-    "ofetch": "1.4.1",
-    "ufo": "1.6.1",
-    "unstorage": "1.15.0"
+    "ofetch": "1.5.1",
+    "ufo": "1.6.4",
+    "unstorage": "1.17.5"
   },
   "devDependencies": {
-    "@types/node": "22.14.1",
+    "@types/node": "25.9.1",
     "@vitest/coverage-v8": "4.1.7",
-    "changelogen": "0.6.1",
-    "obuild": "0.0.4",
-    "oxfmt": "0.36.0",
-    "oxlint": "1.51.0",
+    "changelogen": "0.6.2",
+    "obuild": "0.4.35",
+    "oxfmt": "0.51.0",
+    "oxlint": "1.66.0",
     "typescript": "6.0.3",
     "vitest": "4.1.7"
   },
