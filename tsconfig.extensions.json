@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "paths": {
+      "omnichron": ["./src/index.ts"]
+    },
+    "outDir": "./dist-extensions",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["packages/pi/extensions/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

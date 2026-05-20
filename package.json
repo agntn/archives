@@ -9,7 +9,10 @@
     "history",
     "permacc",
     "wayback",
-    "web-archive"
+    "web-archive",
+    "agents",
+    "pi-extension",
+    "pi-package"
   ],
   "homepage": "https://github.com/oritwoen/omnichron",
   "bugs": {
@@ -22,7 +25,8 @@
     "url": "https://github.com/oritwoen/omnichron"
   },
   "files": [
-    "dist"
+    "dist",
+    "packages/pi/extensions"
   ],
   "type": "module",
   "sideEffects": false,
@@ -39,7 +43,7 @@
     "fmt": "oxlint . --fix && oxfmt .",
     "fmt:check": "oxfmt --check .",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
-    "test:types": "tsc --noEmit --skipLibCheck",
+    "test:types": "tsc --noEmit --skipLibCheck && tsc --noEmit --skipLibCheck -p tsconfig.extensions.json",
     "build": "obuild src/index.ts",
     "prepack": "pnpm build",
     "release": "pnpm test && changelogen --release --push && pnpm publish"
@@ -52,17 +56,41 @@
     "unstorage": "1.17.5"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
     "@types/node": "25.9.1",
     "@vitest/coverage-v8": "4.1.7",
     "changelogen": "0.6.2",
     "obuild": "0.4.35",
     "oxfmt": "0.51.0",
     "oxlint": "1.66.0",
+    "typebox": "^1.1.38",
     "typescript": "6.0.3",
     "vitest": "4.1.7"
   },
   "resolutions": {
     "omnichron": "link:."
   },
-  "packageManager": "pnpm@10.8.1"
+  "packageManager": "pnpm@10.8.1",
+  "pi": {
+    "extensions": [
+      "./packages/pi/extensions/*.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "^1.1.38"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  }
 }

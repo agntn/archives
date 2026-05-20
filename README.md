@@ -107,6 +107,24 @@ await archive.use(providers.archiveToday());
 await archive.useAll([providers.commoncrawl(), providers.webcite()]);
 ```
 
+## Pi extension
+
+`omnichron` ships with a [pi](https://pi.dev) extension. Install the package from GitHub:
+
+```bash
+pi install git:github.com/oritwoen/omnichron
+```
+
+Tools:
+
+- `omnichron` — query archived snapshots for a domain or URL. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
+- `omnichron_providers` — list built-in archive providers and Perma.cc API-key environment status.
+
+Commands:
+
+- `/archive [domain-or-url]` — search Wayback snapshots interactively and paste the selected snapshot URL into the editor.
+- `/archive-providers` — show provider availability notes.
+
 ## Response format
 
 Every provider normalizes its output to the same shape:
