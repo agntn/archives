@@ -53,7 +53,7 @@
   },
   "devDependencies": {
     "@types/node": "22.14.1",
-    "@vitest/coverage-v8": "3.1.1",
+    "@vitest/coverage-v8": "4.1.7",
     "changelogen": "0.6.1",
     "eslint": "9.25.0",
     "eslint-config-unjs": "0.4.2",
@@ -61,7 +61,7 @@
     "oxfmt": "0.36.0",
     "oxlint": "1.51.0",
     "typescript": "6.0.3",
-    "vitest": "3.1.1"
+    "vitest": "4.1.7"
   },
   "resolutions": {
     "omnichron": "link:."
