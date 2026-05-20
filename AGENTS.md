@@ -71,7 +71,7 @@ omnichron/
 - **Unsupported operations are first-class**: when an operation is outside a provider's API surface (e.g. WebCite has no list-by-domain endpoint), return `createUnsupportedResponse(reason, slug)`, not a fake page or a fake error. `combineResults` propagates these into `_meta.unsupportedProviders`. `getPages()` throws `UnsupportedOperationError` (with `.providers`) when the whole call is unsupported, so callers can distinguish structural mismatches from runtime failures.
 - **Timestamp format**: providers convert native timestamps to ISO 8601. Raw format preserved in `_meta`.
 - **Option merging**: three-level cascade: config defaults → init options → request options. Via `mergeOptions()`.
-- **ESLint**: `eslint-config-unjs` preset. Only override: `unicorn/numeric-separators-style: off`.
+- **Linting**: `oxlint` only; ESLint was removed intentionally.
 - **Build**: `obuild src/index.ts` → `dist/`. Single entry point.
 - **Release**: `pnpm test && changelogen --release --push && pnpm publish`.
 
@@ -90,8 +90,8 @@ pnpm install          # install deps
 pnpm dev              # vitest watch mode
 pnpm test             # lint + type-check + vitest with coverage
 pnpm test:types       # tsc --noEmit --skipLibCheck
-pnpm lint             # eslint
-pnpm lint:fix         # eslint --fix
+pnpm lint             # oxlint
+pnpm lint:fix         # oxlint --fix
 pnpm build            # obuild src/index.ts → dist/
 pnpm release          # test + changelogen + publish
 bash test.sh          # build lib + build playground (integration)
