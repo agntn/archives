@@ -1,6 +1,24 @@
-import type { AgentToolResult, ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { afterEach, describe, expect, it } from "vitest";
+import type {
+	AgentToolResult,
+	ExtensionAPI,
+	ExtensionCommandContext,
+	ExtensionContext,
+	ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import omnichronExtension from "../packages/pi/extensions/omnichron";
+import type { ArchiveResponse } from "../src/types";
+
+const omnichronMock = vi.hoisted(() => ({
+	snapshots: vi.fn(),
+}));
+
+vi.mock("omnichron", () => ({
+	createArchive: () => ({ snapshots: omnichronMock.snapshots }),
+	providers: {
+		wayback: async () => ({ name: "Internet Archive Wayback Machine", slug: "wayback", snapshots: omnichronMock.snapshots }),
+	},
+}));
 
 type CommandDefinition = Parameters<ExtensionAPI["registerCommand"]>[1];
 
@@ -59,6 +77,10 @@ function restoreEnv(name: keyof typeof originalPermaccEnv): void {
 }
 
 describe("Pi extension", () => {
+	beforeEach(() => {
+		omnichronMock.snapshots.mockReset();
+	});
+
 	afterEach(() => {
 		restoreEnv("PERMA_CC_API_KEY");
 		restoreEnv("PERMACC_API_KEY");
@@ -100,5 +122,36 @@ describe("Pi extension", () => {
 		await expect(
 			tool.execute("test", { target: "example.com", provider: "permacc" }, undefined, undefined, {} as ExtensionContext),
 		).rejects.toThrow("Perma.cc provider requires an API key in PERMA_CC_API_KEY or PERMACC_API_KEY");
+	});
+
+	it("reports /archive API errors instead of showing an empty-result warning", async () => {
+		const response = {
+			success: false,
+			pages: [],
+			error: "Wayback unavailable",
+			_meta: { source: "wayback", provider: "wayback" },
+		} satisfies ArchiveResponse;
+		omnichronMock.snapshots.mockResolvedValue(response);
+		const runtime = loadExtension();
+		const command = runtime.commands.get("archive");
+		if (!command) throw new Error("archive command was not registered");
+		const notify = vi.fn();
+		const select = vi.fn();
+		const pasteToEditor = vi.fn();
+		const ctx = {
+			hasUI: true,
+			ui: {
+				input: vi.fn(),
+				notify,
+				select,
+				pasteToEditor,
+			},
+		} as unknown as ExtensionCommandContext;
+
+		await command.handler("example.com", ctx);
+
+		expect(notify).toHaveBeenCalledWith("omnichron failed: Wayback unavailable", "error");
+		expect(select).not.toHaveBeenCalled();
+		expect(pasteToEditor).not.toHaveBeenCalled();
 	});
 });

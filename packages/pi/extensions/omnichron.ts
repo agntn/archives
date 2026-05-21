@@ -173,6 +173,11 @@ export default function omnichronExtension(pi: ExtensionAPI) {
 				return;
 			}
 
+			if (!response.success) {
+				ctx.ui.notify(`omnichron failed: ${responseFailureMessage(response)}`, "error");
+				return;
+			}
+
 			if (response.pages.length === 0) {
 				ctx.ui.notify(`No archived snapshots for "${trimmed}" via Wayback.`, "warning");
 				return;
@@ -243,14 +248,11 @@ function buildSnapshotOptions(params: SnapshotParams, provider: ProviderName): S
 	if (params.filter !== undefined) options.filter = params.filter;
 
 	if (provider === "permacc") {
-		const { envName, apiKey } = getPermaccApiKeyState();
+		const { apiKey } = getPermaccApiKeyState();
 		if (!apiKey) {
 			throw new Error(`Perma.cc provider requires an API key in ${PERMACC_API_KEY_ENVS.join(" or ")}.`);
 		}
 		options.apiKey = apiKey;
-		if (envName === undefined) {
-			throw new Error("Perma.cc API key env name could not be resolved.");
-		}
 	}
 
 	return options;
@@ -344,6 +346,10 @@ function sanitizeResponse(response: ArchiveResponse): ArchiveResponse {
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+function responseFailureMessage(response: ArchiveResponse): string {
+	return response.error ?? response.unsupportedReason ?? "Failed to fetch archive snapshots";
 }
 
 function withHeader(header: string, body: string[]): string {
