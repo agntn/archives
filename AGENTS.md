@@ -23,6 +23,8 @@ omnichron/
 │   ├── providers/        # one file per archive source + barrel
 │   └── utils/            # parallel processing, response helpers, domain normalization
 ├── test/                 # mirrors src/ structure, one .test.ts per module
+├── packages/pi/extensions/
+│   └── omnichron.ts      # Pi tool/command surface shipped via package.json pi.extensions
 ├── playground/           # Nuxt app (Cloudflare preset) for manual provider testing
 └── .github/workflows/    # ci.yml + autofix.yml
 ```
@@ -41,6 +43,7 @@ omnichron/
 | CDX row mapping           | `src/utils/_utils.ts` → `mapCdxRows`                    | Wayback/CommonCrawl share CDX format                                               |
 | Test a provider           | `test/{provider}.test.ts`                               | Uses vitest, mocks with `vi.fn()`                                                  |
 | Manual testing            | `playground/server/api/snapshots/`                      | One Nuxt endpoint per provider                                                     |
+| Extend Pi extension       | `packages/pi/extensions/omnichron.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb            |
 | Integration test          | `test.sh`                                               | Builds lib, then builds playground against it                                      |
 
 ## CODE MAP
@@ -61,6 +64,8 @@ omnichron/
 | `createErrorResponse`       | function  | utils/_utils.ts       | Build a normalized runtime-error `ArchiveResponse`.                                         |
 | `createUnsupportedResponse` | function  | utils/_utils.ts:184   | Build a response signalling the operation is outside the provider's API surface.            |
 | `configureStorage`          | function  | storage.ts:147        | **@deprecated** – use config files or `createArchive` options.                              |
+| `omnichron`                 | Pi tool   | packages/pi/extensions/omnichron.ts | Query archive snapshots through Pi; dynamic-imports package dist with source fallback.       |
+| `omnichron_providers`       | Pi tool   | packages/pi/extensions/omnichron.ts | List provider status and Perma.cc env configuration.                                        |
 
 ## CONVENTIONS
 
@@ -73,6 +78,7 @@ omnichron/
 - **Option merging**: three-level cascade: config defaults → init options → request options. Via `mergeOptions()`.
 - **Linting**: `oxlint` only; ESLint was removed intentionally.
 - **Build**: `obuild src/index.ts` → `dist/`. Single entry point.
+- **Pi extension packaging**: distributable extension lives under `packages/pi/extensions/*.ts`; `package.json` `pi.extensions` points there and `files` includes the directory.
 - **Release**: `pnpm test && changelogen --release --push && pnpm publish`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -82,6 +88,7 @@ omnichron/
 - **Do not pass `Promise[]` to `createArchive`**: `createArchive([providers.wayback(), ...])` is a type error. Use `Promise.all()` wrapper or `providers.all()`.
 - **Do not add Perma.cc to `providers.all()`**: requires API key. Excluded intentionally.
 - **Do not put provider types in `providers/`**: provider-specific option types live in `src/_providers.ts`, not alongside implementations.
+- **Do not add deployable Pi package extensions under `.pi/extensions/`**: this project ships its Pi surface from `packages/pi/extensions/` via `package.json` `pi.extensions`, following askweb.
 
 ## COMMANDS
 
@@ -89,7 +96,7 @@ omnichron/
 pnpm install          # install deps
 pnpm dev              # vitest watch mode
 pnpm test             # lint + type-check + vitest with coverage
-pnpm test:types       # tsc --noEmit --skipLibCheck
+pnpm test:types       # tsc lib + packages/pi/extensions type checks
 pnpm lint             # oxlint
 pnpm lint:fix         # oxlint --fix
 pnpm build            # obuild src/index.ts → dist/
