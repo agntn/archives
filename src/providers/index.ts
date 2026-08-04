@@ -22,8 +22,8 @@ export const providers = {
    * ```
    */
   async wayback(options?: WaybackOptions): Promise<ArchiveProvider> {
-    const { default: create } = await import("./wayback");
-    return create(options);
+    const { WaybackProvider } = await import("./wayback");
+    return new WaybackProvider(options);
   },
 
   /**
@@ -36,8 +36,8 @@ export const providers = {
    * ```
    */
   async archiveToday(options?: ArchiveTodayOptions): Promise<ArchiveProvider> {
-    const { default: create } = await import("./archive-today");
-    return create(options);
+    const { ArchiveTodayProvider } = await import("./archive-today");
+    return new ArchiveTodayProvider(options);
   },
 
   /**
@@ -49,9 +49,9 @@ export const providers = {
    * const permaccProvider = providers.permacc({ apiKey: 'your-api-key' })
    * ```
    */
-  async permacc(options?: PermaccOptions): Promise<ArchiveProvider> {
-    const { default: create } = await import("./permacc");
-    return create(options);
+  async permacc(options?: Partial<PermaccOptions>): Promise<ArchiveProvider> {
+    const { PermaccProvider } = await import("./permacc");
+    return new PermaccProvider(options);
   },
 
   /**
@@ -64,8 +64,8 @@ export const providers = {
    * ```
    */
   async commoncrawl(options?: CommonCrawlOptions): Promise<ArchiveProvider> {
-    const { default: create } = await import("./commoncrawl");
-    return create(options);
+    const { CommonCrawlProvider } = await import("./commoncrawl");
+    return new CommonCrawlProvider(options);
   },
 
   /**
@@ -78,8 +78,8 @@ export const providers = {
    * ```
    */
   async webcite(options?: WebCiteOptions): Promise<ArchiveProvider> {
-    const { default: create } = await import("./webcite");
-    return create(options);
+    const { WebCiteProvider } = await import("./webcite");
+    return new WebCiteProvider(options);
   },
 
   /**

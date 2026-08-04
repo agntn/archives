@@ -149,6 +149,15 @@ export function normalizeDomain(domain: string, appendWildcard = true): string {
 }
 
 /**
+ * Remove a single trailing slash from a URL or path. Idempotent and safe
+ * on bare origins (no trailing slash → returned unchanged). Used by
+ * providers that strip trailing slashes for snapshot/original URLs.
+ */
+export function stripTrailingSlash(url: string): string {
+  return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
+/**
  * Creates a standardized success response object
  * @param pages Array of archived pages
  * @param source Source identifier for the provider
