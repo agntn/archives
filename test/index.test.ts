@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createArchive, UnsupportedOperationError, storage, resetConfig } from "../src";
+import { Archive, createArchive, UnsupportedOperationError, storage, resetConfig } from "../src";
 import createWayback from "../src/providers/wayback";
 import createWebCite from "../src/providers/webcite";
 import type { ArchiveProvider, ArchivedPage } from "../src/types";
@@ -98,6 +98,30 @@ describe("createArchive", () => {
       "example.com",
       expect.objectContaining({ timeout: 10_000, limit: 100 }),
     );
+  });
+
+  it("keeps snapshots callable when passed as a callback", async () => {
+    const archive = createArchive(successProvider("callback", []), { cache: false });
+    const snapshots = archive.snapshots;
+
+    await expect(snapshots("example.com")).resolves.toMatchObject({
+      success: true,
+      pages: [],
+    });
+  });
+});
+
+describe("Archive.resolveProviders", () => {
+  it("isolates provider state from caller-owned arrays", async () => {
+    const input = [successProvider("a", []), successProvider("b", [])];
+    const archive = new Archive(input);
+
+    input.pop();
+    const resolved = await archive.resolveProviders();
+    expect(resolved).toHaveLength(2);
+
+    resolved.pop();
+    await expect(archive.resolveProviders()).resolves.toHaveLength(2);
   });
 });
 
