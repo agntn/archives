@@ -18,8 +18,10 @@ export abstract class BaseProvider<TOptions extends ArchiveOptions = ArchiveOpti
   readonly options: Partial<TOptions>;
 
   constructor(options: Partial<TOptions> = {}) {
-    this.options = options;
-    this.snapshots = this.snapshots.bind(this);
+    this.options = { ...options };
+    if (typeof this.snapshots === "function") {
+      this.snapshots = this.snapshots.bind(this);
+    }
   }
 
   protected resolveOptions(reqOptions: Partial<TOptions> = {}): Promise<TOptions> {
