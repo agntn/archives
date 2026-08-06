@@ -15,13 +15,9 @@ import { BaseProvider } from "./base-provider";
 /**
  * Common Crawl archive provider.
  */
-export class CommonCrawlProvider extends BaseProvider {
+export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
   readonly name = "Common Crawl";
   readonly slug = "commoncrawl";
-
-  constructor(readonly options: Partial<CommonCrawlOptions> = {}) {
-    super(options);
-  }
 
   /**
    * Cache key extension that separates storage entries by collection.
@@ -44,7 +40,7 @@ export class CommonCrawlProvider extends BaseProvider {
     let collectionName: string | undefined;
 
     try {
-      const options = await this.resolveOptions<CommonCrawlOptions>(reqOptions);
+      const options = await this.resolveOptions(reqOptions);
 
       // resolve collection: explicit option, or latest via collinfo.json
       collectionName = options.collection as string | undefined;

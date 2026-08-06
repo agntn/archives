@@ -14,7 +14,7 @@ const UNSUPPORTED_LIST_REASON =
  * retrievable via direct webcitation.org/<id> URLs once a `getById` API is
  * added at the aggregator level.
  */
-export class WebCiteProvider extends BaseProvider {
+export class WebCiteProvider extends BaseProvider<WebCiteOptions> {
   readonly name = "WebCite";
   readonly slug = "webcite";
 

@@ -120,8 +120,13 @@ export class Archive implements ArchiveInterface {
   private resolvedProviders: ArchiveProvider[] | undefined;
 
   constructor(providers: ProviderInput, options?: ArchiveOptions) {
-    this.providersInput = providers;
+    this.providersInput = Array.isArray(providers) ? [...providers] : providers;
     this.options = options;
+    this.resolveProviders = this.resolveProviders.bind(this);
+    this.snapshots = this.snapshots.bind(this);
+    this.getPages = this.getPages.bind(this);
+    this.use = this.use.bind(this);
+    this.useAll = this.useAll.bind(this);
   }
 
   /**
@@ -131,12 +136,12 @@ export class Archive implements ArchiveInterface {
    */
   async resolveProviders(): Promise<ArchiveProvider[]> {
     if (this.resolvedProviders) {
-      return this.resolvedProviders;
+      return [...this.resolvedProviders];
     }
 
     const result = await Promise.resolve(this.providersInput);
-    this.resolvedProviders = Array.isArray(result) ? result : [result];
-    return this.resolvedProviders;
+    this.resolvedProviders = Array.isArray(result) ? [...result] : [result];
+    return [...this.resolvedProviders];
   }
 
   /**
@@ -301,10 +306,9 @@ export class Archive implements ArchiveInterface {
    * // Add another provider later
    * await archive.use(providers.archiveToday())
    *
-   * // Chain calls
-   * await archive
-   *   .use(providers.webcite())
-   *   .use(providers.commoncrawl())
+   * // Await each addition
+   * await archive.use(providers.webcite())
+   * await archive.use(providers.commoncrawl())
    * ```
    */
   async use(provider: ArchiveProvider | Promise<ArchiveProvider>): Promise<ArchiveInterface> {

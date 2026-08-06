@@ -16,13 +16,9 @@ import { BaseProvider } from "./base-provider";
  * Perma.cc requires an API key. When neither init-time nor request-time
  * `apiKey` is provided, `snapshots()` returns an error response.
  */
-export class PermaccProvider extends BaseProvider {
+export class PermaccProvider extends BaseProvider<PermaccOptions> {
   readonly name = "Perma.cc";
   readonly slug = "permacc";
-
-  constructor(readonly options: Partial<PermaccOptions> = {}) {
-    super(options);
-  }
 
   /**
    * Fetch archived snapshots from Perma.cc.
@@ -32,7 +28,7 @@ export class PermaccProvider extends BaseProvider {
     reqOptions: Partial<PermaccOptions> = {},
   ): Promise<ArchiveResponse> {
     try {
-      const options = await this.resolveOptions<PermaccOptions>(reqOptions);
+      const options = await this.resolveOptions(reqOptions);
 
       if (!options.apiKey) {
         throw new Error("API key is required for Perma.cc");

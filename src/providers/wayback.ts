@@ -13,20 +13,16 @@ import { BaseProvider } from "./base-provider";
 /**
  * Wayback Machine archive provider.
  */
-export class WaybackProvider extends BaseProvider {
+export class WaybackProvider extends BaseProvider<WaybackOptions> {
   readonly name = "Internet Archive Wayback Machine";
   readonly slug = "wayback";
-
-  constructor(readonly options: WaybackOptions = {}) {
-    super(options);
-  }
 
   /**
    * Fetch archived snapshots from the Internet Archive Wayback Machine.
    */
   async snapshots(domain: string, reqOptions: WaybackOptions = {}): Promise<ArchiveResponse> {
     try {
-      const options = await this.resolveOptions<WaybackOptions>(reqOptions);
+      const options = await this.resolveOptions(reqOptions);
       const baseUrl = "https://web.archive.org";
       const snapshotUrl = "https://web.archive.org/web";
       const urlPattern = normalizeDomain(domain);

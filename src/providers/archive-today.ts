@@ -1,6 +1,6 @@
 import { consola } from "consola";
 import { $fetch } from "ofetch";
-import { cleanDoubleSlashes } from "ufo";
+import { cleanDoubleSlashes, withoutTrailingSlash } from "ufo";
 import type {
   ArchiveResponse,
   ArchivedPage,
@@ -11,20 +11,15 @@ import {
   createSuccessResponse,
   createErrorResponse,
   normalizeDomain,
-  stripTrailingSlash,
 } from "../utils";
 import { BaseProvider } from "./base-provider";
 
 /**
  * Archive.today archive provider. Uses the Memento timemap endpoint.
  */
-export class ArchiveTodayProvider extends BaseProvider {
+export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
   readonly name = "Archive.today";
   readonly slug = "archive-today";
-
-  constructor(readonly options: ArchiveTodayOptions = {}) {
-    super(options);
-  }
 
   /**
    * Fetch archived snapshots from Archive.today.
@@ -33,7 +28,7 @@ export class ArchiveTodayProvider extends BaseProvider {
     const cleanDomain = normalizeDomain(domain, false);
 
     try {
-      const options = await this.resolveOptions<ArchiveTodayOptions>(reqOptions);
+      const options = await this.resolveOptions(reqOptions);
       const baseURL = "https://archive.is";
       // Memento timemap: https://archive.is/timemap/http://example.com
       const fullUrl = cleanDomain.includes("://") ? cleanDomain : `http://${cleanDomain}`;
@@ -64,12 +59,12 @@ export class ArchiveTodayProvider extends BaseProvider {
             const isoTimestamp = Number.isNaN(parsedDate.getTime())
               ? new Date().toISOString()
               : parsedDate.toISOString();
-            const cleanedUrl = stripTrailingSlash(
+            const cleanedUrl = withoutTrailingSlash(
               cleanDoubleSlashes(
                 origUrl.includes("://") ? origUrl : `https://${origUrl}`,
               ),
             );
-            const cleanedSnapshotUrl = stripTrailingSlash(snapshotUrl);
+            const cleanedSnapshotUrl = withoutTrailingSlash(snapshotUrl);
 
             pages.push({
               url: cleanedUrl,

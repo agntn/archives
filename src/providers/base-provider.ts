@@ -6,22 +6,28 @@ import { mergeOptions } from "../utils";
  * Holds the instance's initial options; concrete providers override
  * `snapshots()` and call `this.resolveOptions(reqOptions)` to get the
  * effective options for a request.
+ *
+ * @template TOptions - Provider-specific options extending the shared archive options.
  */
-export abstract class BaseProvider implements ArchiveProvider {
+export abstract class BaseProvider<TOptions extends ArchiveOptions = ArchiveOptions>
+  implements ArchiveProvider
+{
   abstract readonly name: string;
   abstract readonly slug?: string;
 
-  readonly initOptions: ArchiveOptions;
+  readonly options: Partial<TOptions>;
 
-  constructor(initOptions: ArchiveOptions = {}) {
-    this.initOptions = initOptions;
+  constructor(options: Partial<TOptions> = {}) {
+    this.options = options;
+    this.snapshots = this.snapshots.bind(this);
   }
 
-  protected resolveOptions<T extends ArchiveOptions>(
-    reqOptions: Partial<T> = {},
-  ): Promise<T> {
-    return mergeOptions<T>(this.initOptions as Partial<T>, reqOptions);
+  protected resolveOptions(reqOptions: Partial<TOptions> = {}): Promise<TOptions> {
+    return mergeOptions<TOptions>(this.options, reqOptions);
   }
 
-  abstract snapshots(domain: string, options?: ArchiveOptions): Promise<ArchiveResponse>;
+  abstract snapshots(
+    domain: string,
+    options?: ArchiveOptions,
+  ): Promise<ArchiveResponse>;
 }

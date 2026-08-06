@@ -51,6 +51,16 @@ describe("wayback machine", () => {
     );
   });
 
+  it("keeps snapshots callable when passed as a callback", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    const snapshots = createWayback().snapshots;
+
+    const result = await snapshots("example.com");
+
+    expect(result.success).toBe(true);
+    expect(result.pages).toEqual([]);
+  });
+
   it("handles empty results", async () => {
     // Mock an empty response (only headers, no data rows)
     vi.mocked($fetch).mockResolvedValueOnce([
