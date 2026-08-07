@@ -20,7 +20,7 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
   /**
    * Cache key extension for options that change the CDX result set.
    */
-  cacheKey(options?: ArchiveOptions): string {
+  override cacheKey(options?: ArchiveOptions): string {
     const waybackOptions = options as Partial<WaybackOptions> | undefined;
     const collapse = waybackOptions?.collapse ?? this.options.collapse ?? "timestamp:4";
     const filter = waybackOptions?.filter ?? this.options.filter;
