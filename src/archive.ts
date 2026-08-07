@@ -34,9 +34,9 @@ type ProviderInput =
 /**
  * Combine per-provider responses into a single merged ArchiveResponse.
  *
- * Merges pages, deduplicates matching URLs and timestamps across providers
- * while preserving distinct captures within each provider, joins errors, and
- * propagates unsupported operations into `_meta`.
+ * Merges pages, deduplicates matching URLs and timestamps across provider
+ * responses, collapses repeated captures within each response, joins errors,
+ * and propagates unsupported operations into `_meta`.
  * The combined response is marked `unsupported` only when *every* queried
  * provider was structurally unsupported.
  *
@@ -48,7 +48,7 @@ export function combineResults(
   limit?: number,
 ): ArchiveResponse {
   const allPages: ArchivedPage[] = [];
-  const pageProviderByKey = new Map<string, string>();
+  const priorResponsePageKeys = new Set<string>();
   const errors: string[] = [];
   const unsupportedProviders: UnsupportedProviderRecord[] = [];
   let anySuccess = false;
@@ -57,12 +57,30 @@ export function combineResults(
     const providerSlug = response._meta?.provider ?? "unknown";
     if (response.success) {
       anySuccess = true;
+      const responsePageKeys = new Set<string>();
+      const responseCaptureKeys = new Set<string>();
+
       for (const page of response.pages) {
-        const key = JSON.stringify([page.url, page.timestamp]);
-        const firstProvider = pageProviderByKey.get(key);
-        if (firstProvider !== undefined && firstProvider !== providerSlug) continue;
-        pageProviderByKey.set(key, providerSlug);
+        const pageKey = JSON.stringify([page.url, page.timestamp]);
+        const digest = page._meta.digest;
+        const captureIdentity =
+          typeof digest === "string" && digest.length > 0 ? digest : page.snapshot;
+        const captureKey = JSON.stringify([page.url, page.timestamp, captureIdentity]);
+
+        if (
+          priorResponsePageKeys.has(pageKey) ||
+          responseCaptureKeys.has(captureKey)
+        ) {
+          continue;
+        }
+
+        responsePageKeys.add(pageKey);
+        responseCaptureKeys.add(captureKey);
         allPages.push(page);
+      }
+
+      for (const pageKey of responsePageKeys) {
+        priorResponsePageKeys.add(pageKey);
       }
     } else if (response.unsupported) {
       unsupportedProviders.push({
