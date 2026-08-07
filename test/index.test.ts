@@ -125,7 +125,6 @@ describe("Archive.resolveProviders", () => {
   });
 });
 
-
 describe("combineResults / deduplication", () => {
   it("keeps the first provider page for duplicate URL and timestamp before limiting", async () => {
     const first = successProvider("first", [
@@ -142,6 +141,29 @@ describe("combineResults / deduplication", () => {
     expect(response.pages.map((page) => page.snapshot)).toEqual([
       "https://archive.example/first",
       "https://archive.example/older",
+    ]);
+  });
+
+  it("preserves distinct captures from the same provider at the same timestamp", async () => {
+    const commonCrawl = successProvider("commoncrawl", [
+      {
+        ...samplePage("commoncrawl-a"),
+        _meta: { provider: "commoncrawl", digest: "digest-a" },
+      },
+      {
+        ...samplePage("commoncrawl-b"),
+        _meta: { provider: "commoncrawl", digest: "digest-b" },
+      },
+    ]);
+    const archive = createArchive([commonCrawl, successProvider("other", [])], {
+      cache: false,
+    });
+
+    const response = await archive.snapshots("example.com");
+
+    expect(response.pages.map((page) => page.snapshot)).toEqual([
+      "https://archive.example/commoncrawl-a",
+      "https://archive.example/commoncrawl-b",
     ]);
   });
 });

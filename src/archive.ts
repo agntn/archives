@@ -34,9 +34,9 @@ type ProviderInput =
 /**
  * Combine per-provider responses into a single merged ArchiveResponse.
  *
- * Merges pages, deduplicates them by URL and timestamp while preserving the
- * first provider's entry, joins errors, and propagates unsupported operations
- * into `_meta`.
+ * Merges pages, deduplicates matching URLs and timestamps across providers
+ * while preserving distinct captures within each provider, joins errors, and
+ * propagates unsupported operations into `_meta`.
  * The combined response is marked `unsupported` only when *every* queried
  * provider was structurally unsupported.
  *
@@ -48,7 +48,7 @@ export function combineResults(
   limit?: number,
 ): ArchiveResponse {
   const allPages: ArchivedPage[] = [];
-  const seenPageKeys = new Set<string>();
+  const pageProviderByKey = new Map<string, string>();
   const errors: string[] = [];
   const unsupportedProviders: UnsupportedProviderRecord[] = [];
   let anySuccess = false;
@@ -59,8 +59,9 @@ export function combineResults(
       anySuccess = true;
       for (const page of response.pages) {
         const key = JSON.stringify([page.url, page.timestamp]);
-        if (seenPageKeys.has(key)) continue;
-        seenPageKeys.add(key);
+        const firstProvider = pageProviderByKey.get(key);
+        if (firstProvider !== undefined && firstProvider !== providerSlug) continue;
+        pageProviderByKey.set(key, providerSlug);
         allPages.push(page);
       }
     } else if (response.unsupported) {
