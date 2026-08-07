@@ -34,8 +34,9 @@ type ProviderInput =
 /**
  * Combine per-provider responses into a single merged ArchiveResponse.
  *
- * Merges pages (deduping nothing – duplicates are the caller's filter problem),
- * joins errors, and propagates the unsupported-operations list into `_meta`.
+ * Merges pages, deduplicates matching URLs and timestamps across provider
+ * responses, collapses repeated captures within each response, joins errors,
+ * and propagates unsupported operations into `_meta`.
  * The combined response is marked `unsupported` only when *every* queried
  * provider was structurally unsupported.
  *
@@ -47,6 +48,7 @@ export function combineResults(
   limit?: number,
 ): ArchiveResponse {
   const allPages: ArchivedPage[] = [];
+  const priorResponsePageKeys = new Set<string>();
   const errors: string[] = [];
   const unsupportedProviders: UnsupportedProviderRecord[] = [];
   let anySuccess = false;
@@ -55,7 +57,31 @@ export function combineResults(
     const providerSlug = response._meta?.provider ?? "unknown";
     if (response.success) {
       anySuccess = true;
-      allPages.push(...response.pages);
+      const responsePageKeys = new Set<string>();
+      const responseCaptureKeys = new Set<string>();
+
+      for (const page of response.pages) {
+        const pageKey = JSON.stringify([page.url, page.timestamp]);
+        const digest = page._meta.digest;
+        const captureIdentity =
+          typeof digest === "string" && digest.length > 0 ? digest : page.snapshot;
+        const captureKey = JSON.stringify([page.url, page.timestamp, captureIdentity]);
+
+        if (
+          priorResponsePageKeys.has(pageKey) ||
+          responseCaptureKeys.has(captureKey)
+        ) {
+          continue;
+        }
+
+        responsePageKeys.add(pageKey);
+        responseCaptureKeys.add(captureKey);
+        allPages.push(page);
+      }
+
+      for (const pageKey of responsePageKeys) {
+        priorResponsePageKeys.add(pageKey);
+      }
     } else if (response.unsupported) {
       unsupportedProviders.push({
         provider: providerSlug,
