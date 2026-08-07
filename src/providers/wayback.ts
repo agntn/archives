@@ -1,5 +1,5 @@
 import { $fetch } from "ofetch";
-import type { ArchiveResponse, ArchivedPage } from "../types";
+import type { ArchiveOptions, ArchiveResponse, ArchivedPage } from "../types";
 import type { WaybackOptions } from "../_providers";
 import {
   normalizeDomain,
@@ -16,6 +16,20 @@ import { BaseProvider } from "./base-provider";
 export class WaybackProvider extends BaseProvider<WaybackOptions> {
   readonly name = "Internet Archive Wayback Machine";
   readonly slug = "wayback";
+
+  /**
+   * Cache key extension for options that change the CDX result set.
+   */
+  cacheKey(options?: ArchiveOptions): string {
+    const waybackOptions = options as Partial<WaybackOptions> | undefined;
+    const collapse = waybackOptions?.collapse ?? this.options.collapse ?? "timestamp:4";
+    const filter = waybackOptions?.filter ?? this.options.filter;
+    const parts = [`collapse=${encodeURIComponent(collapse)}`];
+
+    if (filter !== undefined) parts.push(`filter=${encodeURIComponent(filter)}`);
+
+    return parts.join(":");
+  }
 
   /**
    * Fetch archived snapshots from the Internet Archive Wayback Machine.

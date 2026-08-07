@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { $fetch } from "ofetch";
 import { createArchive, resetConfig, storage } from "../src";
 import createWayback from "../src/providers/wayback";
+import type { WaybackOptions } from "../src/_providers";
 
 vi.mock("ofetch", () => ({
   $fetch: vi.fn(),
@@ -96,6 +97,40 @@ describe("wayback machine", () => {
         }),
       }),
     );
+  });
+
+  it("separates cache entries for CDX collapse and filter options", async () => {
+    vi.mocked($fetch)
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/digest", "20220101000000", "200"],
+      ])
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/year", "20220101000000", "200"],
+      ])
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/not-found", "20220101000000", "200"],
+      ]);
+
+    const archive = createArchive(
+      createWayback({ collapse: "digest", filter: "statuscode:200" }),
+    );
+    const byYear: WaybackOptions = { collapse: "timestamp:4" };
+    const notFound: WaybackOptions = { filter: "statuscode:404" };
+
+    const first = await archive.snapshots("example.com");
+    const second = await archive.snapshots("example.com", byYear);
+    const third = await archive.snapshots("example.com", notFound);
+    const cachedFirst = await archive.snapshots("example.com");
+
+    expect(first.pages[0].url).toBe("https://example.com/digest");
+    expect(second.pages[0].url).toBe("https://example.com/year");
+    expect(third.pages[0].url).toBe("https://example.com/not-found");
+    expect(cachedFirst.fromCache).toBe(true);
+    expect(cachedFirst.pages[0].url).toBe("https://example.com/digest");
+    expect($fetch).toHaveBeenCalledTimes(3);
   });
 
   it("returns an error response when fetching fails", async () => {
