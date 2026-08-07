@@ -65,6 +65,54 @@ describe("Config", () => {
     expect(mockedLoadConfig).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["resolveConfig", resolveConfig],
+    ["getConfig", getConfig],
+  ])("should reuse default cache for undefined %s options", async (_name, load) => {
+    await load();
+    mockedLoadConfig.mockClear();
+
+    const config = await load({ cwd: undefined, envName: undefined });
+
+    expect(config).toEqual(defaultMockConfig);
+    expect(mockedLoadConfig).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["resolveConfig", resolveConfig],
+    ["getConfig", getConfig],
+  ])("should isolate explicit %s options from the default cache", async (_name, load) => {
+    const firstConfig: OmnichronConfig = {
+      ...defaultMockConfig,
+      storage: {
+        ...defaultMockConfig.storage,
+        prefix: "first-prefix",
+      },
+    };
+    const secondConfig: OmnichronConfig = {
+      ...defaultMockConfig,
+      storage: {
+        ...defaultMockConfig.storage,
+        prefix: "second-prefix",
+      },
+    };
+    mockedLoadConfig
+      .mockResolvedValueOnce({ config: firstConfig })
+      .mockResolvedValueOnce({ config: secondConfig })
+      .mockResolvedValueOnce({ config: { ...defaultMockConfig } });
+
+    const first = await load({ cwd: "/first/path" });
+    const second = await load({ cwd: "/second/path" });
+    const defaultConfig = await load();
+    const cachedDefaultConfig = await load();
+
+    expect(first.storage.prefix).toBe("first-prefix");
+    expect(second.storage.prefix).toBe("second-prefix");
+    expect(defaultConfig.storage.prefix).toBe("test-prefix");
+    expect(cachedDefaultConfig.storage.prefix).toBe("test-prefix");
+    expect(mockedLoadConfig).toHaveBeenCalledTimes(3);
+  });
+
   it("should reset config cache", async () => {
     // Arrange
     await getConfig(); // Cache the configuration
