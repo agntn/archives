@@ -125,6 +125,27 @@ describe("Archive.resolveProviders", () => {
   });
 });
 
+
+describe("combineResults / deduplication", () => {
+  it("keeps the first provider page for duplicate URL and timestamp before limiting", async () => {
+    const first = successProvider("first", [
+      { ...samplePage("first"), timestamp: "2023-01-02T00:00:00Z" },
+    ]);
+    const second = successProvider("second", [
+      { ...samplePage("second"), timestamp: "2023-01-02T00:00:00Z" },
+      { ...samplePage("older"), timestamp: "2023-01-01T00:00:00Z" },
+    ]);
+    const archive = createArchive([first, second], { cache: false });
+
+    const response = await archive.snapshots("example.com", { limit: 2 });
+
+    expect(response.pages.map((page) => page.snapshot)).toEqual([
+      "https://archive.example/first",
+      "https://archive.example/older",
+    ]);
+  });
+});
+
 // --- combineResults: unsupported propagation ---
 
 describe("combineResults / unsupported propagation", () => {
