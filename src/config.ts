@@ -70,8 +70,8 @@ export async function resolveConfig(
     rcFile?: string;
   } = {},
 ): Promise<OmnichronConfig> {
-  // Return cached config if already resolved
-  if (cachedConfig) {
+  const shouldCache = Object.keys(options).length === 0;
+  if (shouldCache && cachedConfig) {
     return cachedConfig;
   }
 
@@ -93,8 +93,9 @@ export async function resolveConfig(
   // Apply post-processing
   const resolvedConfig = await postProcessConfig(config as OmnichronConfig, defaults);
 
-  // Cache resolved config
-  cachedConfig = resolvedConfig;
+  if (shouldCache) {
+    cachedConfig = resolvedConfig;
+  }
 
   return resolvedConfig;
 }
@@ -141,8 +142,5 @@ export function resetConfig(): void {
 export async function getConfig(
   options?: Parameters<typeof resolveConfig>[0],
 ): Promise<OmnichronConfig> {
-  if (cachedConfig) {
-    return cachedConfig;
-  }
   return resolveConfig(options);
 }

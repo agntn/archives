@@ -65,6 +65,29 @@ describe("Config", () => {
     expect(mockedLoadConfig).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["resolveConfig", resolveConfig],
+    ["getConfig", getConfig],
+  ])("should not reuse cached config for explicit %s options", async (_name, load) => {
+    const otherConfig: OmnichronConfig = {
+      ...defaultMockConfig,
+      storage: {
+        ...defaultMockConfig.storage,
+        prefix: "other-prefix",
+      },
+    };
+    mockedLoadConfig
+      .mockResolvedValueOnce({ config: { ...defaultMockConfig } })
+      .mockResolvedValueOnce({ config: otherConfig });
+
+    const first = await load({ cwd: "/first/path" });
+    const second = await load({ cwd: "/second/path" });
+
+    expect(first.storage.prefix).toBe("test-prefix");
+    expect(second.storage.prefix).toBe("other-prefix");
+    expect(mockedLoadConfig).toHaveBeenCalledTimes(2);
+  });
+
   it("should reset config cache", async () => {
     // Arrange
     await getConfig(); // Cache the configuration
