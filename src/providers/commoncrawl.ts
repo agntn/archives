@@ -1,7 +1,7 @@
 import { consola } from "consola";
 import { $fetch } from "ofetch";
 import { cleanDoubleSlashes } from "ufo";
-import type { ArchiveResponse, ArchivedPage, CommonCrawlMetadata } from "../types";
+import type { ArchiveOptions, ArchiveResponse, ArchivedPage, CommonCrawlMetadata } from "../types";
 import type { CommonCrawlOptions } from "../_providers";
 import {
   waybackTimestampToISO,
@@ -22,7 +22,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
   /**
    * Cache key extension that separates storage entries by collection.
    */
-  cacheKey(options?: import("../types").ArchiveOptions): string | undefined {
+  override cacheKey(options?: ArchiveOptions): string | undefined {
     const collection =
       (options as Partial<CommonCrawlOptions> | undefined)?.collection ?? this.options.collection;
     return collection === undefined ? undefined : `collection=${encodeURIComponent(collection)}`;

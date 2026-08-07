@@ -14,6 +14,9 @@ export abstract class BaseProvider<TOptions extends ArchiveOptions = ArchiveOpti
 {
   abstract readonly name: string;
   abstract readonly slug?: string;
+  cacheKey(_options?: ArchiveOptions): string | undefined {
+    return undefined;
+  }
 
   readonly options: Partial<TOptions>;
 
