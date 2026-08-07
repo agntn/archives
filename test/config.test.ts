@@ -68,6 +68,19 @@ describe("Config", () => {
   it.each([
     ["resolveConfig", resolveConfig],
     ["getConfig", getConfig],
+  ])("should reuse default cache for undefined %s options", async (_name, load) => {
+    await load();
+    mockedLoadConfig.mockClear();
+
+    const config = await load({ cwd: undefined, envName: undefined });
+
+    expect(config).toEqual(defaultMockConfig);
+    expect(mockedLoadConfig).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["resolveConfig", resolveConfig],
+    ["getConfig", getConfig],
   ])("should isolate explicit %s options from the default cache", async (_name, load) => {
     const firstConfig: OmnichronConfig = {
       ...defaultMockConfig,

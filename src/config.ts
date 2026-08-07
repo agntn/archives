@@ -70,7 +70,7 @@ export async function resolveConfig(
     rcFile?: string;
   } = {},
 ): Promise<OmnichronConfig> {
-  const shouldCache = Object.keys(options).length === 0;
+  const shouldCache = Object.values(options).every((value) => value === undefined);
   if (shouldCache && cachedConfig) {
     return cachedConfig;
   }
