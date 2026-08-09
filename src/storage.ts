@@ -42,10 +42,7 @@ function getExpiresAt(ttl: ArchiveOptions["ttl"]): number | undefined {
   return Date.now() + Math.max(0, ttl);
 }
 
-function getCacheKeyParts(
-  provider: CacheKeyProvider,
-  options?: ArchiveOptions,
-): string[] {
+function getCacheKeyParts(provider: CacheKeyProvider, options?: ArchiveOptions): string[] {
   const parts: string[] = [];
 
   if (options?.limit !== undefined) parts.push(`limit=${options.limit}`);
@@ -88,10 +85,9 @@ export function generateStorageKey(
   options?: ArchiveOptions,
 ): string {
   const providerKey = provider.slug ?? provider.name;
-  const baseKey = `${storagePrefix}:${providerKey}:${domain}`;
-  const cacheKeyParts = getCacheKeyParts(provider, options);
+  const keyParts = [providerKey, domain, ...getCacheKeyParts(provider, options)];
 
-  return cacheKeyParts.length === 0 ? baseKey : `${baseKey}:${cacheKeyParts.join(":")}`;
+  return `${storagePrefix}:${JSON.stringify(keyParts)}`;
 }
 
 /**
@@ -190,7 +186,7 @@ export async function clearProviderStorage(
     }
 
     const providerKey = typeof provider === "string" ? provider : (provider.slug ?? provider.name);
-    const providerPrefix = `${storagePrefix}:${providerKey}:`;
+    const providerPrefix = `${storagePrefix}:[${JSON.stringify(providerKey)},`;
     const keys = await storage.getKeys();
 
     for (const key of keys) {
