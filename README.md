@@ -54,11 +54,14 @@ const archive = createArchive(
 
 ### Perma.cc
 
-Perma.cc requires an API key:
+Perma.cc requires an API key and searches archives accessible to that account by exact submitted URL:
 
 ```ts
 const archive = createArchive(providers.permacc({ apiKey: "YOUR_API_KEY" }));
+const response = await archive.snapshots("https://example.com/page");
 ```
+
+A bare domain such as `example.com` is normalized to `https://example.com/`. It does not match every path on that domain.
 
 ### Error handling
 
@@ -95,7 +98,7 @@ try {
 | Wayback Machine | `providers.wayback()`      | web.archive.org CDX API                   |
 | Archive.today   | `providers.archiveToday()` | archive.ph via Memento timemap            |
 | Common Crawl    | `providers.commoncrawl()`  | Defaults to latest collection             |
-| Perma.cc        | `providers.permacc()`      | Requires `apiKey`                         |
+| Perma.cc        | `providers.permacc()`      | Requires `apiKey`; exact URL lookup only  |
 | WebCite         | `providers.webcite()`      | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019). |
 | All             | `providers.all()`          | All of the above except Perma.cc          |
 

@@ -56,7 +56,7 @@ function loadOmnichron(): Promise<OmnichronModule> {
 }
 
 const PROVIDERS = ["auto", "all", "wayback", "archiveToday", "commoncrawl", "webcite", "permacc"] as const;
-const PROVIDER_HINT = `Provider to use. One of: ${PROVIDERS.join(", ")}. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Perma.cc requires an API key from an environment variable.`;
+const PROVIDER_HINT = `Provider to use. One of: ${PROVIDERS.join(", ")}. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 const PERMACC_API_KEY_ENVS = ["PERMA_CC_API_KEY", "PERMACC_API_KEY"] as const;
@@ -92,7 +92,7 @@ export default function omnichronExtension(pi: ExtensionAPI) {
 		name: "omnichron",
 		label: "Omnichron Snapshots",
 		description:
-			"Read-only/open-world network fetch: query web archive providers for archived snapshots of a domain or URL. Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all fans out to Wayback Machine, Archive.today, Common Crawl, and WebCite; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY.",
+			"Read-only/open-world network fetch: query web archive providers for archived snapshots of a domain or URL. Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all fans out to Wayback Machine, Archive.today, Common Crawl, and WebCite; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY and searches one exact URL.",
 		promptSnippet: "Find archived snapshots with omnichron; use provider=all for broad coverage and provider=wayback for fast Wayback-only lookup.",
 		promptGuidelines: [
 			"Use omnichron when the user asks for archived pages, Wayback/Common Crawl/Archive.today evidence, or historical snapshots of a URL/domain.",
@@ -324,8 +324,8 @@ function getProviderStatuses(): ProviderStatus[] {
 			requiresApiKey: true,
 			configured: permaccConfigured,
 			note: permaccConfigured
-				? `${envName} is set; provider=permacc reads only fixed Perma.cc env names.`
-				: `${PERMACC_API_KEY_ENVS.join("/")} is not set; provider=permacc needs one of them.`,
+				? `${envName} is set; provider=permacc searches this account for one exact URL.`
+				: `${PERMACC_API_KEY_ENVS.join("/")} is not set; provider=permacc needs one of them and an exact URL.`,
 		},
 	];
 }
