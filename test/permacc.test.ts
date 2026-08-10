@@ -67,6 +67,7 @@ describe("Perma.cc Platform", () => {
       snapshot: "https://perma.cc/ABC123",
       _meta: {
         guid: "ABC123",
+        timestamp: "2023-01-01T12:00:00Z",
         title: "Example Page",
         status: "success",
         created_by: "1",
@@ -152,6 +153,30 @@ describe("Perma.cc Platform", () => {
 
     expect(result.success).toBe(true);
     expect(result.pages).toEqual([]);
+  });
+
+  it("rejects impossible calendar timestamps", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce(
+      permaResponse({ creationTimestamp: "2023-02-29T12:00:00Z" }),
+    );
+    const permacc = createPermacc({ apiKey: "test_key" });
+
+    const result = await permacc.snapshots("example.com");
+
+    expect(result.success).toBe(true);
+    expect(result.pages).toEqual([]);
+  });
+
+  it("accepts leap-day timestamps in leap years", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce(
+      permaResponse({ creationTimestamp: "2024-02-29T12:00:00Z" }),
+    );
+    const permacc = createPermacc({ apiKey: "test_key" });
+
+    const result = await permacc.snapshots("example.com");
+
+    expect(result.success).toBe(true);
+    expect(result.pages[0]?.timestamp).toBe("2024-02-29T12:00:00.000Z");
   });
 
   it("returns an error response for an invalid API payload", async () => {

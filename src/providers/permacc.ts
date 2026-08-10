@@ -31,6 +31,32 @@ function normalizeExactUrl(input: string): string {
   return url.href;
 }
 
+const ISO_TIMESTAMP_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+function parseCreationTimestamp(value: string): string | undefined {
+  const match = ISO_TIMESTAMP_PATTERN.exec(value);
+  if (!match) return undefined;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) {
+    return undefined;
+  }
+
+  const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const hasThirtyDays = month === 4 || month === 6 || month === 9 || month === 11;
+  const daysInMonth = month === 2 ? (isLeapYear ? 29 : 28) : hasThirtyDays ? 30 : 31;
+  if (day < 1 || day > daysInMonth) return undefined;
+
+  const timestamp = new Date(value);
+  return Number.isFinite(timestamp.getTime()) ? timestamp.toISOString() : undefined;
+}
+
 function mapArchive(value: unknown): ArchivedPage | undefined {
   if (
     typeof value !== "object" ||
@@ -52,8 +78,8 @@ function mapArchive(value: unknown): ArchivedPage | undefined {
     return undefined;
   }
 
-  const timestamp = new Date(creationTimestamp);
-  if (!Number.isFinite(timestamp.getTime())) return undefined;
+  const timestamp = parseCreationTimestamp(creationTimestamp);
+  if (!timestamp) return undefined;
 
   let archivedUrl: string;
   try {
@@ -62,7 +88,7 @@ function mapArchive(value: unknown): ArchivedPage | undefined {
     return undefined;
   }
 
-  const metadata: ArchivedPage["_meta"] = { guid };
+  const metadata: ArchivedPage["_meta"] = { guid, timestamp: creationTimestamp };
   if ("title" in value && typeof value.title === "string") metadata.title = value.title;
   if ("status" in value && typeof value.status === "string") metadata.status = value.status;
 
@@ -79,7 +105,7 @@ function mapArchive(value: unknown): ArchivedPage | undefined {
 
   return {
     url: archivedUrl,
-    timestamp: timestamp.toISOString(),
+    timestamp,
     snapshot: `https://perma.cc/${encodeURIComponent(guid)}`,
     _meta: metadata,
   };
