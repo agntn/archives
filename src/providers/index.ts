@@ -1,6 +1,7 @@
 import type { ArchiveOptions, ArchiveProvider } from "../types";
 import type {
   WaybackOptions,
+  ArchiveItOptions,
   ArchiveTodayOptions,
   PermaccOptions,
   CommonCrawlOptions,
@@ -24,6 +25,20 @@ export const providers = {
   async wayback(options?: WaybackOptions): Promise<ArchiveProvider> {
     const { WaybackProvider } = await import("./wayback");
     return new WaybackProvider(options);
+  },
+
+  /**
+   * Creates an Archive-It provider for one collection.
+   * @param options - Configuration including the required Archive-It collection ID
+   * @returns The Archive-It provider
+   * @example
+   * ```js
+   * const archiveItProvider = providers.archiveIt({ collection: 4399 })
+   * ```
+   */
+  async archiveIt(options: ArchiveItOptions): Promise<ArchiveProvider> {
+    const { ArchiveItProvider } = await import("./archive-it");
+    return new ArchiveItProvider(options);
   },
 
   /**
@@ -84,7 +99,7 @@ export const providers = {
 
   /**
    * Helper to initialize all commonly used providers at once.
-   * Note: Perma.cc is excluded as it requires an API key.
+   * Note: Archive-It is excluded because it requires a collection ID; Perma.cc requires an API key.
    * @param options - Common configuration options for all providers
    * @returns An array of all common providers
    * @example
@@ -99,7 +114,7 @@ export const providers = {
       this.archiveToday(options),
       this.commoncrawl(options),
       this.webcite(options),
-      // permacc excluded as it requires API key
+      // Archive-It requires a collection ID; Perma.cc requires an API key.
     ]);
   },
 };
