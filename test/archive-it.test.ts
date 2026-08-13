@@ -24,6 +24,12 @@ describe("Archive-It", () => {
     );
   });
 
+  it("does not duplicate a request limit in its provider cache key", () => {
+    expect(createArchiveIt({ collection: 4399, limit: 25 }).cacheKey({ limit: 10 })).toBe(
+      "collection=4399",
+    );
+  });
+
   it("lists pages from a collection CDX index", async () => {
     vi.mocked($fetch).mockResolvedValueOnce(
       [
