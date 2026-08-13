@@ -110,11 +110,12 @@ await archive.use(providers.archiveToday());
 await archive.useAll([providers.commoncrawl(), providers.webcite()]);
 ```
 
-## Pi extension
+## Agent extensions
 
-`@agntn/archives` ships with a [pi](https://pi.dev) extension. Install the package from GitHub:
+`@agntn/archives` ships native extensions for [OMP](https://omp.sh) and [Pi](https://pi.dev). Install the package directly from GitHub with the matching host:
 
 ```bash
+omp install github:agntn/archives
 pi install git:github.com/agntn/archives
 ```
 

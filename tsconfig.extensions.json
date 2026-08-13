@@ -12,6 +12,6 @@
     "declarationMap": false,
     "sourceMap": false
   },
-  "include": ["packages/pi/extensions/**/*.ts"],
+  "include": ["packages/pi/extensions/**/*.ts", "packages/omp/extensions/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
