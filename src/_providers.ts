@@ -5,6 +5,14 @@ export interface WaybackOptions extends ArchiveOptions {
   filter?: string;
 }
 
+export interface ArchiveItOptions extends ArchiveOptions {
+  collection: number | string;
+  collapse?: string;
+  filter?: string;
+  from?: string;
+  to?: string;
+}
+
 export type ArchiveTodayOptions = ArchiveOptions;
 
 export interface PermaccOptions extends ArchiveOptions {

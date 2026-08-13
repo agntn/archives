@@ -64,12 +64,13 @@ const PROVIDERS = [
   "auto",
   "all",
   "wayback",
+  "archiveIt",
   "archiveToday",
   "commoncrawl",
   "webcite",
   "permacc",
 ] as const;
-const PROVIDER_HINT = `Provider to use. One of: ${PROVIDERS.join(", ")}. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
+const PROVIDER_HINT = `Provider to use. One of: ${PROVIDERS.join(", ")}. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Archive-It requires a numeric collection id. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 const PERMACC_API_KEY_ENVS = ["PERMA_CC_API_KEY", "PERMACC_API_KEY"] as const;
@@ -105,7 +106,10 @@ const snapshotParameters = Type.Object({
     Type.Number({ description: "Retry attempts for failed requests.", minimum: 0 }),
   ),
   collection: Type.Optional(
-    Type.String({ description: "Common Crawl collection id, e.g. CC-MAIN-latest." }),
+    Type.String({
+      description:
+        "Archive-It numeric collection id, or Common Crawl collection id such as CC-MAIN-latest.",
+    }),
   ),
   collapse: Type.Optional(
     Type.String({ description: "Wayback CDX collapse parameter, e.g. timestamp:4." }),
@@ -256,6 +260,16 @@ async function createProvider(
 ): Promise<ArchiveProvider | ArchiveProvider[]> {
   if (provider === "all") return archives.providers.all(options);
   if (provider === "wayback") return archives.providers.wayback(options);
+  if (provider === "archiveIt") {
+    const collection = options.collection?.trim();
+    if (collection === undefined || !/^\d+$/.test(collection)) {
+      throw new Error("provider=archiveIt requires a numeric collection id.");
+    }
+    return archives.providers.archiveIt({
+      ...options,
+      collection,
+    });
+  }
   if (provider === "archiveToday") return archives.providers.archiveToday(options);
   if (provider === "commoncrawl") return archives.providers.commoncrawl(options);
   if (provider === "webcite") return archives.providers.webcite(options);
@@ -265,6 +279,7 @@ async function createProvider(
 function normalizeProvider(provider: string | undefined): ProviderName {
   const raw = (provider ?? "auto").trim() || "auto";
   if (raw === "archive-today") return "archiveToday";
+  if (raw === "archive-it") return "archiveIt";
   if (!isKnownProvider(raw)) {
     throw new Error(`Unknown provider "${raw}". Available: ${PROVIDERS.join(", ")}.`);
   }
@@ -339,6 +354,14 @@ function getProviderStatuses(): ProviderStatus[] {
       requiresApiKey: false,
       configured: true,
       note: "Internet Archive CDX API.",
+    },
+    {
+      name: "archiveIt",
+      factory: "providers.archiveIt({ collection })",
+      includedInAll: false,
+      requiresApiKey: false,
+      configured: true,
+      note: "Archive-It collection CDX/C API; requires a numeric collection.",
     },
     {
       name: "archiveToday",

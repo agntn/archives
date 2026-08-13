@@ -9,7 +9,7 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 
 ## Features
 
-- 🔍 **Multiple providers** - Wayback Machine, Archive.today, Common Crawl, Perma.cc, WebCite
+- 🔍 **Multiple providers** - Wayback Machine, Archive-It, Archive.today, Common Crawl, Perma.cc, WebCite
 - 🌳 **Tree-shakable** - providers are lazy-loaded via dynamic imports, bundle only what you use
 - 📦 **Caching built in** - pluggable storage layer via [unstorage](https://github.com/unjs/unstorage) with configurable TTL
 - ⚡ **Parallel queries** - concurrency control, batching, automatic retries, configurable timeouts
@@ -63,6 +63,17 @@ const response = await archive.snapshots("https://example.com/page");
 
 A bare domain such as `example.com` is normalized to `https://example.com/`. It does not match every path on that domain.
 
+### Archive-It
+
+Archive-It queries one public collection at a time through its CDX/C API. Pass the numeric collection ID when creating the provider:
+
+```ts
+const archive = createArchive(providers.archiveIt({ collection: 4399 }));
+const response = await archive.snapshots("archive-it.org");
+```
+
+Archive-It’s all-collections endpoint is temporarily blocked, so `providers.archiveIt()` requires a collection and is not included in `providers.all()`.
+
 ### Error handling
 
 `snapshots()` returns a response object with a `success` flag. If you prefer throwing on failure, use `getPages()`:
@@ -75,7 +86,7 @@ const response = await archive.snapshots("example.com");
 const pages = await archive.getPages("example.com");
 ```
 
-`getPages()` distinguishes runtime failures from structural ones. When every queried provider is *unsupported* for the operation (see below), it throws `UnsupportedOperationError` with the per-provider reasons attached:
+`getPages()` distinguishes runtime failures from structural ones. When every queried provider is _unsupported_ for the operation (see below), it throws `UnsupportedOperationError` with the per-provider reasons attached:
 
 ```ts
 import { UnsupportedOperationError } from "@agntn/archives";
@@ -93,14 +104,15 @@ try {
 
 ## Providers
 
-| Provider        | Factory                    | Notes                                     |
-| --------------- | -------------------------- | ----------------------------------------- |
-| Wayback Machine | `providers.wayback()`      | web.archive.org CDX API                   |
-| Archive.today   | `providers.archiveToday()` | archive.ph via Memento timemap            |
-| Common Crawl    | `providers.commoncrawl()`  | Defaults to latest collection             |
-| Perma.cc        | `providers.permacc()`      | Requires `apiKey`; exact URL lookup only  |
+| Provider        | Factory                    | Notes                                                                                              |
+| --------------- | -------------------------- | -------------------------------------------------------------------------------------------------- |
+| Wayback Machine | `providers.wayback()`      | web.archive.org CDX API                                                                            |
+| Archive-It      | `providers.archiveIt()`    | Requires a numeric `collection`; collection-specific CDX/C API                                     |
+| Archive.today   | `providers.archiveToday()` | archive.ph via Memento timemap                                                                     |
+| Common Crawl    | `providers.commoncrawl()`  | Defaults to latest collection                                                                      |
+| Perma.cc        | `providers.permacc()`      | Requires `apiKey`; exact URL lookup only                                                           |
 | WebCite         | `providers.webcite()`      | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019). |
-| All             | `providers.all()`          | All of the above except Perma.cc          |
+| All             | `providers.all()`          | Wayback, Archive.today, Common Crawl, and WebCite                                                  |
 
 You can add providers dynamically after creation:
 
@@ -160,11 +172,11 @@ Not every provider implements every operation. WebCite, for example, exposes no 
 
 For multi-provider calls, the combined response surfaces unsupported providers under `_meta.unsupportedProviders` regardless of how the rest behaved. The top-level `unsupported` flag has stricter semantics:
 
-| Scenario                                                  | `success` | `error`        | `unsupported` | `_meta.unsupportedProviders` |
-| --------------------------------------------------------- | --------- | -------------- | ------------- | ---------------------------- |
-| Some providers succeed, others are unsupported            | `true`    | —              | —             | populated                    |
-| Some providers error, others are unsupported, none succeed | `false`   | joined errors  | —             | populated                    |
-| Every queried provider is unsupported                     | `false`   | —              | `true`         | populated                    |
+| Scenario                                                   | `success` | `error`       | `unsupported` | `_meta.unsupportedProviders` |
+| ---------------------------------------------------------- | --------- | ------------- | ------------- | ---------------------------- |
+| Some providers succeed, others are unsupported             | `true`    | —             | —             | populated                    |
+| Some providers error, others are unsupported, none succeed | `false`   | joined errors | —             | populated                    |
+| Every queried provider is unsupported                      | `false`   | —             | `true`        | populated                    |
 
 Example:
 
@@ -177,7 +189,7 @@ response._meta?.unsupportedProviders;
 // [{ provider: "webcite", reason: "WebCite has no list-by-domain API. ..." }]
 ```
 
-To treat unsupported providers as a *whole-call* failure, check the top-level flag explicitly: `if (!response.success && response.unsupported) { ... }`.
+To treat unsupported providers as a _whole-call_ failure, check the top-level flag explicitly: `if (!response.success && response.unsupported) { ... }`.
 
 ## Configuration
 
@@ -261,7 +273,7 @@ Options can be set at three levels: config file (global defaults), `createArchiv
 
 ## Roadmap
 
-**Providers:** Archive-It, Conifer (formerly Webrecorder)
+**Providers:** Conifer (formerly Webrecorder)
 
 **Features:** Page archiving API for creating archives, not just reading them
 

@@ -1,7 +1,12 @@
 import * as TypeBox from "@oh-my-pi/omptype/typebox";
+import { $fetch } from "ofetch";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import archivesOmpExtension from "../packages/omp/extensions/archives.js";
+
+vi.mock("ofetch", () => ({
+  $fetch: vi.fn(),
+}));
 
 class TestText {
   constructor(private readonly text: string) {}
@@ -54,6 +59,10 @@ function accepts(tool: ToolDefinition, value: unknown): boolean {
 const unusedContext = {} as ExtensionContext;
 
 describe("archives OMP extension", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   it("registers read-only tools and interactive commands", () => {
     const { label, tools, commands } = registerExtension();
 
@@ -72,6 +81,43 @@ describe("archives OMP extension", () => {
     expect(accepts(tool, { target: "example.com", retries: 0.5 })).toBe(false);
     expect(accepts(tool, { target: "example.com", ttl: 0.5 })).toBe(false);
     expect(accepts(tool, { target: "example.com", timeout: 1.5 })).toBe(false);
+  });
+
+  it("dispatches Archive-It requests with the required collection", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce("https://example.com/ 20220101000000 200");
+    const tool = requireTool(registerExtension().tools, "archives");
+
+    const result = await tool.execute(
+      "test",
+      { target: "example.com", provider: "archiveIt", collection: " 4399 ", cache: false },
+      undefined,
+      undefined,
+      unusedContext,
+    );
+
+    expect($fetch).toHaveBeenCalledWith(
+      "/4399/timemap/cdx",
+      expect.objectContaining({ baseURL: "https://wayback.archive-it.org" }),
+    );
+    expect(result.details).toMatchObject({
+      provider: "archiveIt",
+      response: { success: true, _meta: { provider: "archive-it" } },
+    });
+  });
+
+  it("rejects Archive-It requests without a collection", async () => {
+    const tool = requireTool(registerExtension().tools, "archives");
+
+    await expect(
+      tool.execute(
+        "test",
+        { target: "example.com", provider: "archiveIt" },
+        undefined,
+        undefined,
+        unusedContext,
+      ),
+    ).rejects.toThrow("provider=archiveIt requires a numeric collection id");
+    expect($fetch).not.toHaveBeenCalled();
   });
 
   it("removes terminal control bytes from rendered untrusted arguments", () => {
@@ -104,6 +150,7 @@ describe("archives OMP extension", () => {
     const text = result.content.find((part) => part.type === "text")?.text;
 
     expect(text).toContain("wayback");
+    expect(text).toContain("archiveIt");
     expect(text).toContain("permacc");
   });
 });
