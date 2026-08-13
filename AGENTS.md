@@ -12,7 +12,7 @@ Unified TypeScript interface for querying web archive providers (Wayback Machine
 ## STRUCTURE
 
 ```
-omnichron/
+archives/
 ├── src/
 │   ├── index.ts          # barrel - public API surface
 │   ├── archive.ts        # createArchive factory + combineResults
@@ -24,7 +24,7 @@ omnichron/
 │   └── utils/            # parallel processing, response helpers, domain normalization
 ├── test/                 # mirrors src/ structure, one .test.ts per module
 ├── packages/pi/extensions/
-│   └── omnichron.ts      # Pi tool/command surface shipped via package.json pi.extensions
+│   └── archives.ts       # Pi tool/command surface shipped via package.json pi.extensions
 ├── playground/           # Nuxt app (Cloudflare preset) for manual provider testing
 └── .github/workflows/    # ci.yml + autofix.yml
 ```
@@ -37,13 +37,13 @@ omnichron/
 | Provider-specific options | `src/_providers.ts`                                     | Extend `ArchiveOptions`, add to `ProviderOptions` map                              |
 | Change public API         | `src/index.ts`                                          | Barrel re-exports only. Types via `export type *`                                  |
 | Modify caching            | `src/storage.ts`                                        | Key format: `{prefix}:{providerSlug}:{domain}:{limit?}`                            |
-| Config defaults           | `src/config.ts` → `getDefaultConfig()`                  | c12 loads from `.omnichron`, `omnichron.config.ts`, `package.json`                 |
+| Config defaults           | `src/config.ts` → `getDefaultConfig()`                  | c12 loads from `.archives`, `archives.config.ts`, `package.json`                   |
 | Response helpers          | `src/utils/_utils.ts`                                   | `createSuccessResponse`, `createErrorResponse`, `mergeOptions`                     |
 | Parallel processing       | `src/utils/_utils.ts` → `processInParallel`             | Concurrency + batch control                                                        |
 | CDX row mapping           | `src/utils/_utils.ts` → `mapCdxRows`                    | Wayback/CommonCrawl share CDX format                                               |
 | Test a provider           | `test/{provider}.test.ts`                               | Uses vitest, mocks with `vi.fn()`                                                  |
 | Manual testing            | `playground/server/api/snapshots/`                      | One Nuxt endpoint per provider                                                     |
-| Extend Pi extension       | `packages/pi/extensions/omnichron.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb            |
+| Extend Pi extension       | `packages/pi/extensions/archives.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb            |
 | Integration test          | `test.sh`                                               | Builds lib, then builds playground against it                                      |
 
 ## CODE MAP
@@ -58,14 +58,14 @@ omnichron/
 | `ArchiveResponse`           | interface | types.ts:100          | `{ success, pages, error?, unsupported?, unsupportedReason?, _meta?, fromCache? }`.         |
 | `ArchivedPage`              | interface | types.ts:61           | `{ url, timestamp, snapshot, _meta }`.                                                      |
 | `UnsupportedProviderRecord` | interface | types.ts:84           | `{ provider, reason }` row used in `_meta.unsupportedProviders`.                            |
-| `OmnichronConfig`           | interface | config.ts:8           | Config shape: `storage` + `performance` + env overrides.                                    |
+| `ArchivesConfig`            | interface | config.ts:8           | Config shape: `storage` + `performance` + env overrides.                                    |
 | `processInParallel`         | function  | utils/_utils.ts:16    | Generic parallel executor with concurrency + batching.                                      |
 | `createSuccessResponse`     | function  | utils/_utils.ts       | Build a normalized success `ArchiveResponse`.                                               |
 | `createErrorResponse`       | function  | utils/_utils.ts       | Build a normalized runtime-error `ArchiveResponse`.                                         |
 | `createUnsupportedResponse` | function  | utils/_utils.ts:184   | Build a response signalling the operation is outside the provider's API surface.            |
 | `configureStorage`          | function  | storage.ts:147        | **@deprecated** – use config files or `createArchive` options.                              |
-| `omnichron`                 | Pi tool   | packages/pi/extensions/omnichron.ts | Query archive snapshots through Pi; dynamic-imports package dist with source fallback.       |
-| `omnichron_providers`       | Pi tool   | packages/pi/extensions/omnichron.ts | List provider status and Perma.cc env configuration.                                        |
+| `archives`                  | Pi tool   | packages/pi/extensions/archives.ts | Query archive snapshots through Pi; dynamic-imports package dist with source fallback.       |
+| `archives_providers`        | Pi tool   | packages/pi/extensions/archives.ts | List provider status and Perma.cc env configuration.                                        |
 
 ## CONVENTIONS
 

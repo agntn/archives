@@ -6,7 +6,7 @@
     "build": "nuxt build"
   },
   "dependencies": {
-    "nuxt": "^4.5.2",
-    "omnichron": "link:.."
+    "@agntn/archives": "link:..",
+    "nuxt": "^4.5.2"
   }
 }

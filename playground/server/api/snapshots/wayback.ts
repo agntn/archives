@@ -1,4 +1,4 @@
-import { createArchive, providers } from "omnichron";
+import { createArchive, providers } from "@agntn/archives";
 
 const archive = createArchive(
   providers.wayback({
