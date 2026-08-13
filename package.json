@@ -11,6 +11,7 @@
     "wayback",
     "web-archive",
     "agents",
+    "omp-extension",
     "pi-extension",
     "pi-package"
   ],
@@ -26,7 +27,8 @@
   },
   "files": [
     "dist",
-    "packages/pi/extensions"
+    "packages/pi/extensions",
+    "packages/omp/extensions"
   ],
   "type": "module",
   "sideEffects": false,
@@ -58,6 +60,8 @@
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.84.1",
     "@earendil-works/pi-tui": "0.84.1",
+    "@oh-my-pi/omptype": "17.3.0",
+    "@oh-my-pi/pi-coding-agent": "17.3.0",
     "@types/node": "26.2.0",
     "@vitest/coverage-v8": "4.1.10",
     "changelogen": "0.6.2",
@@ -72,6 +76,11 @@
     "@agntn/archives": "link:."
   },
   "packageManager": "pnpm@10.8.1",
+  "omp": {
+    "extensions": [
+      "./packages/omp/extensions/archives.ts"
+    ]
+  },
   "pi": {
     "extensions": [
       "./packages/pi/extensions/*.ts"
@@ -80,6 +89,8 @@
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
+    "@oh-my-pi/omptype": "*",
+    "@oh-my-pi/pi-coding-agent": "*",
     "typebox": "^1.1.38"
   },
   "peerDependenciesMeta": {
@@ -87,6 +98,12 @@
       "optional": true
     },
     "@earendil-works/pi-tui": {
+      "optional": true
+    },
+    "@oh-my-pi/omptype": {
+      "optional": true
+    },
+    "@oh-my-pi/pi-coding-agent": {
       "optional": true
     },
     "typebox": {
