@@ -1,5 +1,5 @@
 export type * from "./types";
-export type * from "./_providers";
+export type { ArchiveItOptions } from "./_providers";
 export { createArchive, Archive, UnsupportedOperationError, combineResults } from "./archive";
 export { BaseProvider } from "./providers/base-provider";
 export { WaybackProvider } from "./providers/wayback";

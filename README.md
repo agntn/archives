@@ -37,7 +37,7 @@ if (response.success) {
 }
 ```
 
-Query all providers at once with `providers.all()` (excludes Perma.cc since it needs an API key):
+Query all providers at once with `providers.all()` (excludes Archive-It because it needs a collection ID and Perma.cc because it needs an API key):
 
 ```ts
 const archive = createArchive(providers.all());

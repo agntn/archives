@@ -18,6 +18,12 @@ describe("Archive-It", () => {
     expect(createArchiveIt({ collection: " 4399 " }).cacheKey()).toBe("collection=4399");
   });
 
+  it("includes the provider init limit in its cache key", () => {
+    expect(createArchiveIt({ collection: 4399, limit: 25 }).cacheKey()).toBe(
+      "collection=4399:limit=25",
+    );
+  });
+
   it("lists pages from a collection CDX index", async () => {
     vi.mocked($fetch).mockResolvedValueOnce(
       [
