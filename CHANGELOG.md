@@ -1,5 +1,67 @@
 # Changelog
 
+## v0.5.0
+
+[compare changes](https://github.com/agntn/archives/compare/v0.4.0...v0.5.0)
+
+### 🚀 Enhancements
+
+- Add Pi extension ([#17](https://github.com/agntn/archives/pull/17))
+
+### 🩹 Fixes
+
+- Parallel result ordering ([#2](https://github.com/agntn/archives/pull/2))
+- **archive-today:** Respect user options ([#4](https://github.com/agntn/archives/pull/4))
+- **providers:** Move mergeOptions inside try/catch ([#15](https://github.com/agntn/archives/pull/15))
+- Make CDX timestamp parsing deterministic for malformed input ([#14](https://github.com/agntn/archives/pull/14))
+- Honor cache ttl ([c6b7ba9](https://github.com/agntn/archives/commit/c6b7ba9))
+- Include provider cache key parts ([a099413](https://github.com/agntn/archives/commit/a099413))
+- Align provider options with behavior ([a41ae49](https://github.com/agntn/archives/commit/a41ae49))
+- Separate Wayback cache entries ([#19](https://github.com/agntn/archives/pull/19))
+- Deduplicate multi-provider results ([#20](https://github.com/agntn/archives/pull/20))
+- Respect resolveConfig options ([#21](https://github.com/agntn/archives/pull/21))
+- Use authenticated Perma.cc URL lookup ([#23](https://github.com/agntn/archives/pull/23))
+
+### 💅 Refactors
+
+- **types:** Remove unused exported types ([d8089d0](https://github.com/agntn/archives/commit/d8089d0))
+- **providers:** Drop noise comments ([e1bdeca](https://github.com/agntn/archives/commit/e1bdeca))
+- **types:** Replace as any/as unknown as with proper types ([02c19af](https://github.com/agntn/archives/commit/02c19af))
+- Surface unsupported provider operations end-to-end ([968f191](https://github.com/agntn/archives/commit/968f191))
+- Use classes ([#18](https://github.com/agntn/archives/pull/18))
+- ⚠️  Rename package to @agntn/archives ([#24](https://github.com/agntn/archives/pull/24))
+
+### 🏡 Chore
+
+- Update README.md ([7604dd1](https://github.com/agntn/archives/commit/7604dd1))
+- Add CODEOWNERS ([05b9634](https://github.com/agntn/archives/commit/05b9634))
+- Add LICENSE ([6e40870](https://github.com/agntn/archives/commit/6e40870))
+- Add AGENTS.md ([32dd946](https://github.com/agntn/archives/commit/32dd946))
+- Add oxlint, oxfmt, and editorconfig ([#12](https://github.com/agntn/archives/pull/12))
+- Update typescript ([5e88ceb](https://github.com/agntn/archives/commit/5e88ceb))
+- Update vitest ([936b25d](https://github.com/agntn/archives/commit/936b25d))
+- Remove eslint ([9649652](https://github.com/agntn/archives/commit/9649652))
+- Update remaining dependencies ([114a024](https://github.com/agntn/archives/commit/114a024))
+- Update dependencies ([#22](https://github.com/agntn/archives/pull/22))
+
+### ✅ Tests
+
+- Cover provider fetch failures ([e7980f3](https://github.com/agntn/archives/commit/e7980f3))
+
+### 🤖 CI
+
+- Build playground in workflow ([9b89bde](https://github.com/agntn/archives/commit/9b89bde))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Rename package to @agntn/archives ([#24](https://github.com/agntn/archives/pull/24))
+
+### ❤️ Contributors
+
+- Ori ([@oritwoen](https://github.com/oritwoen))
+- Oritwoen ([@oritwoen](https://github.com/oritwoen))
+- Aeitwoen <aeitwoen@gmail.com>
+
 ## v0.4.0
 
 [compare changes](https://github.com/oritwoen/omnichron/compare/v0.3.1...v0.4.0)
