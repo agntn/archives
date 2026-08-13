@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getConfig, resolveConfig, resetConfig } from "../src/config";
 import { loadConfig } from "c12";
 import memoryDriver from "unstorage/drivers/memory";
-import type { OmnichronConfig } from "../src/config";
+import type { ArchivesConfig } from "../src/config";
 
 // Mock loadConfig to avoid file system dependency in tests
 vi.mock("c12", () => ({
@@ -13,7 +13,7 @@ describe("Config", () => {
   const mockedLoadConfig = loadConfig as unknown as ReturnType<typeof vi.fn>;
 
   // Default mock response for loadConfig
-  const defaultMockConfig: OmnichronConfig = {
+  const defaultMockConfig: ArchivesConfig = {
     storage: {
       driver: memoryDriver(),
       cache: true,
@@ -43,10 +43,10 @@ describe("Config", () => {
     expect(config).toEqual(defaultMockConfig);
     expect(mockedLoadConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "omnichron",
+        name: "archives",
         defaults: expect.any(Object),
         envName: expect.any(String),
-        rcFile: ".omnichron",
+        rcFile: ".archives",
         packageJson: true,
       }),
     );
@@ -82,14 +82,14 @@ describe("Config", () => {
     ["resolveConfig", resolveConfig],
     ["getConfig", getConfig],
   ])("should isolate explicit %s options from the default cache", async (_name, load) => {
-    const firstConfig: OmnichronConfig = {
+    const firstConfig: ArchivesConfig = {
       ...defaultMockConfig,
       storage: {
         ...defaultMockConfig.storage,
         prefix: "first-prefix",
       },
     };
-    const secondConfig: OmnichronConfig = {
+    const secondConfig: ArchivesConfig = {
       ...defaultMockConfig,
       storage: {
         ...defaultMockConfig.storage,
@@ -147,7 +147,7 @@ describe("Config", () => {
     // Assert
     expect(mockedLoadConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "omnichron",
+        name: "archives",
         defaults: expect.any(Object),
         envName: "production",
         cwd: "/custom/path",
@@ -193,6 +193,6 @@ describe("Config", () => {
 
     // Assert
     expect(config.storage).toBeDefined();
-    expect(config.storage.prefix).toBe("omnichron"); // Default prefix
+    expect(config.storage.prefix).toBe("archives"); // Default prefix
   });
 });

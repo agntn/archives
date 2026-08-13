@@ -1,9 +1,9 @@
-# omnichron
+# @agntn/archives
 
-[![npm version](https://img.shields.io/npm/v/omnichron?style=flat&colorA=130f40&colorB=474787)](https://npmjs.com/package/omnichron)
-[![npm downloads](https://img.shields.io/npm/dm/omnichron?style=flat&colorA=130f40&colorB=474787)](https://npm.chart.dev/omnichron)
-[![license](https://img.shields.io/github/license/oritwoen/omnichron?style=flat&colorA=130f40&colorB=474787)](https://github.com/oritwoen/omnichron/blob/main/LICENSE)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/oritwoen/omnichron)
+[![npm version](https://img.shields.io/npm/v/%40agntn%2Farchives?style=flat&colorA=130f40&colorB=474787)](https://npmjs.com/package/@agntn/archives)
+[![npm downloads](https://img.shields.io/npm/dm/%40agntn%2Farchives?style=flat&colorA=130f40&colorB=474787)](https://npm.chart.dev/@agntn/archives)
+[![license](https://img.shields.io/github/license/agntn/archives?style=flat&colorA=130f40&colorB=474787)](https://github.com/agntn/archives/blob/main/LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/agntn/archives)
 
 Unified TypeScript interface for querying web archive providers. One API, multiple sources, consistent output.
 
@@ -13,19 +13,19 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 - 🌳 **Tree-shakable** - providers are lazy-loaded via dynamic imports, bundle only what you use
 - 📦 **Caching built in** - pluggable storage layer via [unstorage](https://github.com/unjs/unstorage) with configurable TTL
 - ⚡ **Parallel queries** - concurrency control, batching, automatic retries, configurable timeouts
-- 🔧 **Config files** - supports `omnichron.config.ts`, `.omnichron`, and `package.json` via [c12](https://github.com/unjs/c12)
+- 🔧 **Config files** - supports `archives.config.ts`, `.archives`, and `package.json` via [c12](https://github.com/unjs/c12)
 - 🏷️ **Fully typed** - TypeScript definitions for all responses, options, and provider-specific metadata
 
 ## Install
 
 ```bash
-pnpm add omnichron
+pnpm add @agntn/archives
 ```
 
 ## Usage
 
 ```ts
-import { createArchive, providers } from "omnichron";
+import { createArchive, providers } from "@agntn/archives";
 
 const archive = createArchive(providers.wayback());
 const response = await archive.snapshots("example.com", { limit: 100 });
@@ -78,7 +78,7 @@ const pages = await archive.getPages("example.com");
 `getPages()` distinguishes runtime failures from structural ones. When every queried provider is *unsupported* for the operation (see below), it throws `UnsupportedOperationError` with the per-provider reasons attached:
 
 ```ts
-import { UnsupportedOperationError } from "omnichron";
+import { UnsupportedOperationError } from "@agntn/archives";
 
 try {
   const pages = await archive.getPages("example.com");
@@ -112,16 +112,16 @@ await archive.useAll([providers.commoncrawl(), providers.webcite()]);
 
 ## Pi extension
 
-`omnichron` ships with a [pi](https://pi.dev) extension. Install the package from GitHub:
+`@agntn/archives` ships with a [pi](https://pi.dev) extension. Install the package from GitHub:
 
 ```bash
-pi install git:github.com/oritwoen/omnichron
+pi install git:github.com/agntn/archives
 ```
 
 Tools:
 
-- `omnichron` — query archived snapshots for a domain or URL. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
-- `omnichron_providers` — list built-in archive providers and Perma.cc API-key environment status.
+- `archives` — query archived snapshots for a domain or URL. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
+- `archives_providers` — list built-in archive providers and Perma.cc API-key environment status.
 
 Commands:
 
@@ -180,15 +180,15 @@ To treat unsupported providers as a *whole-call* failure, check the top-level fl
 
 ## Configuration
 
-omnichron loads configuration through [c12](https://github.com/unjs/c12), which means you can configure it via config files, environment overrides, or `package.json`:
+Archives loads configuration through [c12](https://github.com/unjs/c12), which means you can configure it via config files, environment overrides, or `package.json`:
 
 ```ts
-// omnichron.config.ts
+// archives.config.ts
 export default {
   storage: {
     cache: true,
     ttl: 7 * 24 * 60 * 60 * 1000, // 7 days
-    prefix: "omnichron",
+    prefix: "archives",
   },
   performance: {
     concurrency: 3,
@@ -206,7 +206,7 @@ Environment-specific overrides work with `$development`, `$production`, and `$te
 The caching layer is backed by [unstorage](https://github.com/unjs/unstorage), so any unstorage driver works:
 
 ```ts
-import { configureStorage } from "omnichron";
+import { configureStorage } from "@agntn/archives";
 import fsDriver from "unstorage/drivers/fs";
 
 await configureStorage({

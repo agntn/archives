@@ -8,7 +8,7 @@ export const storage: Storage = createStorage({
   driver: memoryDriver(),
 });
 
-let storagePrefix = "omnichron";
+let storagePrefix = "archives";
 let storageInitialized = false;
 
 interface StoredArchiveResponse {

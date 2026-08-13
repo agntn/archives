@@ -1,5 +1,5 @@
 {
-  "name": "omnichron",
+  "name": "@agntn/archives",
   "version": "0.4.0",
   "description": "Unified interface for web archive providers",
   "keywords": [
@@ -14,15 +14,15 @@
     "pi-extension",
     "pi-package"
   ],
-  "homepage": "https://github.com/oritwoen/omnichron",
+  "homepage": "https://github.com/agntn/archives",
   "bugs": {
-    "url": "https://github.com/oritwoen/omnichron/issues"
+    "url": "https://github.com/agntn/archives/issues"
   },
   "license": "MIT",
   "author": "oritwoen",
   "repository": {
     "type": "git",
-    "url": "https://github.com/oritwoen/omnichron"
+    "url": "https://github.com/agntn/archives"
   },
   "files": [
     "dist",
@@ -69,7 +69,7 @@
     "vitest": "4.1.10"
   },
   "resolutions": {
-    "omnichron": "link:."
+    "@agntn/archives": "link:."
   },
   "packageManager": "pnpm@10.8.1",
   "pi": {

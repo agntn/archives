@@ -3,9 +3,9 @@ import type { Driver } from "unstorage";
 import memoryDriver from "unstorage/drivers/memory";
 
 /**
- * Configuration options for Omnichron
+ * Configuration options for Archives
  */
-export interface OmnichronConfig {
+export interface ArchivesConfig {
   // Storage configuration
   storage: {
     // Storage driver to use (default: memoryDriver)
@@ -14,7 +14,7 @@ export interface OmnichronConfig {
     cache?: boolean;
     // TTL in milliseconds (default: 7 days)
     ttl?: number;
-    // Prefix for storage keys (default: 'omnichron')
+    // Prefix for storage keys (default: 'archives')
     prefix?: string;
   };
 
@@ -31,10 +31,10 @@ export interface OmnichronConfig {
   };
 
   // Environment-specific configurations
-  $env?: Record<string, OmnichronConfig>;
-  $development?: OmnichronConfig;
-  $production?: OmnichronConfig;
-  $test?: OmnichronConfig;
+  $env?: Record<string, ArchivesConfig>;
+  $development?: ArchivesConfig;
+  $production?: ArchivesConfig;
+  $test?: ArchivesConfig;
 }
 
 // Default configuration
@@ -44,7 +44,7 @@ const getDefaultConfig = () =>
       driver: memoryDriver(),
       cache: true,
       ttl: 7 * 24 * 60 * 60 * 1000, // 7 days
-      prefix: "omnichron",
+      prefix: "archives",
     },
     performance: {
       concurrency: 3,
@@ -52,24 +52,24 @@ const getDefaultConfig = () =>
       timeout: 10000,
       retries: 1,
     },
-  }) as OmnichronConfig;
+  }) as ArchivesConfig;
 
 // Cache for resolved config
-let cachedConfig: OmnichronConfig | undefined;
+let cachedConfig: ArchivesConfig | undefined;
 
 /**
- * Load Omnichron configuration from all available sources
+ * Load Archives configuration from all available sources
  */
 export async function resolveConfig(
   options: {
     cwd?: string;
-    defaults?: Partial<OmnichronConfig>;
-    overrides?: Partial<OmnichronConfig>;
+    defaults?: Partial<ArchivesConfig>;
+    overrides?: Partial<ArchivesConfig>;
     envName?: string | false;
     configFile?: string;
     rcFile?: string;
   } = {},
-): Promise<OmnichronConfig> {
+): Promise<ArchivesConfig> {
   const shouldCache = Object.values(options).every((value) => value === undefined);
   if (shouldCache && cachedConfig) {
     return cachedConfig;
@@ -79,19 +79,19 @@ export async function resolveConfig(
 
   // Load config using c12
   const { config } = await loadConfig({
-    name: "omnichron",
+    name: "archives",
     defaults,
     defaultConfig: options.defaults || undefined,
     overrides: options.overrides || undefined,
     envName: options.envName ?? process.env.NODE_ENV,
     cwd: options.cwd,
     configFile: options.configFile,
-    rcFile: options.rcFile === undefined ? ".omnichron" : options.rcFile,
+    rcFile: options.rcFile === undefined ? ".archives" : options.rcFile,
     packageJson: true,
   });
 
   // Apply post-processing
-  const resolvedConfig = await postProcessConfig(config as OmnichronConfig, defaults);
+  const resolvedConfig = await postProcessConfig(config as ArchivesConfig, defaults);
 
   if (shouldCache) {
     cachedConfig = resolvedConfig;
@@ -104,9 +104,9 @@ export async function resolveConfig(
  * Apply additional configuration processing and validation
  */
 async function postProcessConfig(
-  config: OmnichronConfig,
-  defaults: OmnichronConfig,
-): Promise<OmnichronConfig> {
+  config: ArchivesConfig,
+  defaults: ArchivesConfig,
+): Promise<ArchivesConfig> {
   // Ensure required properties exist
   if (!config.storage) {
     config.storage = { ...defaults.storage };
@@ -141,6 +141,6 @@ export function resetConfig(): void {
  */
 export async function getConfig(
   options?: Parameters<typeof resolveConfig>[0],
-): Promise<OmnichronConfig> {
+): Promise<ArchivesConfig> {
   return resolveConfig(options);
 }

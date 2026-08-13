@@ -3,7 +3,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "omnichron": ["./src/index.ts"]
+      "@agntn/archives": ["./src/index.ts"]
     },
     "outDir": "./dist-extensions",
     "noEmit": true,

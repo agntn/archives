@@ -6,17 +6,17 @@ import type {
 	ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import omnichronExtension from "../packages/pi/extensions/omnichron";
+import archivesExtension from "../packages/pi/extensions/archives";
 import type { ArchiveResponse } from "../src/types";
 
-const omnichronMock = vi.hoisted(() => ({
+const archivesMock = vi.hoisted(() => ({
 	snapshots: vi.fn(),
 }));
 
-vi.mock("omnichron", () => ({
-	createArchive: () => ({ snapshots: omnichronMock.snapshots }),
+vi.mock("@agntn/archives", () => ({
+	createArchive: () => ({ snapshots: archivesMock.snapshots }),
 	providers: {
-		wayback: async () => ({ name: "Internet Archive Wayback Machine", slug: "wayback", snapshots: omnichronMock.snapshots }),
+		wayback: async () => ({ name: "Internet Archive Wayback Machine", slug: "wayback", snapshots: archivesMock.snapshots }),
 	},
 }));
 
@@ -52,7 +52,7 @@ function loadExtension(): CapturedRuntime {
 		},
 	} satisfies Partial<ExtensionAPI>;
 
-	omnichronExtension(pi as ExtensionAPI);
+	archivesExtension(pi as ExtensionAPI);
 	return runtime;
 }
 
@@ -78,7 +78,7 @@ function restoreEnv(name: keyof typeof originalPermaccEnv): void {
 
 describe("Pi extension", () => {
 	beforeEach(() => {
-		omnichronMock.snapshots.mockReset();
+		archivesMock.snapshots.mockReset();
 	});
 
 	afterEach(() => {
@@ -89,13 +89,13 @@ describe("Pi extension", () => {
 	it("registers the expected tools and commands", () => {
 		const runtime = loadExtension();
 
-		expect([...runtime.tools.keys()].sort()).toEqual(["omnichron", "omnichron_providers"]);
+		expect([...runtime.tools.keys()].sort()).toEqual(["archives", "archives_providers"]);
 		expect([...runtime.commands.keys()].sort()).toEqual(["archive", "archive-providers"]);
 	});
 
 	it("does not expose arbitrary API-key or environment-variable parameters", () => {
 		const runtime = loadExtension();
-		const tool = getExecutableTool(runtime, "omnichron");
+		const tool = getExecutableTool(runtime, "archives");
 
 		expect(Object.keys(tool.parameters.properties ?? {})).not.toContain("apiKey");
 		expect(Object.keys(tool.parameters.properties ?? {})).not.toContain("apiKeyEnv");
@@ -104,7 +104,7 @@ describe("Pi extension", () => {
 	it("reports Perma.cc key presence without returning the secret value", async () => {
 		process.env["PERMA_CC_API_KEY"] = "super-secret-test-key";
 		const runtime = loadExtension();
-		const tool = getExecutableTool(runtime, "omnichron_providers");
+		const tool = getExecutableTool(runtime, "archives_providers");
 
 		const result = await tool.execute("test", {}, undefined, undefined, {} as ExtensionContext);
 		const text = result.content.map((item) => (item.type === "text" ? item.text : "")).join("\n");
@@ -117,7 +117,7 @@ describe("Pi extension", () => {
 		delete process.env["PERMA_CC_API_KEY"];
 		delete process.env["PERMACC_API_KEY"];
 		const runtime = loadExtension();
-		const tool = getExecutableTool(runtime, "omnichron");
+		const tool = getExecutableTool(runtime, "archives");
 
 		await expect(
 			tool.execute("test", { target: "example.com", provider: "permacc" }, undefined, undefined, {} as ExtensionContext),
@@ -131,7 +131,7 @@ describe("Pi extension", () => {
 			error: "Wayback unavailable",
 			_meta: { source: "wayback", provider: "wayback" },
 		} satisfies ArchiveResponse;
-		omnichronMock.snapshots.mockResolvedValue(response);
+		archivesMock.snapshots.mockResolvedValue(response);
 		const runtime = loadExtension();
 		const command = runtime.commands.get("archive");
 		if (!command) throw new Error("archive command was not registered");
@@ -150,7 +150,7 @@ describe("Pi extension", () => {
 
 		await command.handler("example.com", ctx);
 
-		expect(notify).toHaveBeenCalledWith("omnichron failed: Wayback unavailable", "error");
+		expect(notify).toHaveBeenCalledWith("archives failed: Wayback unavailable", "error");
 		expect(select).not.toHaveBeenCalled();
 		expect(pasteToEditor).not.toHaveBeenCalled();
 	});
