@@ -116,6 +116,13 @@ const tools: ToolDefinition[] = [
             maxLength: MAX_PARAMETER_LENGTH,
           }),
         ),
+        user: Type.Optional(
+          Type.String({
+            description: "Conifer account slug.",
+            minLength: 1,
+            maxLength: MAX_PARAMETER_LENGTH,
+          }),
+        ),
         collapse: Type.Optional(
           Type.String({
             description: "Wayback CDX collapse parameter, for example timestamp:4.",
@@ -150,7 +157,7 @@ const tools: ToolDefinition[] = [
     name: "archives_content",
     title: "Archive Content",
     description:
-      "Read what an archived page said, not just that a capture of it exists. Returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback, Archive-It and Common Crawl serve capture bodies; Archive.today, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
+      "Read what an archived page said, not just that a capture of it exists. Returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback, Archive-It and Common Crawl serve capture bodies; Archive.today, Conifer, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
     inputSchema: Type.Object(
       {
         target: Type.String({
@@ -209,6 +216,13 @@ const tools: ToolDefinition[] = [
           Type.String({
             description:
               "Archive-It numeric collection id, or Common Crawl collection id such as CC-MAIN-latest.",
+            minLength: 1,
+            maxLength: MAX_PARAMETER_LENGTH,
+          }),
+        ),
+        user: Type.Optional(
+          Type.String({
+            description: "Conifer account slug.",
             minLength: 1,
             maxLength: MAX_PARAMETER_LENGTH,
           }),

@@ -42,6 +42,7 @@ const PROVIDERS = [
   "all",
   "wayback",
   "archiveIt",
+  "conifer",
   "archiveToday",
   "commoncrawl",
   "webcite",
@@ -49,8 +50,8 @@ const PROVIDERS = [
 ] as const;
 const PROVIDER_ALIASES = ["archive-today", "archive-it"] as const;
 const PROVIDER_INPUTS = [...PROVIDERS, ...PROVIDER_ALIASES] as const;
-const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Archive-It requires a numeric collection id. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
-const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback first and falls back to Common Crawl. Archive-It reads bodies too, with a numeric collection id. Archive.today, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
+const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
+const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback first and falls back to Common Crawl. Archive-It reads bodies too, with a numeric collection id. Archive.today, Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 const CONTENT_FORMATS = ["text", "raw"] as const;
 const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the archived bytes as they were served.`;
 const DEFAULT_LIMIT = 10;
@@ -142,6 +143,13 @@ const snapshotParameters = Type.Object({
       maxLength: MAX_PARAMETER_LENGTH,
     }),
   ),
+  user: Type.Optional(
+    Type.String({
+      description: "Conifer account slug.",
+      minLength: 1,
+      maxLength: MAX_PARAMETER_LENGTH,
+    }),
+  ),
   collapse: Type.Optional(
     Type.String({
       description: "Wayback CDX collapse parameter, e.g. timestamp:4.",
@@ -219,6 +227,13 @@ const contentParameters = Type.Object({
       maxLength: MAX_PARAMETER_LENGTH,
     }),
   ),
+  user: Type.Optional(
+    Type.String({
+      description: "Conifer account slug.",
+      minLength: 1,
+      maxLength: MAX_PARAMETER_LENGTH,
+    }),
+  ),
 });
 
 const emptyParameters = Type.Object({});
@@ -255,7 +270,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives_content",
     label: "Archives Content",
     description:
-      "Read-only/open-world network fetch: read what an archived page said, not just that a capture exists. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Archive-It and Common Crawl serve capture bodies; Archive.today, WebCite and Perma.cc answer as unsupported.",
+      "Read-only/open-world network fetch: read what an archived page said, not just that a capture exists. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Archive-It and Common Crawl serve capture bodies; Archive.today, Conifer, WebCite and Perma.cc answer as unsupported.",
     promptSnippet:
       "Read an archived page's text with archives_content; archives lists which captures exist, this returns what one of them said.",
     promptGuidelines: [

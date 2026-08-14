@@ -9,7 +9,7 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 
 ## Features
 
-- 🔍 **Multiple providers** - Wayback Machine, Archive-It, Archive.today, Common Crawl, Perma.cc, WebCite
+- 🔍 **Multiple providers** - Wayback Machine, Archive-It, Conifer, Archive.today, Common Crawl, Perma.cc, WebCite
 - 📄 **Reads captures, not just lists them** - `content()` returns what an archived page said, decoded from the original response
 - 🌳 **Tree-shakable** - providers are lazy-loaded via dynamic imports, bundle only what you use
 - 📦 **Caching built in** - pluggable storage layer via [unstorage](https://github.com/unjs/unstorage) with configurable TTL
@@ -75,6 +75,17 @@ const response = await archive.snapshots("archive-it.org");
 ```
 
 Archive-It’s all-collections endpoint is temporarily blocked, so `providers.archiveIt()` requires a collection and is not included in `providers.all()`.
+
+### Conifer
+
+Conifer searches one existing public collection at a time. Pass its user and collection slugs:
+
+```ts
+const archive = createArchive(providers.conifer({ user: "imamuseum", collection: "imamuseumorg" }));
+const response = await archive.snapshots("imamuseum.org");
+```
+
+Conifer disabled new captures and collection editing ahead of its June 2026 discontinuation, but Rhizome continues to host existing collections in read-only form. The provider is therefore not included in `providers.all()`.
 
 ### Error handling
 
@@ -145,6 +156,7 @@ response._meta?.unsupportedProviders; // [{ provider: "archive-today", reason: "
 | --------------- | -------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
 | Wayback Machine | `providers.wayback()`      | yes         | web.archive.org CDX API; captures replayed under `id_`                                             |
 | Archive-It      | `providers.archiveIt()`    | yes         | Requires a numeric `collection`; collection-specific CDX/C API                                     |
+| Conifer         | `providers.conifer()`      | no          | Requires `user` and `collection`; searches an existing public collection                           |
 | Archive.today   | `providers.archiveToday()` | no          | archive.ph via Memento timemap; no raw-capture endpoint                                            |
 | Common Crawl    | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                |
 | Perma.cc        | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                |
@@ -367,7 +379,7 @@ Options can be set at three levels: config file (global defaults), `createArchiv
 
 ## Roadmap
 
-**Providers:** Conifer (formerly Webrecorder)
+**Providers:** —
 
 **Features:** Page archiving API for creating archives, not just reading them
 

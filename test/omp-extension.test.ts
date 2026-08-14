@@ -150,6 +150,52 @@ describe("archives OMP extension", () => {
     expect($fetch).not.toHaveBeenCalled();
   });
 
+  it("dispatches Conifer requests with the required collection identity", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce({ results: [] });
+    const tool = requireTool(registerExtension().tools, "archives");
+
+    const result = await tool.execute(
+      "test",
+      {
+        target: "example.com",
+        provider: "conifer",
+        user: " user ",
+        collection: " collection ",
+        cache: false,
+      },
+      undefined,
+      undefined,
+      unusedContext,
+    );
+
+    expect($fetch).toHaveBeenCalledWith(
+      "/api/v1/url_search",
+      expect.objectContaining({
+        baseURL: "https://conifer.rhizome.org",
+        params: { user: "user", coll: "collection", url: "example.com" },
+      }),
+    );
+    expect(result.details).toMatchObject({
+      provider: "conifer",
+      response: { success: true, _meta: { provider: "conifer" } },
+    });
+  });
+
+  it("rejects Conifer requests without a user", async () => {
+    const tool = requireTool(registerExtension().tools, "archives");
+
+    await expect(
+      tool.execute(
+        "test",
+        { target: "example.com", provider: "conifer", collection: "collection" },
+        undefined,
+        undefined,
+        unusedContext,
+      ),
+    ).rejects.toThrow("provider=conifer requires user and collection slugs");
+    expect($fetch).not.toHaveBeenCalled();
+  });
+
   it("removes terminal control bytes from rendered untrusted arguments", () => {
     const tool = requireTool(registerExtension().tools, "archives");
     const renderCall = tool.renderCall;

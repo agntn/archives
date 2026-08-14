@@ -35,6 +35,7 @@ export const PROVIDERS = [
   "all",
   "wayback",
   "archiveIt",
+  "conifer",
   "archiveToday",
   "commoncrawl",
   "webcite",
@@ -56,9 +57,9 @@ export const PROVIDER_INPUTS = [
 export type ProviderInput = (typeof PROVIDERS)[number];
 export type ProviderName = Exclude<ProviderInput, "auto">;
 
-export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Archive-It requires a numeric collection id. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
+export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
 
-export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback first and falls back to Common Crawl. Archive-It reads bodies too, with a numeric collection id. Archive.today, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
+export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback first and falls back to Common Crawl. Archive-It reads bodies too, with a numeric collection id. Archive.today, Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 
 /** Rendering of the archived body: readable text, or the bytes as archived. */
 export const CONTENT_FORMATS = ["text", "raw"] as const;
@@ -91,6 +92,7 @@ const UNSAFE_TERMINAL_CONTROLS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/gu;
 export type SnapshotOptions = ArchiveOptions & {
   apiKey?: string;
   collection?: string;
+  user?: string;
   collapse?: string;
   filter?: string;
 };
@@ -104,6 +106,7 @@ export type RedactedSnapshotOptions = Omit<SnapshotOptions, "apiKey" | "signal">
 export type ContentOptions = ArchiveContentOptions & {
   apiKey?: string;
   collection?: string;
+  user?: string;
 };
 
 /** Content options as they reach a harness transcript: never carrying the key. */
@@ -123,6 +126,7 @@ export interface SnapshotParams {
   timeout?: number;
   retries?: number;
   collection?: string;
+  user?: string;
   collapse?: string;
   filter?: string;
 }
@@ -149,6 +153,7 @@ export interface ContentParams {
   timeout?: number;
   retries?: number;
   collection?: string;
+  user?: string;
 }
 
 /** The capture that was read, plus how much of it the caller received. */
@@ -341,6 +346,14 @@ async function createProvider(
     }
     return providers.archiveIt({ ...options, collection });
   }
+  if (provider === "conifer") {
+    const user = options.user?.trim();
+    const collection = options.collection?.trim();
+    if (!user || !collection) {
+      throw new Error("provider=conifer requires user and collection slugs.");
+    }
+    return providers.conifer({ ...options, user, collection });
+  }
   if (provider === "archiveToday") return providers.archiveToday(options);
   if (provider === "commoncrawl") return providers.commoncrawl(options);
   if (provider === "webcite") return providers.webcite(options);
@@ -384,6 +397,7 @@ const NUMERIC_BOUNDS = {
 
 const TEXT_BOUNDS = {
   collection: MAX_PARAMETER_LENGTH,
+  user: MAX_PARAMETER_LENGTH,
   collapse: MAX_PARAMETER_LENGTH,
   filter: MAX_PARAMETER_LENGTH,
   timestamp: MAX_TIMESTAMP_LENGTH,
@@ -439,6 +453,7 @@ function buildSnapshotOptions(params: SnapshotParams, provider: ProviderName): S
   if (params.timeout !== undefined) options.timeout = params.timeout;
   if (params.retries !== undefined) options.retries = params.retries;
   if (params.collection !== undefined) options.collection = params.collection;
+  if (params.user !== undefined) options.user = params.user;
   if (params.collapse !== undefined) options.collapse = params.collapse;
   if (params.filter !== undefined) options.filter = params.filter;
 
@@ -490,6 +505,7 @@ async function buildContentOptions(
   }
   if (params.cache !== undefined) options.cache = params.cache;
   if (params.ttl !== undefined) options.ttl = params.ttl;
+  if (params.user !== undefined) options.user = params.user;
   // Reading a page moves far more than a list of index rows, and archives replay
   // captures slowly. A configured timeout above this floor is honored, so a host
   // that already allows for slow archives keeps what it asked for.
@@ -549,6 +565,14 @@ function getProviderStatuses(): ProviderStatus[] {
       requiresApiKey: false,
       configured: true,
       note: "Archive-It collection CDX/C API; requires a numeric collection.",
+    },
+    {
+      name: "conifer",
+      factory: "providers.conifer({ user, collection })",
+      includedInAll: false,
+      requiresApiKey: false,
+      configured: true,
+      note: "Existing public Conifer collection; requires user and collection slugs.",
     },
     {
       name: "archiveToday",
