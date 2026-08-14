@@ -71,6 +71,14 @@ export class ConiferProvider extends BaseProvider<ConiferOptions> {
         coll: collection,
         url: query,
       };
+      const limit = Math.max(0, options.limit ?? 1000);
+      if (limit === 0) {
+        return createSuccessResponse([], "conifer", {
+          user,
+          collection,
+          queryParams: params,
+        });
+      }
       const fetchOptions = await createFetchOptions(baseUrl, params, {
         retries: options.retries,
         timeout: options.timeout,
@@ -79,7 +87,7 @@ export class ConiferProvider extends BaseProvider<ConiferOptions> {
         ...fetchOptions,
         responseType: "json",
       });
-      const limit = Math.max(0, options.limit ?? 1000);
+
       const pages: ArchivedPage[] = [];
 
       for (const result of response.results ?? []) {

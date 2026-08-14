@@ -87,15 +87,12 @@ describe("Conifer", () => {
   });
 
   it.each([0, -1])("returns no pages for a non-positive limit of %i", async (limit) => {
-    vi.mocked($fetch).mockResolvedValueOnce({
-      results: [{ url: "https://example.com/one", timestamp: "20200101000000" }],
-    });
-
     const result = await createArchive(
       createConifer({ user: "user", collection: "collection" }),
     ).snapshots("example.com", { limit });
 
     expect(result.pages).toEqual([]);
+    expect($fetch).not.toHaveBeenCalled();
   });
 
   it("rejects an empty collection identity without making a request", async () => {

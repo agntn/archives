@@ -136,7 +136,7 @@ const snapshotParameters = Type.Object({
   collection: Type.Optional(
     Type.String({
       description:
-        "Archive-It numeric collection id, or Common Crawl collection id such as CC-MAIN-latest.",
+        "Archive-It numeric collection id, Common Crawl collection id such as CC-MAIN-latest, or Conifer collection slug.",
       minLength: 1,
       maxLength: MAX_PARAMETER_LENGTH,
     }),
@@ -220,7 +220,7 @@ const contentParameters = Type.Object({
   collection: Type.Optional(
     Type.String({
       description:
-        "Archive-It numeric collection id, or Common Crawl collection id such as CC-MAIN-latest.",
+        "Archive-It numeric collection id, Common Crawl collection id such as CC-MAIN-latest, or Conifer collection slug.",
       minLength: 1,
       maxLength: MAX_PARAMETER_LENGTH,
     }),
