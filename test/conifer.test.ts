@@ -71,7 +71,7 @@ describe("Conifer", () => {
     );
   });
 
-  it("applies the requested limit to Conifer results", async () => {
+  it.each([1, 1.5])("applies a requested limit of %s to Conifer results", async (limit) => {
     vi.mocked($fetch).mockResolvedValueOnce({
       results: [
         { url: "https://example.com/one", timestamp: "20200101000000" },
@@ -81,7 +81,7 @@ describe("Conifer", () => {
 
     const result = await createArchive(
       createConifer({ user: "user", collection: "collection" }),
-    ).snapshots("example.com", { limit: 1 });
+    ).snapshots("example.com", { limit });
 
     expect(result.pages).toHaveLength(1);
   });
@@ -91,6 +91,7 @@ describe("Conifer", () => {
       createConifer({ user: "user", collection: "collection" }),
     ).snapshots("example.com", { limit });
 
+    expect(result.success).toBe(true);
     expect(result.pages).toEqual([]);
     expect($fetch).not.toHaveBeenCalled();
   });

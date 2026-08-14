@@ -71,7 +71,7 @@ export class ConiferProvider extends BaseProvider<ConiferOptions> {
         coll: collection,
         url: query,
       };
-      const limit = Math.max(0, options.limit ?? 1000);
+      const limit = Math.max(0, Math.trunc(options.limit ?? 1000));
       if (limit === 0) {
         return createSuccessResponse([], "conifer", {
           user,
