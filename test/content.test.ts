@@ -762,6 +762,19 @@ describe("content helpers", () => {
     expect(htmlToText("<p>Kept</p><script>var a = '<p>forged</p>'")).toBe("Kept");
   });
 
+  it("keeps a quoted angle bracket inside its tag", () => {
+    expect(htmlToText('<div title="1 > 0">Hello</div>')).toBe("Hello");
+    expect(htmlToText("<a href='/x?a=1&gt;2'>Link</a>")).toBe("Link");
+  });
+
+  it("does not mistake a longer tag name for the closing one", () => {
+    // A script that mentions `</scripture>` would otherwise resume the scan in
+    // the middle of its own source and emit the rest as page text.
+    expect(
+      htmlToText('<p>Kept</p><script>var a = "</scripture>"; leak();</script><p>After</p>'),
+    ).toBe("Kept\nAfter");
+  });
+
   it("stays linear on markup that never terminates", () => {
     // An archived page is an input an attacker picks, and the byte cap admits
     // 2 MiB of it. The `replace()` chain this scan replaced backtracked

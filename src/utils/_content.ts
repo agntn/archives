@@ -608,16 +608,16 @@ export function htmlToText(html: string): string {
 
     const tag = readTagName(lower, open);
     if (!tag.closing && NOISE_TAGS.has(tag.name)) {
-      const closeStart = lower.indexOf(`</${tag.name}`, open + tag.name.length + 1);
+      const closeStart = indexOfClosingTag(lower, tag.name, open + tag.name.length + 1);
       if (closeStart === -1) break;
-      const closeEnd = lower.indexOf(">", closeStart);
+      const closeEnd = indexOfTagEnd(lower, closeStart);
       if (closeEnd === -1) break;
       parts.push(" ");
       cursor = closeEnd + 1;
       continue;
     }
 
-    const tagEnd = lower.indexOf(">", open);
+    const tagEnd = indexOfTagEnd(lower, open);
     if (tagEnd === -1) break;
     parts.push(endsLine(tag) ? "\n" : " ");
     cursor = tagEnd + 1;
@@ -669,6 +669,54 @@ function readTagName(lower: string, open: number): TagName {
   while (index < lower.length && isNameByte(lower.charCodeAt(index))) index++;
 
   return { name: lower.slice(start, index), closing };
+}
+
+/**
+ * Finds where a tag ends, ignoring a `>` inside a quoted attribute value.
+ *
+ * `<div title="1 > 0">` is valid markup, and stopping at the first `>` leaks the
+ * rest of the attribute into the text as if it were the page.
+ */
+function indexOfTagEnd(source: string, open: number): number {
+  let quote = "";
+
+  for (let index = open + 1; index < source.length; index++) {
+    const char = source[index];
+    if (quote) {
+      if (char === quote) quote = "";
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === ">") return index;
+  }
+
+  return -1;
+}
+
+/**
+ * Finds the closing tag for one element name.
+ *
+ * The name has to end where the match ends: `</scripture>` inside a script is
+ * not the end of that script, and treating it as one resumes reading in the
+ * middle of the source and emits the rest of it as text.
+ */
+function indexOfClosingTag(lower: string, name: string, from: number): number {
+  let cursor = from;
+
+  while (cursor < lower.length) {
+    const found = lower.indexOf(`</${name}`, cursor);
+    if (found === -1) return -1;
+
+    const after = lower.charCodeAt(found + name.length + 2);
+    // End of input, `>`, `/` or whitespace all close the name.
+    if (Number.isNaN(after) || after === 62 || after === 47 || after <= 32) return found;
+    cursor = found + 1;
+  }
+
+  return -1;
 }
 
 function isNameByte(code: number): boolean {
