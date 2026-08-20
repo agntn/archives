@@ -28,7 +28,7 @@ const ISO_LIKE_TIMESTAMP =
 // An ISO instant that names its offset means a different instant than its digits
 // read literally, and archives index captures in UTC.
 const ZONED_ISO_TIMESTAMP =
-  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(Z|[+-]\d{2}(?::?\d{2})?)$/i;
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(Z|[+-]\d{2}(?::?\d{2})?)$/i;
 
 // A playback URL is `<prefix>/<timestamp><modifier?>/<original>`; the two-letter
 // modifiers (`id_`, `if_`, `im_`, …) select which rendition the archive replays.
@@ -73,9 +73,13 @@ function isoToWaybackDigits(value: string): string {
 
   const zoned = ZONED_ISO_TIMESTAMP.exec(trimmed);
   if (zoned) {
+    const [, year, month, day, hour, minute, second = "00", offset] = zoned;
+    // `Date` rolls February 30th forward to March 2nd rather than refusing it,
+    // so the literal fields are checked as a stamp of their own first.
+    if (!waybackTimestampToISO(`${year}${month}${day}${hour}${minute}${second}`)) return "";
+
     // `-05` is a valid ISO 8601 offset that `Date` refuses; the minutes it wants
     // are the ones the format leaves implicit.
-    const offset = zoned[1];
     const parsable = /^[+-]\d{2}$/.test(offset) ? `${trimmed}:00` : trimmed;
     const instant = new Date(parsable);
     if (Number.isNaN(instant.getTime())) return "";
@@ -223,6 +227,12 @@ export function selectCapture<T extends { timestamp: string; status?: number }>(
   const newestFirst = [...ordered].reverse();
   if (!timestamp) return pickPreferred(newestFirst);
 
+  // A request that names the instant exactly names one capture, and it outranks
+  // the preference for a successful one: a playback URL for a 404 asks for that
+  // 404, not for the working page before it.
+  const exact = ordered.find((capture) => capture.timestamp === timestamp);
+  if (exact) return exact;
+
   const bound = timestampUpperBound(timestamp);
   const atOrBefore = newestFirst.filter(
     (capture) => compareTimestamps(capture.timestamp, bound) <= 0,
@@ -367,7 +377,7 @@ export async function readPlaybackCapture(params: {
 }
 
 /**
- * Decompresses one gzip member, stopping at `maxBytes`.
+ * Decompresses one compressed member, stopping at `maxBytes`.
  *
  * The payload is streamed rather than buffered first: a WARC record is as large
  * as whatever the crawler stored, and buffering it to then throw most of it away
@@ -375,20 +385,89 @@ export async function readPlaybackCapture(params: {
  *
  * @param source - Compressed payload, as a stream or as bytes
  * @param maxBytes - Cap on the decompressed size
+ * @param format - Compression the payload carries
  * @throws When the runtime has no `DecompressionStream`
  */
-export async function gunzip(
+export async function decompress(
   source: unknown,
   maxBytes: number,
+  format: CompressionFormat = "gzip",
 ): Promise<{ bytes: Uint8Array; truncated: boolean }> {
   if (typeof DecompressionStream !== "function") {
     throw new Error("Reading Common Crawl records requires DecompressionStream in this runtime");
   }
 
   return readCappedBytes(
-    toByteStream(source).pipeThrough(new DecompressionStream("gzip")),
+    toByteStream(source).pipeThrough(new DecompressionStream(format)),
     maxBytes,
   );
+}
+
+/**
+ * Undoes the `Content-Encoding` a capture was served with.
+ *
+ * A WARC record holds the response as it travelled, so a page sent compressed is
+ * stored compressed. Decoding it as text without this produces bytes that look
+ * like a broken charset and read like nothing at all.
+ *
+ * @throws For an encoding this runtime cannot undo, rather than returning noise
+ */
+export async function decodeContentEncoding(
+  body: Uint8Array,
+  encoding: string | undefined,
+  maxBytes: number,
+): Promise<{ bytes: Uint8Array; truncated: boolean }> {
+  const format = encoding?.trim().toLowerCase() ?? "";
+  if (!format || format === "identity") return { bytes: body, truncated: false };
+  if (format === "gzip" || format === "x-gzip") return decompress(body, maxBytes, "gzip");
+  if (format === "deflate") return decompress(body, maxBytes, "deflate");
+
+  throw new Error(`The capture is ${format}-encoded, which this client cannot decode`);
+}
+
+/**
+ * Reassembles a body that was sent with `Transfer-Encoding: chunked`.
+ *
+ * The framing travelled with the response, so the size lines sit inside the
+ * stored bytes and would otherwise be read as part of the page.
+ */
+export function dechunkHttpBody(body: Uint8Array): Uint8Array {
+  const chunks: Uint8Array[] = [];
+  let cursor = 0;
+
+  while (cursor < body.length) {
+    const lineEnd = indexOfCrlf(body, cursor);
+    if (lineEnd === undefined) break;
+
+    const header = decodeBytes(body.subarray(cursor, lineEnd), "utf-8");
+    const size = Number.parseInt(header.split(";")[0].trim(), 16);
+    if (!Number.isInteger(size) || size <= 0) break;
+
+    const start = lineEnd + 2;
+    const end = Math.min(start + size, body.length);
+    chunks.push(body.subarray(start, end));
+    cursor = end + 2;
+  }
+
+  return concatBytes(chunks);
+}
+
+function indexOfCrlf(bytes: Uint8Array, from: number): number | undefined {
+  for (let index = from; index < bytes.length - 1; index++) {
+    if (bytes[index] === 13 && bytes[index + 1] === 10) return index;
+  }
+  return undefined;
+}
+
+function concatBytes(chunks: Uint8Array[]): Uint8Array {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 /**
@@ -429,17 +508,33 @@ export function splitWarcRecord(
   };
 }
 
-/** Reads the status code and content type out of an HTTP header block. */
-export function parseHttpHeaders(headers: string): { status?: number; contentType?: string } {
+/** What an archived HTTP response says about itself. */
+export interface HttpHead {
+  status?: number;
+  contentType?: string;
+  contentEncoding?: string;
+  transferEncoding?: string;
+}
+
+/** Reads the status line and the headers that decide how to read the body. */
+export function parseHttpHeaders(headers: string): HttpHead {
   const lines = headers.split(/\r?\n/);
   const statusMatch = HTTP_STATUS_LINE.exec(lines[0] ?? "");
-  const contentTypeLine = lines.find((line) => /^content-type\s*:/i.test(line));
+  const header = (name: string): string | undefined => {
+    const pattern = new RegExp(`^${name}\\s*:`, "i");
+    const line = lines.find((candidate) => pattern.test(candidate));
+    return line?.split(":").slice(1).join(":").trim() || undefined;
+  };
+
+  const contentType = header("content-type");
+  const contentEncoding = header("content-encoding");
+  const transferEncoding = header("transfer-encoding");
 
   return {
     ...(statusMatch ? { status: Number.parseInt(statusMatch[1], 10) } : {}),
-    ...(contentTypeLine
-      ? { contentType: contentTypeLine.split(":").slice(1).join(":").trim() }
-      : {}),
+    ...(contentType ? { contentType } : {}),
+    ...(contentEncoding ? { contentEncoding } : {}),
+    ...(transferEncoding ? { transferEncoding } : {}),
   };
 }
 
@@ -762,14 +857,7 @@ async function readStream(
     await reader.cancel().catch(() => undefined);
   }
 
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return { bytes, truncated };
+  return { bytes: concatBytes(chunks), truncated };
 }
 
 /** Locates the blank line separating a header block from what follows it. */

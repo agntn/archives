@@ -176,6 +176,34 @@ describe("wayback content", () => {
     });
   });
 
+  it("rejects a zoned timestamp whose date never existed", async () => {
+    // `Date` rolls February 29th of a common year forward instead of refusing it.
+    const response = await createArchive(createWayback()).content("example.com", {
+      timestamp: "2021-02-29T00:00:00Z",
+    });
+
+    expect(response.success).toBe(false);
+    expect(response.error).toContain("Invalid timestamp");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reads the capture a playback URL names even when it failed", async () => {
+    fetchMock.mockResolvedValueOnce(
+      cdxRows([
+        ["https://example.com/", "20190101000000", "200"],
+        ["https://example.com/", "20190301120000", "404"],
+      ]),
+    );
+    rawMock.mockResolvedValueOnce(rawResponse("the 404 page", { url: "" }));
+
+    await createArchive(createWayback()).content(
+      "https://web.archive.org/web/20190301120000/https://example.com/",
+    );
+
+    // Preferring a successful capture is for date requests. This URL named one.
+    expect(rawMock.mock.calls[0][0]).toBe("/web/20190301120000id_/https://example.com/");
+  });
+
   it("rejects a timestamp with a valid-looking prefix and a typo after it", async () => {
     const response = await createArchive(createWayback()).content("example.com", {
       timestamp: "2019-03-01junk",
@@ -495,6 +523,42 @@ describe("common crawl content", () => {
     // Buffering the whole member first would defeat maxBytes for a record the
     // crawler stored at whatever size it found.
     expect(fetchMock.mock.calls[1][1]).toMatchObject({ responseType: "stream" });
+  });
+
+  it("undoes the framing and encoding the response travelled with", async () => {
+    const payload = gzipSync(Buffer.from("<html><body>Encoded body</body></html>"));
+    const chunked = Buffer.concat([
+      Buffer.from(`${payload.length.toString(16)}\r\n`),
+      payload,
+      Buffer.from("\r\n0\r\n\r\n"),
+    ]);
+    const encodedRecord = Buffer.concat([
+      Buffer.from("WARC/1.0\r\nWARC-Type: response\r\n\r\n"),
+      Buffer.from(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Encoding: gzip\r\nTransfer-Encoding: chunked\r\n\r\n",
+      ),
+      chunked,
+    ]);
+    fetchMock
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          url: "https://example.com/",
+          timestamp: "20240101000000",
+          status: "200",
+          length: "512",
+          offset: "0",
+          filename: "segment.warc.gz",
+        }),
+      )
+      .mockResolvedValueOnce(gzipSync(encodedRecord));
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com");
+
+    // A record keeps the response as it went over the wire, so the chunk sizes
+    // and the compression are part of the stored bytes.
+    expect(response.content?.content).toBe("<html><body>Encoded body</body></html>");
   });
 
   it("reports a record whose HTTP response cannot be found", async () => {

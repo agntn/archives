@@ -18,8 +18,10 @@ import {
   createSuccessResponse,
   createErrorResponse,
   createFetchOptions,
+  dechunkHttpBody,
   decodeArchivedBody,
-  gunzip,
+  decodeContentEncoding,
+  decompress,
   parseHttpHeaders,
   preferSameUrl,
   resolveMaxBytes,
@@ -367,20 +369,31 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
 
     // The record's own headers sit in front of the body, so the decompression
     // cap has to leave room for them or a small body would come back empty.
-    const record = await gunzip(segment, withHeaderSlack(maxBytes));
+    const record = await decompress(segment, withHeaderSlack(maxBytes));
     const parts = splitWarcRecord(record.bytes);
     if (!parts) {
       throw new Error("Common Crawl returned a record without a readable HTTP response");
     }
 
-    const { status, contentType } = parseHttpHeaders(parts.httpHeaders);
-    const overflowed = parts.body.byteLength > maxBytes;
-    const body = overflowed ? parts.body.subarray(0, maxBytes) : parts.body;
+    const { status, contentType, contentEncoding, transferEncoding } = parseHttpHeaders(
+      parts.httpHeaders,
+    );
+
+    // A record keeps the response as it travelled: framing first, then whatever
+    // encoding the server applied. Reading the text means undoing both, in that
+    // order, or the page comes back as noise that looks like a charset problem.
+    const framed = /chunked/i.test(transferEncoding ?? "")
+      ? dechunkHttpBody(parts.body)
+      : parts.body;
+    const decoded = await decodeContentEncoding(framed, contentEncoding, maxBytes);
+
+    const overflowed = decoded.bytes.byteLength > maxBytes;
+    const body = overflowed ? decoded.bytes.subarray(0, maxBytes) : decoded.bytes;
 
     return {
       text: decodeArchivedBody(body, contentType),
       bytes: body.byteLength,
-      truncated: record.truncated || overflowed,
+      truncated: record.truncated || decoded.truncated || overflowed,
       ...(status === undefined ? {} : { status }),
       ...(contentType ? { mime: contentType.split(";")[0]?.trim().toLowerCase() } : {}),
     };
