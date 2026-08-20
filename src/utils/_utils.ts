@@ -2,8 +2,10 @@ import { FetchOptions } from "ofetch";
 import { hasProtocol, withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
 import { consola } from "consola";
 import type {
+  ArchiveContentResponse,
   ArchiveOptions,
   ArchiveResponse,
+  ArchivedContent,
   ArchivedPage,
   WaybackMetadata,
   ResponseMetadata,
@@ -211,19 +213,93 @@ export function createErrorResponse(
   source: string,
   metadata: Record<string, unknown> = {},
 ): ArchiveResponse {
-  let errorMessage: string;
-  if (error instanceof Error) {
-    errorMessage = error.message;
-  } else if (typeof error === "string") {
-    errorMessage = error;
-  } else {
-    errorMessage = String(error);
-  }
-
   return {
     success: false,
     pages: [],
-    error: errorMessage,
+    error: toErrorMessage(error),
+    _meta: {
+      source,
+      provider: source,
+      errorDetails: error,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      ...metadata,
+    } as ResponseMetadata,
+  };
+}
+
+/**
+ * Reduces a thrown value of unknown shape to one message.
+ */
+export function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return String(error);
+}
+
+/**
+ * Creates a standardized success response for a read archived body.
+ *
+ * @param content - The capture that was read
+ * @param source - Provider slug (mirrored to `_meta.source` and `_meta.provider`)
+ * @param metadata - Extra fields merged into `_meta`
+ */
+export function createContentResponse(
+  content: ArchivedContent,
+  source: string,
+  metadata: Record<string, unknown> = {},
+): ArchiveContentResponse {
+  return {
+    success: true,
+    content,
+    _meta: {
+      source,
+      provider: source,
+      ...metadata,
+    } as ResponseMetadata,
+  };
+}
+
+/**
+ * Creates a content response signalling that the provider has no endpoint
+ * returning archived page bodies. Use for a structural gap in the provider's
+ * API surface, not for a body that failed to load.
+ *
+ * @param reason - Human-readable explanation of why the operation is unsupported
+ * @param source - Provider slug
+ * @param metadata - Extra fields merged into `_meta`
+ */
+export function createUnsupportedContentResponse(
+  reason: string,
+  source: string,
+  metadata: Record<string, unknown> = {},
+): ArchiveContentResponse {
+  return {
+    success: false,
+    unsupported: true,
+    unsupportedReason: reason,
+    _meta: {
+      source,
+      provider: source,
+      ...metadata,
+    } as ResponseMetadata,
+  };
+}
+
+/**
+ * Creates a standardized error response for a body that could not be read.
+ *
+ * @param error - Error object, message, or unknown value
+ * @param source - Provider slug
+ * @param metadata - Extra fields merged into `_meta`
+ */
+export function createContentErrorResponse(
+  error: unknown,
+  source: string,
+  metadata: Record<string, unknown> = {},
+): ArchiveContentResponse {
+  return {
+    success: false,
+    error: toErrorMessage(error),
     _meta: {
       source,
       provider: source,
@@ -333,7 +409,9 @@ export async function mapCdxRows(
   return results;
 
   // Helper function to convert a row to an ArchivedPage
-  function rowToArchivedPage([rawUrl, rawTimestamp, rawStatus]: string[]): ArchivedPage | undefined {
+  function rowToArchivedPage([rawUrl, rawTimestamp, rawStatus]: string[]):
+    | ArchivedPage
+    | undefined {
     const originalUrl = cleanDoubleSlashes(rawUrl ?? "");
     const timestampRaw = rawTimestamp ?? "";
     const isoTimestamp = waybackTimestampToISO(timestampRaw);

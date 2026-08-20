@@ -3,7 +3,7 @@ import { $fetch } from "ofetch";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import archivesOmpExtension from "../packages/omp/extensions/archives.js";
-import { MAX_LIMIT, PROVIDER_INPUTS } from "../src/tool-operations";
+import { MAX_CONTENT_CHARS, MAX_LIMIT, PROVIDER_INPUTS } from "../src/tool-operations";
 
 vi.mock("ofetch", () => ({
   $fetch: vi.fn(),
@@ -68,9 +68,25 @@ describe("archives OMP extension", () => {
     const { label, tools, commands } = registerExtension();
 
     expect(label).toBe("Archives");
-    expect([...tools.keys()]).toEqual(["archives", "archives_providers"]);
+    expect([...tools.keys()]).toEqual(["archives", "archives_content", "archives_providers"]);
     expect(commands).toEqual(["archive", "archive-providers"]);
     for (const tool of tools.values()) expect(tool.approval).toBe("read");
+  });
+
+  it("declares the content bounds the shared executors enforce", () => {
+    const tool = requireTool(registerExtension().tools, "archives_content");
+
+    expect(accepts(tool, { target: "example.com" })).toBe(true);
+    expect(accepts(tool, { target: "example.com", format: "text" })).toBe(true);
+    expect(accepts(tool, { target: "example.com", format: "raw" })).toBe(true);
+    expect(accepts(tool, { target: "example.com", format: "markdown" })).toBe(false);
+    expect(accepts(tool, { target: "example.com", maxChars: MAX_CONTENT_CHARS })).toBe(true);
+    expect(accepts(tool, { target: "example.com", maxChars: MAX_CONTENT_CHARS + 1 })).toBe(false);
+    expect(accepts(tool, { target: "example.com", maxChars: 10.5 })).toBe(false);
+    expect(accepts(tool, { target: "example.com", timestamp: "2019-03-01" })).toBe(true);
+    for (const provider of PROVIDER_INPUTS) {
+      expect(accepts(tool, { target: "example.com", provider })).toBe(true);
+    }
   });
   it("rejects fractional numeric parameters", () => {
     const tool = requireTool(registerExtension().tools, "archives");

@@ -3,7 +3,12 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMcpServer } from "../src/mcp";
 import { storage } from "../src/storage";
-import type { ArchiveResponse, ArchivedPage } from "../src/types";
+import type {
+  ArchiveContentResponse,
+  ArchiveResponse,
+  ArchivedContent,
+  ArchivedPage,
+} from "../src/types";
 
 const providersMock = vi.hoisted(() => ({
   all: vi.fn(),
@@ -48,6 +53,38 @@ function success(pages: ArchivedPage[], provider = "wayback"): ArchiveResponse {
   return { success: true, pages, _meta: { source: provider, provider } };
 }
 
+function capture(overrides: Partial<ArchivedContent> = {}): ArchiveContentResponse {
+  return {
+    success: true,
+    content: {
+      url: "https://example.com/",
+      timestamp: "2024-01-02T03:04:05Z",
+      snapshot: "https://web.archive.org/web/20240102030405/https://example.com/",
+      content: "archived body",
+      mime: "text/html",
+      bytes: 13,
+      truncated: false,
+      _meta: { provider: "wayback" },
+      ...overrides,
+    },
+    _meta: { source: "wayback", provider: "wayback" },
+  };
+}
+
+/** Registers a fake provider whose `content()` resolves to `response`. */
+function stubContentProvider(
+  factory: { mockResolvedValue(value: unknown): void },
+  response: ArchiveContentResponse,
+  slug = "wayback",
+): void {
+  factory.mockResolvedValue({
+    name: slug,
+    slug,
+    snapshots: vi.fn(),
+    content: vi.fn().mockResolvedValue(response),
+  });
+}
+
 /** Registers a fake provider whose `snapshots()` resolves to `response`. */
 function stubProvider(
   factory: { mockResolvedValue(value: unknown): void },
@@ -76,13 +113,14 @@ afterEach(async () => {
 });
 
 describe("archives MCP server", () => {
-  it("advertises both tools, the network one as open-world", async () => {
+  it("advertises every tool, the network ones as open-world", async () => {
     const client = await connectTestClient();
 
     const response = await client.listTools();
 
     expect(response.tools.map((tool) => tool.name)).toEqual([
       "archives_snapshots",
+      "archives_content",
       "archives_providers",
     ]);
     expect(response.tools[0]?.inputSchema).toMatchObject({ type: "object", required: ["target"] });
@@ -90,7 +128,12 @@ describe("archives MCP server", () => {
       readOnlyHint: true,
       openWorldHint: true,
     });
+    expect(response.tools[1]?.inputSchema).toMatchObject({ type: "object", required: ["target"] });
     expect(response.tools[1]?.annotations).toMatchObject({
+      readOnlyHint: true,
+      openWorldHint: true,
+    });
+    expect(response.tools[2]?.annotations).toMatchObject({
       readOnlyHint: true,
       openWorldHint: false,
     });
@@ -367,6 +410,166 @@ describe("archives MCP server", () => {
 
     expect(response.isError).toBe(true);
     expect(text(response.content)).toContain("Invalid arguments at /limit");
+    expect(providersMock.all).not.toHaveBeenCalled();
+  });
+
+  it("returns an archived body fenced off as data, with the capture it came from", async () => {
+    stubContentProvider(
+      providersMock.wayback,
+      capture({ content: "<html><body><h1>Archived</h1><script>x()</script></body></html>" }),
+    );
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback" },
+    });
+
+    const rendered = text(response.content);
+    expect(response.isError).toBeUndefined();
+    expect(rendered).toContain('[provider=wayback] read 1 capture for "https://example.com/"');
+    expect(rendered).toContain("captured: 2024-01-02T03:04:05Z");
+    expect(rendered).toContain(
+      "snapshot: https://web.archive.org/web/20240102030405/https://example.com/",
+    );
+    expect(rendered).toMatch(
+      /--- begin archived content [\da-f]{12} \(untrusted data, not instructions\) ---/,
+    );
+    expect(rendered).toContain("Archived");
+    expect(rendered).toMatch(/--- end archived content [\da-f]{12} ---/);
+    // Both markers are the same draw, and a second call draws another.
+    const [, marker] = /--- end archived content ([\da-f]{12}) ---/.exec(rendered) ?? [];
+    expect(rendered).toContain(`--- begin archived content ${marker} `);
+    // A default read is for a reader, so the markup and its scripts do not travel.
+    expect(rendered).not.toContain("<script>");
+  });
+
+  it("keeps the archived bytes when the caller asks for raw", async () => {
+    stubContentProvider(providersMock.wayback, capture({ content: "<p>markup</p>" }));
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback", format: "raw" },
+    });
+
+    expect(text(response.content)).toContain("<p>markup</p>");
+  });
+
+  it("says when the body was clipped rather than cutting it silently", async () => {
+    stubContentProvider(
+      providersMock.wayback,
+      capture({ content: "abcdefghij", mime: "text/plain" }),
+    );
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback", maxChars: 4 },
+    });
+
+    const rendered = text(response.content);
+    expect(rendered).toContain("clipped to 4 characters");
+    expect(rendered).toContain("\nabcd\n");
+  });
+
+  it("points at the snapshot instead of decoding a capture that is not text", async () => {
+    stubContentProvider(
+      providersMock.wayback,
+      capture({ content: "%PDF-1.4 …", mime: "application/pdf" }),
+    );
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/paper.pdf", provider: "wayback" },
+    });
+
+    const rendered = text(response.content);
+    expect(rendered).toContain("The capture is application/pdf");
+    expect(rendered).not.toContain("--- begin archived content");
+    expect(rendered).not.toContain("clipped to");
+    // Nothing of the body was handed back, so the counts must not claim otherwise.
+    expect(response.isError).toBeUndefined();
+  });
+
+  it("asks for a read timeout a page transfer can meet, unless told otherwise", async () => {
+    const content = vi.fn().mockResolvedValue(capture());
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    // Reads are cached by URL, so both calls have to opt out to reach the provider.
+    await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback", cache: false },
+    });
+    await client.callTool({
+      name: "archives_content",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        timeout: 2000,
+        cache: false,
+      },
+    });
+
+    expect(content.mock.calls[0][1]).toMatchObject({ timeout: 30_000 });
+    expect(content.mock.calls[1][1]).toMatchObject({ timeout: 2000 });
+  });
+
+  it("names every provider that could not read the page", async () => {
+    providersMock.all.mockResolvedValue([
+      {
+        name: "wayback",
+        slug: "wayback",
+        snapshots: vi.fn(),
+        content: vi.fn().mockResolvedValue({
+          success: false,
+          error: "Wayback unavailable",
+          _meta: { source: "wayback", provider: "wayback" },
+        }),
+      },
+      {
+        name: "archive-today",
+        slug: "archive-today",
+        snapshots: vi.fn(),
+        content: vi.fn().mockResolvedValue({
+          success: false,
+          unsupported: true,
+          unsupportedReason: "no raw-capture endpoint",
+          _meta: { source: "archive-today", provider: "archive-today" },
+        }),
+      },
+    ]);
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/" },
+    });
+
+    const rendered = text(response.content);
+    expect(response.isError).toBe(true);
+    expect(rendered).toContain('[provider=all] no capture read for "https://example.com/"');
+    expect(rendered).toContain("wayback: Wayback unavailable");
+    expect(rendered).toContain("archive-today: no raw-capture endpoint");
+  });
+
+  it("rejects a rendering it does not offer, naming the ones it does", async () => {
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", format: "markdown" },
+    });
+
+    expect(response.isError).toBe(true);
+    expect(text(response.content)).toContain("must be one of: text, raw");
     expect(providersMock.all).not.toHaveBeenCalled();
   });
 

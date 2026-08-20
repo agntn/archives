@@ -86,6 +86,41 @@ export interface UnsupportedProviderRecord {
   reason: string;
 }
 
+// Options for reading one archived capture, on top of the shared ones.
+export interface ArchiveContentOptions extends ArchiveOptions {
+  // Capture to read, as a Wayback-style timestamp (YYYY through YYYYMMDDhhmmss)
+  // or an ISO 8601 date. Providers answer with the newest capture at or before
+  // it; without it, with the newest capture they have.
+  timestamp?: string;
+  // Hard cap on the bytes read from the archived body (default 2 MiB).
+  maxBytes?: number;
+}
+
+// One archived capture together with its body.
+export interface ArchivedContent {
+  url: string; // Original URL that was archived
+  timestamp: string; // ISO 8601 date of the capture actually returned
+  snapshot: string; // URL the body was read from
+  content: string; // Decoded body of the archived response
+  mime?: string; // Content type the archive reports for the capture
+  bytes: number; // Bytes read from the body, after any cap
+  truncated: boolean; // Body was cut off at maxBytes
+  _meta: ArchivedPageMetadata;
+}
+
+export interface ArchiveContentResponse {
+  success: boolean;
+  content?: ArchivedContent;
+  error?: string;
+
+  // Set when the provider has no endpoint that returns archived page bodies.
+  unsupported?: boolean;
+  unsupportedReason?: string;
+
+  _meta?: ResponseMetadata;
+  fromCache?: boolean;
+}
+
 // Type for response metadata
 export interface ResponseMetadata {
   source: string;
@@ -119,6 +154,15 @@ export interface ArchiveProvider {
   slug?: string;
   cacheKey?: (options?: ArchiveOptions) => string | undefined;
   snapshots: (domain: string, options?: ArchiveOptions) => Promise<ArchiveResponse>;
+
+  /**
+   * Read the body of one archived capture.
+   *
+   * Optional: a provider that serves captures only through its own UI has no
+   * such endpoint, and an aggregator reports a missing method the same way it
+   * reports an explicit unsupported response.
+   */
+  content?: (url: string, options?: ArchiveContentOptions) => Promise<ArchiveContentResponse>;
 }
 
 /**
@@ -132,6 +176,8 @@ export interface ArchiveInterface {
   // Core methods
   snapshots(domain: string, options?: ArchiveOptions): Promise<ArchiveResponse>;
   getPages(domain: string, options?: ArchiveOptions): Promise<ArchivedPage[]>;
+  content(url: string, options?: ArchiveContentOptions): Promise<ArchiveContentResponse>;
+  getContent(url: string, options?: ArchiveContentOptions): Promise<ArchivedContent>;
 
   // Provider management
   use(provider: ArchiveProvider | Promise<ArchiveProvider>): Promise<ArchiveInterface>;

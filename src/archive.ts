@@ -1,14 +1,17 @@
 // Import necessary dependencies
 import type {
+  ArchiveContentOptions,
+  ArchiveContentResponse,
   ArchiveOptions,
   ArchiveResponse,
   ArchiveProvider,
+  ArchivedContent,
   ArchivedPage,
   ArchiveInterface,
   UnsupportedProviderRecord,
 } from "./types";
-import { getStoredResponse, storeResponse } from "./storage";
-import { mergeOptions, processInParallel } from "./utils";
+import { getStoredContent, getStoredResponse, storeContent, storeResponse } from "./storage";
+import { mergeOptions, processInParallel, toErrorMessage, unwrapSnapshotUrl } from "./utils";
 
 /**
  * Thrown by `archive.getPages()` when the only-or-all-queried providers do not
@@ -132,6 +135,79 @@ export function combineResults(responses: ArchiveResponse[], limit?: number): Ar
 }
 
 /**
+ * Combine per-provider content responses into a single response.
+ *
+ * A content query wants one body, not a merged set, so the first provider that
+ * returns one wins and the others are reported beside it: which archive answered
+ * decides how much the bytes can be trusted, and a caller that reads only the
+ * body would never learn that its preferred archive was the one that failed.
+ *
+ * @param responses - Per-provider responses, in the order they were tried
+ */
+export function combineContentResults(responses: ArchiveContentResponse[]): ArchiveContentResponse {
+  const failures: Array<{ provider: string; message: string }> = [];
+  const unsupportedProviders: UnsupportedProviderRecord[] = [];
+  let winner: ArchiveContentResponse | undefined;
+
+  for (const response of responses) {
+    const providerSlug = response._meta?.provider ?? "unknown";
+    if (response.success && response.content) {
+      winner ??= response;
+    } else if (response.unsupported) {
+      unsupportedProviders.push({
+        provider: providerSlug,
+        reason: response.unsupportedReason ?? "operation not supported",
+      });
+    } else if (response.error) {
+      failures.push({ provider: providerSlug, message: response.error });
+    }
+  }
+
+  // A single provider's answer is already the whole answer; rewrapping it would
+  // only lose `fromCache` and the provider's own metadata.
+  if (responses.length <= 1) {
+    return responses[0] ?? { success: false, error: "No providers were queried" };
+  }
+
+  const errors =
+    failures.length > 0
+      ? failures.map((failure) => `${failure.provider}: ${failure.message}`)
+      : undefined;
+  const unsupported = unsupportedProviders.length > 0 ? unsupportedProviders : undefined;
+
+  if (winner) {
+    return {
+      ...winner,
+      _meta: {
+        ...(winner._meta ?? { source: "multiple", provider: "unknown" }),
+        errors,
+        unsupportedProviders: unsupported,
+      },
+    };
+  }
+
+  const allUnsupported = responses.length > 0 && unsupportedProviders.length === responses.length;
+
+  return {
+    success: false,
+    error: allUnsupported
+      ? undefined
+      : failures.map((failure) => failure.message).join("; ") || undefined,
+    unsupported: allUnsupported || undefined,
+    unsupportedReason: allUnsupported
+      ? unsupportedProviders.map((record) => `${record.provider}: ${record.reason}`).join("; ")
+      : undefined,
+    _meta: {
+      source: "multiple",
+      provider: responses.map((response) => response._meta?.provider || "unknown").join(","),
+      providerCount: responses.length,
+      errors,
+      unsupportedProviders: unsupported,
+    },
+  };
+}
+
+/**
  * Unified archive client aggregating one or more `ArchiveProvider`s.
  *
  * Use `createArchive()` for the functional entry point; the class exists so
@@ -153,6 +229,8 @@ export class Archive implements ArchiveInterface {
     this.resolveProviders = this.resolveProviders.bind(this);
     this.snapshots = this.snapshots.bind(this);
     this.getPages = this.getPages.bind(this);
+    this.content = this.content.bind(this);
+    this.getContent = this.getContent.bind(this);
     this.use = this.use.bind(this);
     this.useAll = this.useAll.bind(this);
   }
@@ -314,6 +392,147 @@ export class Archive implements ArchiveInterface {
     }
     throw new Error(
       messageParts.length > 0 ? messageParts.join("; ") : "Failed to fetch archive snapshots",
+    );
+  }
+
+  /**
+   * Read one archived capture's body from a single provider, honoring the cache.
+   */
+  private async readContentFromProvider(
+    provider: ArchiveProvider,
+    url: string,
+    requestOptions: ArchiveContentOptions,
+  ): Promise<ArchiveContentResponse> {
+    const providerSlug = provider.slug ?? provider.name;
+
+    // A provider without the method is the same answer as one that declares the
+    // operation unsupported, and saying so by name beats a generic failure.
+    if (typeof provider.content !== "function") {
+      return {
+        success: false,
+        unsupported: true,
+        unsupportedReason: `${provider.name} does not implement reading archived content`,
+        _meta: { source: provider.name, provider: providerSlug },
+      };
+    }
+
+    if (requestOptions.cache !== false) {
+      const cached = await getStoredContent(provider, url, requestOptions);
+      if (cached) return cached;
+    }
+
+    try {
+      const response = await provider.content(url, requestOptions);
+
+      if (response.success && requestOptions.cache !== false) {
+        await storeContent(provider, url, response, requestOptions);
+      }
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: toErrorMessage(error),
+        _meta: {
+          source: provider.name,
+          provider: providerSlug,
+          errorDetails: error,
+        },
+      };
+    }
+  }
+
+  /**
+   * Read the body of one archived capture.
+   *
+   * Providers are tried in order and the first body wins, because there is one
+   * page to read rather than a set to merge. Passing a playback URL works as
+   * well as passing the original: the capture it names is unwrapped out of it.
+   *
+   * @param url - Original URL, or a playback URL printed by `snapshots()`
+   * @param contentOptions - Request options; `timestamp` selects the capture
+   * @returns Promise resolving to the capture, or to the reasons nobody had it
+   *
+   * @example
+   * ```js
+   * // Newest capture
+   * const response = await archive.content('example.com')
+   *
+   * // The page as it stood in March 2019
+   * const response = await archive.content('https://example.com/page', {
+   *   timestamp: '2019-03-01'
+   * })
+   * ```
+   */
+  async content(
+    url: string,
+    contentOptions?: ArchiveContentOptions,
+  ): Promise<ArchiveContentResponse> {
+    const mergedOptions = await mergeOptions<ArchiveContentOptions>(this.options, contentOptions);
+    const providerArray = await this.resolveProviders();
+
+    // An explicit timestamp wins over one embedded in a playback URL: the caller
+    // asking for a different capture than the URL names is asking on purpose.
+    const unwrapped = unwrapSnapshotUrl(url);
+    const timestamp = mergedOptions.timestamp ?? unwrapped.timestamp;
+    const options: ArchiveContentOptions = {
+      ...mergedOptions,
+      ...(timestamp === undefined ? {} : { timestamp }),
+    };
+
+    const responses: ArchiveContentResponse[] = [];
+    for (const provider of providerArray) {
+      const response = await this.readContentFromProvider(provider, unwrapped.url, options);
+      responses.push(response);
+      if (response.success && response.content) break;
+    }
+
+    return combineContentResults(responses);
+  }
+
+  /**
+   * Read one archived capture, returning the capture itself.
+   * Throws when no provider could produce it (unlike `content`, which reports).
+   *
+   * @param url - Original URL, or a playback URL printed by `snapshots()`
+   * @param contentOptions - Request options; `timestamp` selects the capture
+   * @returns Promise resolving to the archived capture
+   * @throws `UnsupportedOperationError` when every queried provider lacks the
+   * operation, and a generic `Error` when the read failed for any other reason
+   */
+  async getContent(url: string, contentOptions?: ArchiveContentOptions): Promise<ArchivedContent> {
+    const res = await this.content(url, contentOptions);
+    if (res.success && res.content) {
+      return res.content;
+    }
+
+    if (res.unsupported) {
+      const providers =
+        res._meta?.unsupportedProviders ??
+        (res._meta?.provider
+          ? [
+              {
+                provider: res._meta.provider,
+                reason: res.unsupportedReason ?? "operation not supported",
+              },
+            ]
+          : []);
+      throw new UnsupportedOperationError(
+        res.unsupportedReason ?? "operation not supported by any queried provider",
+        providers,
+      );
+    }
+
+    const messageParts: string[] = [];
+    if (res.error) messageParts.push(res.error);
+    if (res._meta?.unsupportedProviders?.length) {
+      messageParts.push(
+        "unsupported: " +
+          res._meta.unsupportedProviders.map((u) => `${u.provider} (${u.reason})`).join(", "),
+      );
+    }
+    throw new Error(
+      messageParts.length > 0 ? messageParts.join("; ") : "Failed to read archived content",
     );
   }
 

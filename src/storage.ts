@@ -1,7 +1,12 @@
 import { createStorage, type Storage, type Driver } from "unstorage";
 import memoryDriver from "unstorage/drivers/memory";
 import { consola } from "consola";
-import type { ArchiveOptions, ArchiveResponse } from "./types";
+import type {
+  ArchiveContentOptions,
+  ArchiveContentResponse,
+  ArchiveOptions,
+  ArchiveResponse,
+} from "./types";
 import { getConfig } from "./config";
 
 export const storage: Storage = createStorage({
@@ -16,6 +21,11 @@ interface StoredArchiveResponse {
   expiresAt?: number;
 }
 
+interface StoredArchiveContent {
+  response: ArchiveContentResponse;
+  expiresAt?: number;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -26,6 +36,21 @@ function isArchiveResponse(value: unknown): value is ArchiveResponse {
 
 function isStoredArchiveResponse(value: unknown): value is StoredArchiveResponse {
   return isRecord(value) && isArchiveResponse(value.response);
+}
+
+// Only successful reads are stored, so an entry without a decoded body is a
+// corrupt one rather than a cached failure.
+function isStoredArchiveContent(value: unknown): value is StoredArchiveContent {
+  return (
+    isRecord(value) &&
+    isRecord(value.response) &&
+    isRecord(value.response.content) &&
+    typeof value.response.content.content === "string"
+  );
+}
+
+function isExpired(expiresAt: number | undefined): boolean {
+  return expiresAt !== undefined && expiresAt <= Date.now();
 }
 
 interface CacheKeyProvider {
@@ -123,7 +148,7 @@ export async function getStoredResponse(
 
     if (!isStoredArchiveResponse(parsedData)) return undefined;
 
-    if (parsedData.expiresAt !== undefined && parsedData.expiresAt <= Date.now()) {
+    if (isExpired(parsedData.expiresAt)) {
       await storage.removeItem(key);
       return undefined;
     }
@@ -164,6 +189,104 @@ export async function storeResponse(
   try {
     const { fromCache: _fromCache, ...storableResponse } = response;
     const storedResponse: StoredArchiveResponse = {
+      response: storableResponse,
+      expiresAt: getExpiresAt(options?.ttl),
+    };
+
+    await storage.setItem(key, JSON.stringify(storedResponse));
+  } catch (error) {
+    consola.error(`Storage write error for ${key}:`, error);
+  }
+}
+
+/**
+ * Generate a storage key for one archived body.
+ *
+ * The `content` segment keeps these entries out of the snapshot listings' key
+ * space, and both the requested capture and the byte cap are part of the key:
+ * a caller asking for a different capture, or for more of the same one, is
+ * asking a different question.
+ */
+export function generateContentStorageKey(
+  provider: CacheKeyProvider,
+  url: string,
+  options?: ArchiveContentOptions,
+): string {
+  const providerKey = provider.slug ?? provider.name;
+  const keyParts = [providerKey, "content", url];
+
+  if (options?.timestamp) keyParts.push(`timestamp=${options.timestamp}`);
+  if (options?.maxBytes !== undefined) keyParts.push(`maxBytes=${options.maxBytes}`);
+
+  const providerCacheKey = provider.cacheKey?.(options);
+  if (providerCacheKey) keyParts.push(providerCacheKey);
+
+  return `${storagePrefix}:${JSON.stringify(keyParts)}`;
+}
+
+/**
+ * Get a stored archived body if one is cached and still fresh
+ */
+export async function getStoredContent(
+  provider: CacheKeyProvider,
+  url: string,
+  options?: ArchiveContentOptions,
+): Promise<ArchiveContentResponse | undefined> {
+  if (options?.cache === false) {
+    return undefined;
+  }
+
+  if (!storageInitialized) {
+    await initStorage();
+  }
+
+  const key = generateContentStorageKey(provider, url, options);
+
+  try {
+    const cachedData = await storage.getItem(key);
+    if (!cachedData) return undefined;
+
+    const parsedData = typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
+    if (!isStoredArchiveContent(parsedData)) return undefined;
+
+    if (isExpired(parsedData.expiresAt)) {
+      await storage.removeItem(key);
+      return undefined;
+    }
+
+    return {
+      ...parsedData.response,
+      fromCache: true,
+    };
+  } catch (error) {
+    consola.error(`Storage read/parse error for ${key}:`, error);
+  }
+
+  return undefined;
+}
+
+/**
+ * Store an archived body in storage
+ */
+export async function storeContent(
+  provider: CacheKeyProvider,
+  url: string,
+  response: ArchiveContentResponse,
+  options?: ArchiveContentOptions,
+): Promise<void> {
+  if (options?.cache === false || !response.success || !response.content) {
+    return;
+  }
+
+  if (!storageInitialized) {
+    await initStorage();
+  }
+
+  const key = generateContentStorageKey(provider, url, options);
+
+  try {
+    const { fromCache: _fromCache, ...storableResponse } = response;
+    const storedResponse: StoredArchiveContent = {
       response: storableResponse,
       expiresAt: getExpiresAt(options?.ttl),
     };

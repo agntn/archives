@@ -1,14 +1,38 @@
 import { $fetch } from "ofetch";
-import type { ArchiveOptions, ArchiveResponse } from "../types";
+import type {
+  ArchiveContentOptions,
+  ArchiveContentResponse,
+  ArchiveOptions,
+  ArchiveResponse,
+} from "../types";
 import type { ArchiveItOptions } from "../_providers";
 import {
+  createContentErrorResponse,
+  createContentResponse,
   createErrorResponse,
   createFetchOptions,
   createSuccessResponse,
   mapCdxRows,
   normalizeDomain,
+  preferSameUrl,
+  readPlaybackCapture,
+  resolveRequestedTimestamp,
+  selectCapture,
+  toWaybackTimestamp,
 } from "../utils";
 import { BaseProvider } from "./base-provider";
+
+const BASE_URL = "https://wayback.archive-it.org";
+
+/**
+ * Captures pulled for one URL before the closest is picked locally.
+ *
+ * Collection-scoped indexes answer with the captures they hold in index order,
+ * so the choice is made here rather than asked for in the query: a bound the
+ * server silently ignores would otherwise hand back the wrong capture with no
+ * sign that anything went wrong.
+ */
+const CONTENT_CAPTURE_LIMIT = 200;
 
 /**
  * Archive-It collection archive provider.
@@ -52,12 +76,8 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
   ): Promise<ArchiveResponse> {
     try {
       const options = await this.resolveOptions(reqOptions);
-      const collection = String(options.collection).trim();
-      if (!/^\d+$/.test(collection)) {
-        throw new Error("Archive-It collection must be a numeric collection ID");
-      }
-
-      const baseUrl = "https://wayback.archive-it.org";
+      const collection = requireCollection(options.collection);
+      const baseUrl = BASE_URL;
       const urlPattern = normalizeDomain(domain);
       const params: Record<string, string> = {
         url: urlPattern,
@@ -93,6 +113,108 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
       return createErrorResponse(error, "archive-it");
     }
   }
+
+  /**
+   * Read the body of one archived capture from the configured collection.
+   *
+   * Archive-It replays captures through the same Wayback machinery as the
+   * Internet Archive, so the `id_` modifier returns the original response here
+   * too — only the host and the collection segment differ.
+   */
+  override async content(
+    url: string,
+    reqOptions: Partial<ArchiveItOptions> & ArchiveContentOptions = {},
+  ): Promise<ArchiveContentResponse> {
+    try {
+      const options = await this.resolveContentOptions(reqOptions);
+      const collection = requireCollection(options.collection);
+      const target = normalizeDomain(url, false);
+      if (target.includes("*")) {
+        throw new Error("Reading archived content requires one exact URL, not a wildcard pattern");
+      }
+
+      const wanted = resolveRequestedTimestamp(options.timestamp);
+      const captures = await this.findCaptures(collection, target, wanted, options);
+      const capture = selectCapture(
+        preferSameUrl(captures, target, (candidate) => candidate.original),
+        wanted,
+      );
+      if (!capture) {
+        return createContentErrorResponse(
+          `No Archive-It capture for ${target} in collection ${collection}${wanted ? ` near ${wanted}` : ""}`,
+          "archive-it",
+          { collection, requestedTimestamp: wanted || undefined },
+        );
+      }
+
+      const content = await readPlaybackCapture({
+        baseURL: BASE_URL,
+        prefix: `/${collection}`,
+        original: capture.original,
+        stamp: capture.timestamp,
+        provider: "archive-it",
+        options,
+        meta: { collection },
+      });
+
+      return createContentResponse(content, "archive-it", {
+        collection,
+        requestedTimestamp: wanted || undefined,
+      });
+    } catch (error) {
+      return createContentErrorResponse(error, "archive-it");
+    }
+  }
+
+  private async findCaptures(
+    collection: string,
+    target: string,
+    wanted: string,
+    options: ArchiveContentOptions,
+  ): Promise<Array<{ original: string; timestamp: string; status?: number }>> {
+    const params: Record<string, string> = {
+      url: target,
+      fl: "original,timestamp,statuscode",
+      limit: String(CONTENT_CAPTURE_LIMIT),
+    };
+    // A bound this deployment honors keeps the response small; one it ignores
+    // costs nothing, because the capture is chosen from the rows either way.
+    if (wanted) params.to = wanted;
+
+    const fetchOptions = await createFetchOptions(BASE_URL, params, {
+      retries: options.retries,
+      timeout: options.timeout,
+    });
+    const response: string = await $fetch(`/${collection}/timemap/cdx`, {
+      ...fetchOptions,
+      responseType: "text",
+    });
+
+    const captures: Array<{ original: string; timestamp: string; status?: number }> = [];
+    for (const line of response.trim().split("\n")) {
+      const [original, rawTimestamp, statuscode] = line.trim().split(/\s+/);
+      const timestamp = toWaybackTimestamp(rawTimestamp ?? "");
+      if (!timestamp || !original) continue;
+
+      const status = Number.parseInt(statuscode ?? "", 10);
+      captures.push({
+        original,
+        timestamp,
+        ...(Number.isFinite(status) ? { status } : {}),
+      });
+    }
+
+    return captures;
+  }
+}
+
+/** Archive-It queries are collection-scoped; a missing or non-numeric id has no endpoint. */
+function requireCollection(collection: ArchiveItOptions["collection"] | undefined): string {
+  const value = String(collection ?? "").trim();
+  if (!/^\d+$/.test(value)) {
+    throw new Error("Archive-It collection must be a numeric collection ID");
+  }
+  return value;
 }
 
 export default function archiveIt(options: ArchiveItOptions): ArchiveItProvider {

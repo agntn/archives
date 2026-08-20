@@ -1,5 +1,11 @@
 export type * from "./types";
-export { createArchive, Archive, UnsupportedOperationError, combineResults } from "./archive";
+export {
+  createArchive,
+  Archive,
+  UnsupportedOperationError,
+  combineResults,
+  combineContentResults,
+} from "./archive";
 export { BaseProvider } from "./providers/base-provider";
 export { WaybackProvider } from "./providers/wayback";
 export { ArchiveItProvider } from "./providers/archive-it";

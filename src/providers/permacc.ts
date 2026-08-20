@@ -2,9 +2,23 @@ import { createHash } from "node:crypto";
 import { $fetch } from "ofetch";
 import { hasProtocol } from "ufo";
 import type { PermaccOptions } from "../_providers";
-import type { ArchiveOptions, ArchiveResponse, ArchivedPage } from "../types";
-import { createSuccessResponse, createErrorResponse, createFetchOptions } from "../utils";
+import type {
+  ArchiveContentOptions,
+  ArchiveContentResponse,
+  ArchiveOptions,
+  ArchiveResponse,
+  ArchivedPage,
+} from "../types";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  createFetchOptions,
+  createUnsupportedContentResponse,
+} from "../utils";
 import { BaseProvider } from "./base-provider";
+
+const UNSUPPORTED_CONTENT_REASON =
+  "Perma.cc's API returns capture metadata only. The archived bytes are served through its playback UI or an account-scoped WARC download, neither of which this provider performs.";
 
 function normalizeExactUrl(input: string): string {
   const trimmedInput = input.trim();
@@ -216,6 +230,17 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
       const errorName = error instanceof Error ? error.name : "UnknownError";
       return createErrorResponse(message, "permacc", { errorName });
     }
+  }
+
+  override content(
+    _url: string,
+    _options: ArchiveContentOptions = {},
+  ): Promise<ArchiveContentResponse> {
+    return Promise.resolve(
+      createUnsupportedContentResponse(UNSUPPORTED_CONTENT_REASON, "permacc", {
+        operation: "content",
+      }),
+    );
   }
 }
 
