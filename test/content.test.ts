@@ -775,6 +775,12 @@ describe("content helpers", () => {
     ).toBe("Kept\nAfter");
   });
 
+  it("keeps a less-than sign that opens no tag", () => {
+    expect(htmlToText("<p>Price: 2 < 3 and 5 > 4</p>")).toBe("Price: 2 < 3 and 5 > 4");
+    // A doctype still counts as markup rather than text.
+    expect(htmlToText("<!doctype html><p>Body</p>")).toBe("Body");
+  });
+
   it("stays linear on markup that never terminates", () => {
     // An archived page is an input an attacker picks, and the byte cap admits
     // 2 MiB of it. The `replace()` chain this scan replaced backtracked

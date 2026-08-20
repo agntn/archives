@@ -606,6 +606,17 @@ export function htmlToText(html: string): string {
       continue;
     }
 
+    // A `<` that opens nothing is text. `Price: 2 < 3 and 5 > 4` would otherwise
+    // lose everything up to the next `>` as if it were a tag.
+    const afterAngle = lower.charCodeAt(open + 1);
+    const opensMarkup =
+      isNameByte(afterAngle) || afterAngle === 47 || afterAngle === 33 || afterAngle === 63;
+    if (!opensMarkup) {
+      parts.push("<");
+      cursor = open + 1;
+      continue;
+    }
+
     const tag = readTagName(lower, open);
     if (!tag.closing && NOISE_TAGS.has(tag.name)) {
       const closeStart = indexOfClosingTag(lower, tag.name, open + tag.name.length + 1);
