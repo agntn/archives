@@ -163,6 +163,19 @@ describe("wayback content", () => {
     expect(response.content?.url).toBe("http://example.com/");
   });
 
+  it("accepts a whole-hour offset, which Date alone refuses", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20190302040000", "200"]]));
+    rawMock.mockResolvedValueOnce(rawResponse("utc", { url: "" }));
+
+    await createArchive(createWayback()).content("example.com", {
+      timestamp: "2019-03-01T23:30:00-05",
+    });
+
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      params: expect.objectContaining({ to: "20190302043000" }),
+    });
+  });
+
   it("rejects a timestamp with a valid-looking prefix and a typo after it", async () => {
     const response = await createArchive(createWayback()).content("example.com", {
       timestamp: "2019-03-01junk",

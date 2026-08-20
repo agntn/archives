@@ -28,7 +28,7 @@ const ISO_LIKE_TIMESTAMP =
 // An ISO instant that names its offset means a different instant than its digits
 // read literally, and archives index captures in UTC.
 const ZONED_ISO_TIMESTAMP =
-  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/i;
+  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(Z|[+-]\d{2}(?::?\d{2})?)$/i;
 
 // A playback URL is `<prefix>/<timestamp><modifier?>/<original>`; the two-letter
 // modifiers (`id_`, `if_`, `im_`, …) select which rendition the archive replays.
@@ -71,8 +71,13 @@ export function toWaybackTimestamp(value: string): string {
 function isoToWaybackDigits(value: string): string {
   const trimmed = value.trim();
 
-  if (ZONED_ISO_TIMESTAMP.test(trimmed)) {
-    const instant = new Date(trimmed);
+  const zoned = ZONED_ISO_TIMESTAMP.exec(trimmed);
+  if (zoned) {
+    // `-05` is a valid ISO 8601 offset that `Date` refuses; the minutes it wants
+    // are the ones the format leaves implicit.
+    const offset = zoned[1];
+    const parsable = /^[+-]\d{2}$/.test(offset) ? `${trimmed}:00` : trimmed;
+    const instant = new Date(parsable);
     if (Number.isNaN(instant.getTime())) return "";
     return instant.toISOString().replace(/\D/g, "").slice(0, 14);
   }
