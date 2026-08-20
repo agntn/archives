@@ -353,7 +353,9 @@ function buildSnapshotHeader(
   // The tool is annotated open-world, so a replay from the 7-day cache has to say
   // so rather than pass for a fresh read of the archive.
   const cacheNote = response.fromCache ? "; cached" : "";
-  return `[provider=${provider}] ${response.pages.length} snapshot(s) for "${target}"${unsupportedNote}${failedNote}${errorNote}${cacheNote}`;
+  // The target is caller-supplied and lands one line above the records, so a
+  // newline in it forges a snapshot row exactly like a provider field would.
+  return `[provider=${provider}] ${response.pages.length} snapshot(s) for "${sanitizeField(target)}"${unsupportedNote}${failedNote}${errorNote}${cacheNote}`;
 }
 
 function sanitizeResponse(response: ArchiveResponse): ArchiveResponse {
@@ -392,7 +394,7 @@ function formatSnapshots(response: ArchiveResponse): string[] {
     lines.push("", "Unsupported providers:");
     for (const item of unsupported) {
       if (isUnsupportedRecord(item)) {
-        lines.push(`  ${item.provider}: ${item.reason}`);
+        lines.push(`  ${sanitizeField(item.provider)}: ${sanitizeField(item.reason)}`);
       }
     }
   }
@@ -402,13 +404,13 @@ function formatSnapshots(response: ArchiveResponse): string[] {
   const failed = providerErrors(response);
   if (failed.length > 0) {
     lines.push("", "Failed providers:");
-    for (const failure of failed) lines.push(`  ${failure}`);
+    for (const failure of failed) lines.push(`  ${sanitizeField(failure)}`);
   }
   if (response.unsupportedReason) {
-    lines.push("", `Unsupported: ${response.unsupportedReason}`);
+    lines.push("", `Unsupported: ${sanitizeField(response.unsupportedReason)}`);
   }
   if (response.error) {
-    lines.push("", `Error: ${response.error}`);
+    lines.push("", `Error: ${sanitizeField(response.error)}`);
   }
   return lines;
 }

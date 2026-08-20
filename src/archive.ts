@@ -43,13 +43,10 @@ type ProviderInput =
  * @param responses - Array of per-provider responses (possibly mixed success/failure).
  * @param limit - Optional cap on the number of pages in the merged result.
  */
-export function combineResults(
-  responses: ArchiveResponse[],
-  limit?: number,
-): ArchiveResponse {
+export function combineResults(responses: ArchiveResponse[], limit?: number): ArchiveResponse {
   const allPages: ArchivedPage[] = [];
   const priorResponsePageKeys = new Set<string>();
-  const errors: string[] = [];
+  const failures: Array<{ provider: string; message: string }> = [];
   const unsupportedProviders: UnsupportedProviderRecord[] = [];
   let anySuccess = false;
 
@@ -67,10 +64,7 @@ export function combineResults(
           typeof digest === "string" && digest.length > 0 ? digest : page.snapshot;
         const captureKey = JSON.stringify([page.url, page.timestamp, captureIdentity]);
 
-        if (
-          priorResponsePageKeys.has(pageKey) ||
-          responseCaptureKeys.has(captureKey)
-        ) {
+        if (priorResponsePageKeys.has(pageKey) || responseCaptureKeys.has(captureKey)) {
           continue;
         }
 
@@ -88,7 +82,7 @@ export function combineResults(
         reason: response.unsupportedReason ?? "operation not supported",
       });
     } else if (response.error) {
-      errors.push(response.error);
+      failures.push({ provider: providerSlug, message: response.error });
     }
   }
 
@@ -108,12 +102,15 @@ export function combineResults(
     responses.length > 0 &&
     unsupportedProviders.length === responses.length &&
     !anySuccess &&
-    errors.length === 0;
+    failures.length === 0;
 
   return {
     success: anySuccess,
     pages: limitedPages,
-    error: anySuccess || allUnsupported ? undefined : errors.join("; ") || undefined,
+    error:
+      anySuccess || allUnsupported
+        ? undefined
+        : failures.map((failure) => failure.message).join("; ") || undefined,
     unsupported: allUnsupported || undefined,
     unsupportedReason: allUnsupported
       ? unsupportedProviders.map((u) => `${u.provider}: ${u.reason}`).join("; ")
@@ -122,9 +119,14 @@ export function combineResults(
       source: "multiple",
       provider: providersList.join(","),
       providerCount: providersList.length,
-      errors: errors.length > 0 ? errors : undefined,
-      unsupportedProviders:
-        unsupportedProviders.length > 0 ? unsupportedProviders : undefined,
+      // Slug-prefixed, like `unsupportedProviders`: a partially successful
+      // fan-out clears `error`, so this is the only place left that says which
+      // backend failed.
+      errors:
+        failures.length > 0
+          ? failures.map((failure) => `${failure.provider}: ${failure.message}`)
+          : undefined,
+      unsupportedProviders: unsupportedProviders.length > 0 ? unsupportedProviders : undefined,
     },
   };
 }
@@ -307,9 +309,7 @@ export class Archive implements ArchiveInterface {
     if (res._meta?.unsupportedProviders?.length) {
       messageParts.push(
         "unsupported: " +
-          res._meta.unsupportedProviders
-            .map((u) => `${u.provider} (${u.reason})`)
-            .join(", "),
+          res._meta.unsupportedProviders.map((u) => `${u.provider} (${u.reason})`).join(", "),
       );
     }
     throw new Error(
