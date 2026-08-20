@@ -10,6 +10,7 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 ## Features
 
 - 🔍 **Multiple providers** - Wayback Machine, Archive-It, Archive.today, Common Crawl, Perma.cc, WebCite
+- 📄 **Reads captures, not just lists them** - `content()` returns what an archived page said, decoded from the original response
 - 🌳 **Tree-shakable** - providers are lazy-loaded via dynamic imports, bundle only what you use
 - 📦 **Caching built in** - pluggable storage layer via [unstorage](https://github.com/unjs/unstorage) with configurable TTL
 - ⚡ **Parallel queries** - concurrency control, batching, automatic retries, configurable timeouts
@@ -103,17 +104,54 @@ try {
 }
 ```
 
+## Reading archived content
+
+`snapshots()` says which captures exist; `content()` returns what one of them said:
+
+```ts
+const archive = createArchive(providers.wayback());
+
+// Newest capture
+const response = await archive.content("example.com");
+response.content?.content; // the archived page body
+response.content?.timestamp; // when it was captured
+response.content?.snapshot; // the playback URL it came from
+
+// The page as it stood in March 2019
+const older = await archive.content("https://example.com/page", { timestamp: "2019-03-01" });
+```
+
+`timestamp` takes an ISO 8601 date or archive digits (`2019`, `201903`, up to `20190301120000`), and selects the newest capture at or before it — or, when the archive only holds later ones, the closest capture after it. A snapshot URL works as the target as well, in which case the capture it names is the one read:
+
+```ts
+await archive.content("https://web.archive.org/web/20190301120000/https://example.com/");
+```
+
+Bodies are read through each archive's raw-capture endpoint, never its playback UI: Wayback and Archive-It replay the original response under the `id_` modifier, and Common Crawl serves the byte range of the WARC record the index points at. Fetching a snapshot URL by hand returns the archive's own framing of the page instead.
+
+Providers are tried in order and the first body wins, because there is one page to read rather than a set to merge. The ones that could not answer are reported next to the body:
+
+```ts
+const response = await createArchive(providers.all()).content("example.com");
+response._meta?.errors; // ["wayback: ..."] when an archive failed
+response._meta?.unsupportedProviders; // [{ provider: "archive-today", reason: "..." }]
+```
+
+`content()` reads at most `maxBytes` (2 MiB by default) and reports `truncated: true` when it stopped early, so an archived video or disk image cannot be pulled into memory by accident. `getContent()` is the throwing variant, mirroring `getPages()`.
+
 ## Providers
 
-| Provider        | Factory                    | Notes                                                                                              |
-| --------------- | -------------------------- | -------------------------------------------------------------------------------------------------- |
-| Wayback Machine | `providers.wayback()`      | web.archive.org CDX API                                                                            |
-| Archive-It      | `providers.archiveIt()`    | Requires a numeric `collection`; collection-specific CDX/C API                                     |
-| Archive.today   | `providers.archiveToday()` | archive.ph via Memento timemap                                                                     |
-| Common Crawl    | `providers.commoncrawl()`  | Defaults to latest collection                                                                      |
-| Perma.cc        | `providers.permacc()`      | Requires `apiKey`; exact URL lookup only                                                           |
-| WebCite         | `providers.webcite()`      | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019). |
-| All             | `providers.all()`          | Wayback, Archive.today, Common Crawl, and WebCite                                                  |
+| Provider        | Factory                    | `content()` | Notes                                                                                              |
+| --------------- | -------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
+| Wayback Machine | `providers.wayback()`      | yes         | web.archive.org CDX API; captures replayed under `id_`                                             |
+| Archive-It      | `providers.archiveIt()`    | yes         | Requires a numeric `collection`; collection-specific CDX/C API                                     |
+| Archive.today   | `providers.archiveToday()` | no          | archive.ph via Memento timemap; no raw-capture endpoint                                            |
+| Common Crawl    | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                |
+| Perma.cc        | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                |
+| WebCite         | `providers.webcite()`      | no          | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019). |
+| All             | `providers.all()`          | —           | Wayback, Archive.today, Common Crawl, and WebCite                                                  |
+
+A provider that cannot serve bodies answers `content()` as unsupported with the reason, exactly as it does for a listing it has no endpoint for.
 
 You can add providers dynamically after creation:
 
@@ -129,7 +167,7 @@ await archive.useAll([providers.commoncrawl(), providers.webcite()]);
 archives mcp
 ```
 
-Speaks MCP over stdio and exposes two tools: `archives_snapshots` and `archives_providers`. Point a client at it:
+Speaks MCP over stdio and exposes three tools: `archives_snapshots`, `archives_content` and `archives_providers`. Point a client at it:
 
 ```json
 {
@@ -140,6 +178,8 @@ Speaks MCP over stdio and exposes two tools: `archives_snapshots` and `archives_
 ```
 
 An MCP client sees the text a tool returns and nothing else, so the text carries the whole answer: the provider that was queried, every snapshot with its timestamp and original URL, and the providers that could not answer, named with their reason instead of silently dropped. `archives_providers` is there for the same reason — without it the only way to learn which providers exist, which ones `provider=all` covers, and whether Perma.cc has a key is to send a value you expect to fail.
+
+`archives_content` returns the capture's original URL, its date, the snapshot it was read from, and the body — markup stripped to readable text unless `format=raw`, and clipped to `maxChars` (20 000 by default) with a note saying so. The body is fenced and labelled as untrusted data: it is a recording of a web page, not a message to the caller. A capture that is not text is described instead of decoded.
 
 `archives_snapshots` is annotated read-only and open-world: it leaves the machine on every call, and archives keep growing, so two identical calls may legitimately differ. An answer replayed from the response cache is marked `; cached` in its header. A provider that returns no snapshots is an answer, not a tool error. Only a rejected argument or a failed query sets `isError`.
 
@@ -161,6 +201,7 @@ pi install git:github.com/agntn/archives
 Tools:
 
 - `archives` — query archived snapshots for a domain or URL. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
+- `archives_content` — read the body of one archived capture. Pass `timestamp` for a point in time, or a snapshot URL to read the capture it names.
 - `archives_providers` — list built-in archive providers and Perma.cc API-key environment status.
 
 Commands:
@@ -189,6 +230,21 @@ interface ArchivedPage {
   url: string; // original URL
   timestamp: string; // ISO 8601
   snapshot: string; // direct link to the archived version
+  _meta: Record<string, unknown>;
+}
+```
+
+A read capture has its own shape:
+
+```ts
+interface ArchivedContent {
+  url: string; // original URL, as the archive recorded it
+  timestamp: string; // ISO 8601 date of the capture returned
+  snapshot: string; // playback URL the body came from
+  content: string; // decoded body of the archived response
+  mime?: string; // content type the archive reports
+  bytes: number; // bytes read, after any cap
+  truncated: boolean; // body was cut off at maxBytes
   _meta: Record<string, unknown>;
 }
 ```
@@ -274,6 +330,8 @@ Returns:
 
 - `snapshots(domain, options?)` - returns full `ArchiveResponse` with success flag
 - `getPages(domain, options?)` - returns `ArchivedPage[]`, throws on failure
+- `content(url, options?)` - returns `ArchiveContentResponse` with the archived body
+- `getContent(url, options?)` - returns `ArchivedContent`, throws on failure
 - `use(provider)` - add a provider to the instance
 - `useAll(providers)` - add multiple providers at once
 
@@ -291,6 +349,13 @@ All methods accept `ArchiveOptions`:
 | `timeout`     | `number`  | `10000`     | Request timeout in ms                |
 | `retries`     | `number`  | `1`         | Retry attempts on failure            |
 | `apiKey`      | `string`  | -           | API key for providers that need auth |
+
+`content()` takes two more, in `ArchiveContentOptions`:
+
+| Option      | Type     | Default   | Description                                                    |
+| ----------- | -------- | --------- | -------------------------------------------------------------- |
+| `timestamp` | `string` | -         | Capture to read: ISO 8601 date or archive digits               |
+| `maxBytes`  | `number` | `2097152` | Cap on the bytes read from the body; sets `truncated` when hit |
 
 Options can be set at three levels: config file (global defaults), `createArchive` call (instance defaults), and individual method calls (per-request). Each level overrides the previous one.
 
