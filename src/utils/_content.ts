@@ -21,8 +21,10 @@ export const DEFAULT_MAX_CONTENT_BYTES = 2 * 1024 * 1024;
 const WARC_HEADER_SLACK = 16 * 1024;
 
 const WAYBACK_TIMESTAMP_LENGTHS = new Set([4, 6, 8, 10, 12, 14]);
+// Anchored at both ends: a prefix match would read `2019-03-01junk` as March 1st
+// and send a real lookup for a period the caller never asked about.
 const ISO_LIKE_TIMESTAMP =
-  /^(\d{4})-(\d{2})(?:-(\d{2})(?:[T ](\d{2})(?::(\d{2})(?::(\d{2}))?)?)?)?/;
+  /^(\d{4})-(\d{2})(?:-(\d{2})(?:[T ](\d{2})(?::(\d{2})(?::(\d{2}))?)?)?)?$/;
 // An ISO instant that names its offset means a different instant than its digits
 // read literally, and archives index captures in UTC.
 const ZONED_ISO_TIMESTAMP =
@@ -116,7 +118,7 @@ export function timestampUpperBound(timestamp: string): string {
  *
  * `snapshots()` prints playback URLs, so they are what a caller holds when it
  * asks to read one. Left wrapped, the archive gets searched for a capture *of
- * itself* — a query that answers with something, which is worse than failing.
+ * itself*, and that query answers with something, which is worse than failing.
  *
  * @param input - Any URL, archived or not
  * @returns The original URL, plus the capture timestamp when the input carried one
@@ -128,6 +130,24 @@ export function unwrapSnapshotUrl(input: string): { url: string; timestamp?: str
 
   const [, stamp, original] = match;
   return { url: original, timestamp: stamp };
+}
+
+/**
+ * Names why a target cannot be read, when it points at where a capture is stored
+ * rather than at a page.
+ *
+ * `snapshots()` prints one of these for Common Crawl, and the documented flow
+ * invites a caller to hand a snapshot URL straight back. Left alone, the archives
+ * get searched for a copy of the WARC file itself and answer, confidently, that
+ * no capture exists.
+ *
+ * @param url - Target as the caller supplied it
+ */
+export function unreadableTargetReason(url: string): string | undefined {
+  if (/^https?:\/\/data\.commoncrawl\.org\//i.test(url.trim())) {
+    return "A Common Crawl snapshot URL names the WARC file a capture is stored in, not a page. Pass the original URL, with provider=commoncrawl to stay on that crawl.";
+  }
+  return undefined;
 }
 
 /**
@@ -148,8 +168,22 @@ export function preferSameUrl<T>(
   urlOf: (capture: T) => string,
 ): T[] {
   const wanted = canonicalUrlKey(target);
-  const exact = captures.filter((capture) => canonicalUrlKey(urlOf(capture)) === wanted);
-  return exact.length > 0 ? exact : captures;
+  const sameUrl = captures.filter((capture) => canonicalUrlKey(urlOf(capture)) === wanted);
+  if (sameUrl.length === 0) return captures;
+
+  // A CDX key drops the scheme too, so the index answers a request for the HTTPS
+  // page with the HTTP captures beside it. Narrow to the scheme the caller wrote,
+  // and only when they wrote one; a site that was only ever archived over HTTP
+  // still answers a request that asks for HTTPS.
+  const wantedScheme = schemeOf(target);
+  if (!wantedScheme) return sameUrl;
+
+  const sameScheme = sameUrl.filter((capture) => schemeOf(urlOf(capture)) === wantedScheme);
+  return sameScheme.length > 0 ? sameScheme : sameUrl;
+}
+
+function schemeOf(value: string): string {
+  return /^(https?):\/\//i.exec(value.trim())?.[1].toLowerCase() ?? "";
 }
 
 /** Reduces a URL to the differences that matter when comparing two spellings of it. */
@@ -330,22 +364,41 @@ export async function readPlaybackCapture(params: {
 /**
  * Decompresses one gzip member, stopping at `maxBytes`.
  *
- * @param bytes - Compressed payload
+ * The payload is streamed rather than buffered first: a WARC record is as large
+ * as whatever the crawler stored, and buffering it to then throw most of it away
+ * is exactly the download the cap exists to prevent.
+ *
+ * @param source - Compressed payload, as a stream or as bytes
  * @param maxBytes - Cap on the decompressed size
  * @throws When the runtime has no `DecompressionStream`
  */
 export async function gunzip(
-  bytes: Uint8Array,
+  source: unknown,
   maxBytes: number,
 ): Promise<{ bytes: Uint8Array; truncated: boolean }> {
   if (typeof DecompressionStream !== "function") {
     throw new Error("Reading Common Crawl records requires DecompressionStream in this runtime");
   }
 
-  const compressed = new Response(bytes as BodyInit).body;
-  if (!compressed) throw new Error("Empty Common Crawl record");
+  return readCappedBytes(
+    toByteStream(source).pipeThrough(new DecompressionStream("gzip")),
+    maxBytes,
+  );
+}
 
-  return readCappedBytes(compressed.pipeThrough(new DecompressionStream("gzip")), maxBytes);
+/**
+ * Presents a fetched payload as a stream, so the cap applies while the bytes
+ * arrive rather than after they are all in memory.
+ */
+function toByteStream(source: unknown) {
+  if (isReadableStream(source) || source instanceof Uint8Array || source instanceof ArrayBuffer) {
+    // `Response` passes a stream through untouched and wraps bytes without a
+    // copy, and its body carries the chunk type the decompressor expects.
+    const body = new Response(source as BodyInit).body;
+    if (body) return body;
+  }
+
+  throw new Error("Archive returned a record body this client cannot read");
 }
 
 /**
@@ -421,7 +474,7 @@ export function isTextualMime(mime: string | undefined): boolean {
  *
  * One forward scan rather than a chain of `replace()` calls, because every
  * unterminated-construct pattern that job needs (`<!--…-->`, `<script>…</script>`,
- * `<[^>]*>`) backtracks quadratically over an input that never terminates them —
+ * `<[^>]*>`) backtracks quadratically over an input that never terminates them,
  * and an archived page is an input an attacker picks. Measured before the
  * rewrite: 128 KiB of bare `<` took 9.8 seconds of one CPU.
  *

@@ -11,7 +11,13 @@ import type {
   UnsupportedProviderRecord,
 } from "./types";
 import { getStoredContent, getStoredResponse, storeContent, storeResponse } from "./storage";
-import { mergeOptions, processInParallel, toErrorMessage, unwrapSnapshotUrl } from "./utils";
+import {
+  mergeOptions,
+  processInParallel,
+  toErrorMessage,
+  unreadableTargetReason,
+  unwrapSnapshotUrl,
+} from "./utils";
 
 /**
  * Thrown by `archive.getPages()` when the only-or-all-queried providers do not
@@ -474,6 +480,15 @@ export class Archive implements ArchiveInterface {
     // An explicit timestamp wins over one embedded in a playback URL: the caller
     // asking for a different capture than the URL names is asking on purpose.
     const unwrapped = unwrapSnapshotUrl(url);
+    const unreadable = unreadableTargetReason(unwrapped.url);
+    if (unreadable) {
+      return {
+        success: false,
+        error: unreadable,
+        _meta: { source: "archives", provider: "archives" },
+      };
+    }
+
     const timestamp = mergedOptions.timestamp ?? unwrapped.timestamp;
     const options: ArchiveContentOptions = {
       ...mergedOptions,

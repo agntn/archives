@@ -35,8 +35,14 @@ import { BaseProvider } from "./base-provider";
 const BASE_URL = "https://index.commoncrawl.org";
 const DATA_BASE_URL = "https://data.commoncrawl.org";
 
-/** Captures pulled for one URL before the closest is picked locally. */
-const CONTENT_CAPTURE_LIMIT = 20;
+/**
+ * Captures pulled for one URL before the closest is picked locally.
+ *
+ * Wide enough that a URL crawled repeatedly in one crawl still arrives whole:
+ * the ordering parameters below decide which rows come back, and this decides
+ * whether the answer depends on them at all.
+ */
+const CONTENT_CAPTURE_LIMIT = 100;
 
 /** One indexed capture, with the WARC coordinates its body is read from. */
 interface CrawlCapture {
@@ -172,7 +178,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
 
       const captures = await this.findCaptures(index.indexName, target, wanted, options);
       const capture = selectCapture(
-        preferSameUrl(captures, target, (candidate) => candidate.url),
+        preferSameUrl(captures, url, (candidate) => candidate.url),
         wanted,
       );
       if (!capture) {
@@ -351,18 +357,17 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       DATA_BASE_URL,
       {},
       {
-        responseType: "arrayBuffer",
+        responseType: "stream",
         retries: options.retries,
         timeout: options.timeout ?? 60_000,
         headers: { range: `bytes=${start}-${start + length - 1}` },
       },
     );
     const segment = await $fetch(`/${capture.filename}`, fetchOptions);
-    const compressed = toBytes(segment);
 
     // The record's own headers sit in front of the body, so the decompression
     // cap has to leave room for them or a small body would come back empty.
-    const record = await gunzip(compressed, withHeaderSlack(maxBytes));
+    const record = await gunzip(segment, withHeaderSlack(maxBytes));
     const parts = splitWarcRecord(record.bytes);
     if (!parts) {
       throw new Error("Common Crawl returned a record without a readable HTTP response");
@@ -394,13 +399,6 @@ function parseIndexRecords(raw: unknown): Array<Record<string, string>> {
   }
 
   return records;
-}
-
-function toBytes(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value;
-  if (value instanceof ArrayBuffer) return new Uint8Array(value);
-  if (typeof value === "string") return new TextEncoder().encode(value);
-  throw new Error("Common Crawl returned a record body this client cannot read");
 }
 
 export default function commonCrawl(

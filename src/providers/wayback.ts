@@ -114,7 +114,7 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
       const wanted = resolveRequestedTimestamp(options.timestamp);
       const captures = await this.findCaptures(target, wanted, options);
       const capture = selectCapture(
-        preferSameUrl(captures, target, (candidate) => candidate.original),
+        preferSameUrl(captures, url, (candidate) => candidate.original),
         wanted,
       );
       if (!capture) {

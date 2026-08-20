@@ -120,7 +120,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
    *
    * Archive-It replays captures through the same Wayback machinery as the
    * Internet Archive, so the `id_` modifier returns the original response here
-   * too — only the host and the collection segment differ.
+   * too. Only the host and the collection segment differ.
    */
   override async content(
     url: string,
@@ -137,7 +137,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
       const wanted = resolveRequestedTimestamp(options.timestamp);
       const captures = await this.findCaptures(collection, target, wanted, options);
       const capture = selectCapture(
-        preferSameUrl(captures, target, (candidate) => candidate.original),
+        preferSameUrl(captures, url, (candidate) => candidate.original),
         wanted,
       );
       if (!capture) {

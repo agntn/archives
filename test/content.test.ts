@@ -137,6 +137,42 @@ describe("wayback content", () => {
     expect(response.content?.url).toBe("http://example.com/");
   });
 
+  it("keeps the scheme the caller asked for when both were captured", async () => {
+    fetchMock.mockResolvedValueOnce(
+      cdxRows([
+        ["https://example.com/", "20200101000000", "200"],
+        ["http://example.com/", "20210101000000", "200"],
+      ]),
+    );
+    rawMock.mockResolvedValueOnce(rawResponse("secure", { url: "" }));
+
+    const response = await createArchive(createWayback()).content("https://example.com/");
+
+    // The index folds both schemes into one key, so the newer HTTP capture would
+    // otherwise answer a request that named HTTPS.
+    expect(response.content?.url).toBe("https://example.com/");
+  });
+
+  it("answers an HTTPS request from HTTP captures when that is all there is", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["http://example.com/", "20080101000000", "200"]]));
+    rawMock.mockResolvedValueOnce(rawResponse("old", { url: "" }));
+
+    const response = await createArchive(createWayback()).content("https://example.com/");
+
+    expect(response.success).toBe(true);
+    expect(response.content?.url).toBe("http://example.com/");
+  });
+
+  it("rejects a timestamp with a valid-looking prefix and a typo after it", async () => {
+    const response = await createArchive(createWayback()).content("example.com", {
+      timestamp: "2019-03-01junk",
+    });
+
+    expect(response.success).toBe(false);
+    expect(response.error).toContain('Invalid timestamp "2019-03-01junk"');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("falls back to a canonical match when the exact URL was never captured", async () => {
     fetchMock.mockResolvedValueOnce(
       cdxRows([["http://www.example.com/", "20150101000000", "200"]]),
@@ -425,6 +461,29 @@ describe("common crawl content", () => {
     });
   });
 
+  it("streams the range so the cap applies while the bytes arrive", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          url: "https://example.com/",
+          timestamp: "20240101000000",
+          status: "200",
+          length: "512",
+          offset: "1024",
+          filename: "segment.warc.gz",
+        }),
+      )
+      .mockResolvedValueOnce(gzipSync(record));
+
+    await createArchive(createCommonCrawl({ collection: "CC-MAIN-2024-10" })).content(
+      "example.com",
+    );
+
+    // Buffering the whole member first would defeat maxBytes for a record the
+    // crawler stored at whatever size it found.
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ responseType: "stream" });
+  });
+
   it("reports a record whose HTTP response cannot be found", async () => {
     fetchMock
       .mockResolvedValueOnce(
@@ -445,6 +504,18 @@ describe("common crawl content", () => {
 
     expect(response.success).toBe(false);
     expect(response.error).toContain("readable HTTP response");
+  });
+});
+
+describe("targets that name storage rather than a page", () => {
+  it("explains a Common Crawl snapshot URL instead of searching for it", async () => {
+    const response = await createArchive(createWayback()).content(
+      "https://data.commoncrawl.org/crawl-data/CC-MAIN-2024-10/segment.warc.gz",
+    );
+
+    expect(response.success).toBe(false);
+    expect(response.error).toContain("names the WARC file");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
