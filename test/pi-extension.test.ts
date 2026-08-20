@@ -7,6 +7,8 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import archivesExtension from "../packages/pi/extensions/archives";
+import { storage } from "../src/storage";
+import { DEFAULT_LIMIT, MAX_LIMIT, PROVIDER_HINT, PROVIDER_INPUTS } from "../src/tool-operations";
 import type { ArchiveResponse } from "../src/types";
 
 const archivesMock = vi.hoisted(() => ({
@@ -14,15 +16,35 @@ const archivesMock = vi.hoisted(() => ({
   snapshots: vi.fn(),
 }));
 
-vi.mock("@agntn/archives", () => ({
-  createArchive: () => ({ snapshots: archivesMock.snapshots }),
+// The extension delegates to the executors in src/tool-operations, which build
+// providers through this factory; mocking it keeps the tests off the network.
+vi.mock("../src/providers", () => ({
   providers: {
+    all: async () => [
+      {
+        name: "Internet Archive Wayback Machine",
+        slug: "wayback",
+        snapshots: archivesMock.snapshots,
+      },
+    ],
     wayback: async () => ({
       name: "Internet Archive Wayback Machine",
       slug: "wayback",
       snapshots: archivesMock.snapshots,
     }),
     archiveIt: archivesMock.archiveIt,
+    archiveToday: async () => ({
+      name: "archive.today",
+      slug: "archive-today",
+      snapshots: archivesMock.snapshots,
+    }),
+    commoncrawl: async () => ({
+      name: "Common Crawl",
+      slug: "commoncrawl",
+      snapshots: archivesMock.snapshots,
+    }),
+    webcite: async () => ({ name: "WebCite", slug: "webcite", snapshots: archivesMock.snapshots }),
+    permacc: async () => ({ name: "Perma.cc", slug: "permacc", snapshots: archivesMock.snapshots }),
   },
 }));
 
@@ -83,7 +105,10 @@ function restoreEnv(name: keyof typeof originalPermaccEnv): void {
 }
 
 describe("Pi extension", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Responses are cached per provider and domain, so one test would otherwise
+    // answer the next test's identical query.
+    await storage.clear();
     archivesMock.snapshots.mockReset();
     archivesMock.archiveIt.mockReset();
   });
@@ -98,6 +123,22 @@ describe("Pi extension", () => {
 
     expect([...runtime.tools.keys()].sort()).toEqual(["archives", "archives_providers"]);
     expect([...runtime.commands.keys()].sort()).toEqual(["archive", "archive-providers"]);
+  });
+
+  it("declares the schema bounds the shared executors enforce", () => {
+    const tool = getExecutableTool(loadExtension(), "archives");
+    const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
+
+    // The parameters are declared before the executors can be loaded, so the
+    // restated metadata has to match what src/tool-operations actually applies.
+    expect(properties["limit"]).toMatchObject({ minimum: 1, maximum: MAX_LIMIT });
+    expect(properties["limit"]?.["description"]).toContain(`Defaults to ${DEFAULT_LIMIT}.`);
+    expect(properties["provider"]?.["description"]).toBe(PROVIDER_HINT);
+    // Every spelling normalizeProvider accepts has to be offered, and no other.
+    const offered = ((properties["provider"]?.["anyOf"] ?? []) as Array<{ const: string }>).map(
+      (member) => member.const,
+    );
+    expect(offered.sort()).toEqual([...PROVIDER_INPUTS].sort());
   });
 
   it("does not expose arbitrary API-key or environment-variable parameters", () => {
@@ -119,6 +160,38 @@ describe("Pi extension", () => {
 
     expect(text).toContain("PERMA_CC_API_KEY is set");
     expect(text).not.toContain("super-secret-test-key");
+  });
+
+  it("redacts the Perma.cc key from the details the harness keeps", async () => {
+    process.env["PERMA_CC_API_KEY"] = "super-secret-test-key";
+    archivesMock.snapshots.mockResolvedValue({
+      success: true,
+      pages: [],
+      _meta: { source: "permacc", provider: "permacc" },
+    } satisfies ArchiveResponse);
+    const tool = getExecutableTool(loadExtension(), "archives");
+
+    const result = await tool.execute(
+      "test",
+      { target: "https://example.com/", provider: "permacc" },
+      undefined,
+      undefined,
+      {} as ExtensionContext,
+    );
+
+    // details is the only surface that carries the options, so this is where the
+    // key would leak into a transcript.
+    const details = result.details as { options: { apiKey?: string } };
+    expect(details.options.apiKey).toBe("<redacted>");
+    expect(JSON.stringify(result.details)).not.toContain("super-secret-test-key");
+  });
+
+  it("rejects a fractional limit that would reach the CDX query verbatim", () => {
+    const tool = getExecutableTool(loadExtension(), "archives");
+    const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
+
+    expect(properties["limit"]?.["type"]).toBe("integer");
+    expect(properties["target"]).toMatchObject({ minLength: 1 });
   });
 
   it("fails Perma.cc requests before network work when no fixed API-key env var is set", async () => {

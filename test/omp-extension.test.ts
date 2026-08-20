@@ -3,6 +3,7 @@ import { $fetch } from "ofetch";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import archivesOmpExtension from "../packages/omp/extensions/archives.js";
+import { MAX_LIMIT, PROVIDER_INPUTS } from "../src/tool-operations";
 
 vi.mock("ofetch", () => ({
   $fetch: vi.fn(),
@@ -81,6 +82,19 @@ describe("archives OMP extension", () => {
     expect(accepts(tool, { target: "example.com", retries: 0.5 })).toBe(false);
     expect(accepts(tool, { target: "example.com", ttl: 0.5 })).toBe(false);
     expect(accepts(tool, { target: "example.com", timeout: 1.5 })).toBe(false);
+  });
+
+  it("bounds limit where the shared executors reject it", () => {
+    const tool = requireTool(registerExtension().tools, "archives");
+
+    // The parameters are declared before the executors can be loaded, so the
+    // restated bound has to match what src/tool-operations actually enforces.
+    expect(accepts(tool, { target: "example.com", limit: MAX_LIMIT })).toBe(true);
+    expect(accepts(tool, { target: "example.com", limit: MAX_LIMIT + 1 })).toBe(false);
+    for (const provider of PROVIDER_INPUTS) {
+      expect(accepts(tool, { target: "example.com", provider })).toBe(true);
+    }
+    expect(accepts(tool, { target: "example.com", provider: "waybackmachine" })).toBe(false);
   });
 
   it("dispatches Archive-It requests with the required collection", async () => {
