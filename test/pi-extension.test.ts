@@ -186,12 +186,24 @@ describe("Pi extension", () => {
     expect(JSON.stringify(result.details)).not.toContain("super-secret-test-key");
   });
 
-  it("rejects a fractional limit that would reach the CDX query verbatim", () => {
+  it("rejects a fractional limit that would reach the CDX query verbatim", async () => {
     const tool = getExecutableTool(loadExtension(), "archives");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
-
     expect(properties["limit"]?.["type"]).toBe("integer");
     expect(properties["target"]).toMatchObject({ minLength: 1 });
+
+    // The schema is the first line, not the only one: a host that skips
+    // validation must not reach Wayback with `&limit=10.5`, which hangs.
+    await expect(
+      tool.execute(
+        "test",
+        { target: "example.com", limit: 10.5 },
+        undefined,
+        undefined,
+        {} as ExtensionContext,
+      ),
+    ).rejects.toThrow("limit must be a whole number");
+    expect(archivesMock.snapshots).not.toHaveBeenCalled();
   });
 
   it("fails Perma.cc requests before network work when no fixed API-key env var is set", async () => {

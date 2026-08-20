@@ -153,8 +153,30 @@ describe("archives OMP extension", () => {
     const rendered = component.render(120).join("\n");
 
     expect(rendered).toContain("safe]52;c;SGVsbG8=.example");
+    expect(rendered.split("\n")).toHaveLength(1);
     // oxlint-disable-next-line no-control-regex -- This assertion proves the terminal boundary.
     expect(rendered).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/u);
+  });
+
+  it("keeps a newline in an argument from opening a second preview line", () => {
+    const tool = requireTool(registerExtension().tools, "archives");
+    const renderCall = tool.renderCall;
+    if (!renderCall) throw new Error("archives has no call renderer");
+
+    type RenderCall = NonNullable<ToolDefinition["renderCall"]>;
+    type RenderTheme = Parameters<RenderCall>[2];
+    const theme = {
+      bold: (text: string) => text,
+      fg: (_color: string, text: string) => text,
+    } as unknown as RenderTheme;
+    const component = renderCall(
+      { target: "example.com", collection: "4399\nforged: value" },
+      { expanded: false, isPartial: false },
+      theme,
+    );
+
+    // Control bytes are not the only way to forge a line.
+    expect(component.render(200).join("\n").split("\n")).toHaveLength(1);
   });
 
   it("lists provider status without network access", async () => {

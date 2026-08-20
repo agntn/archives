@@ -304,9 +304,10 @@ describe("archives MCP server", () => {
       arguments: { target: "example.com", apiKey: "leaked", maxResults: 50 },
     });
 
-    // An accepted `apiKey` would read as "my key was used"; it never is.
+    // An accepted `apiKey` would read as "my key was used"; it never is, and a
+    // caller that cannot see which key it misspelled just retries the typo.
     expect(response.isError).toBe(true);
-    expect(text(response.content)).toContain("Invalid arguments");
+    expect(text(response.content)).toContain("unknown arguments apiKey, maxResults");
     expect(providersMock.all).not.toHaveBeenCalled();
   });
 

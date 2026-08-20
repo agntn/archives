@@ -51,6 +51,11 @@ const PROVIDER_INPUTS = [...PROVIDERS, ...PROVIDER_ALIASES] as const;
 const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Archive-It requires a numeric collection id. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
+const MAX_TARGET_LENGTH = 2048;
+const MAX_PARAMETER_LENGTH = 256;
+const MAX_TTL = 30 * 24 * 60 * 60 * 1000;
+const MAX_RETRIES = 10;
+const MAX_TIMEOUT = 5 * 60 * 1000;
 // oxlint-disable-next-line no-control-regex -- Terminal control bytes are precisely what this boundary removes.
 const UNSAFE_TERMINAL_CONTROLS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/gu;
 
@@ -59,8 +64,23 @@ function sanitizeTerminalText(text: string): string {
   return text.replace(UNSAFE_TERMINAL_CONTROLS, "");
 }
 
+/**
+ * One-line form for anything the UI prints.
+ *
+ * Stripping control bytes is not enough: a bare newline in a provider value or a
+ * tool argument still opens a second line, which is how a forged field gets to
+ * look like a real one.
+ */
+function sanitizeLine(text: string): string {
+  return sanitizeTerminalText(text).replace(/[\n\r\t]+/g, " ");
+}
+
 const snapshotParameters = Type.Object({
-  target: Type.String({ description: "Domain or URL to search for archived snapshots." }),
+  target: Type.String({
+    description: "Domain or URL to search for archived snapshots.",
+    minLength: 1,
+    maxLength: MAX_TARGET_LENGTH,
+  }),
   provider: Type.Optional(
     Type.Union(
       PROVIDER_INPUTS.map((name) => Type.Literal(name)),
@@ -77,7 +97,9 @@ const snapshotParameters = Type.Object({
   cache: Type.Optional(
     Type.Boolean({ description: "Enable or disable archives response caching." }),
   ),
-  ttl: Type.Optional(Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0 })),
+  ttl: Type.Optional(
+    Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+  ),
   concurrency: Type.Optional(
     Type.Integer({ description: "Maximum parallel provider requests.", minimum: 1, maximum: 10 }),
   ),
@@ -89,21 +111,41 @@ const snapshotParameters = Type.Object({
     }),
   ),
   timeout: Type.Optional(
-    Type.Integer({ description: "Request timeout in milliseconds.", minimum: 1 }),
+    Type.Integer({
+      description: "Request timeout in milliseconds.",
+      minimum: 1,
+      maximum: MAX_TIMEOUT,
+    }),
   ),
   retries: Type.Optional(
-    Type.Integer({ description: "Retry attempts for failed requests.", minimum: 0 }),
+    Type.Integer({
+      description: "Retry attempts for failed requests.",
+      minimum: 0,
+      maximum: MAX_RETRIES,
+    }),
   ),
   collection: Type.Optional(
     Type.String({
       description:
         "Archive-It numeric collection id, or Common Crawl collection id such as CC-MAIN-latest.",
+      minLength: 1,
+      maxLength: MAX_PARAMETER_LENGTH,
     }),
   ),
   collapse: Type.Optional(
-    Type.String({ description: "Wayback CDX collapse parameter, e.g. timestamp:4." }),
+    Type.String({
+      description: "Wayback CDX collapse parameter, e.g. timestamp:4.",
+      minLength: 1,
+      maxLength: MAX_PARAMETER_LENGTH,
+    }),
   ),
-  filter: Type.Optional(Type.String({ description: "Wayback CDX filter parameter." })),
+  filter: Type.Optional(
+    Type.String({
+      description: "Wayback CDX filter parameter.",
+      minLength: 1,
+      maxLength: MAX_PARAMETER_LENGTH,
+    }),
+  ),
 });
 
 const emptyParameters = Type.Object({});
@@ -178,14 +220,14 @@ export default function archivesOmpExtension(pi: ExtensionAPI) {
 
       if (response.pages.length === 0) {
         ctx.ui.notify(
-          `No archived snapshots for "${sanitizeTerminalText(trimmed)}" via Wayback.`,
+          `No archived snapshots for "${sanitizeLine(trimmed)}" via Wayback.`,
           "warning",
         );
         return;
       }
 
       const labels = response.pages.map((page) => formatPage(page));
-      const selected = await ctx.ui.select(`archives — ${sanitizeTerminalText(trimmed)}`, labels);
+      const selected = await ctx.ui.select(`archives — ${sanitizeLine(trimmed)}`, labels);
       if (!selected) return;
 
       const picked = response.pages[labels.indexOf(selected)];
@@ -193,7 +235,7 @@ export default function archivesOmpExtension(pi: ExtensionAPI) {
 
       const safeSnapshot = sanitizeTerminalText(picked.snapshot);
       ctx.ui.pasteToEditor(safeSnapshot);
-      ctx.ui.notify(`Pasted ${safeSnapshot}`, "info");
+      ctx.ui.notify(`Pasted ${sanitizeLine(safeSnapshot)}`, "info");
     },
   });
 
@@ -214,11 +256,10 @@ export default function archivesOmpExtension(pi: ExtensionAPI) {
 function renderSnapshotCall(params: SnapshotParams, theme: RenderTheme): string {
   const parts = [theme.fg("toolTitle", theme.bold("archives"))];
   parts.push(theme.fg("dim", truncateSingleLine(sanitizeTerminalText(params.target), 120)));
-  if (params.provider)
-    parts.push(theme.fg("muted", `provider=${sanitizeTerminalText(params.provider)}`));
+  if (params.provider) parts.push(theme.fg("muted", `provider=${sanitizeLine(params.provider)}`));
   if (params.limit !== undefined) parts.push(theme.fg("muted", `limit=${params.limit}`));
   if (params.collection)
-    parts.push(theme.fg("muted", `collection=${sanitizeTerminalText(params.collection)}`));
+    parts.push(theme.fg("muted", `collection=${sanitizeLine(params.collection)}`));
   if (params.timeout !== undefined) parts.push(theme.fg("muted", `timeout=${params.timeout}`));
   return parts.join(" ");
 }

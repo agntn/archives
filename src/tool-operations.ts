@@ -52,6 +52,11 @@ export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", whic
 
 export const DEFAULT_LIMIT = 10;
 export const MAX_LIMIT = 100;
+export const MAX_TARGET_LENGTH = 2048;
+export const MAX_PARAMETER_LENGTH = 256;
+export const MAX_TTL = 30 * 24 * 60 * 60 * 1000;
+export const MAX_RETRIES = 10;
+export const MAX_TIMEOUT = 5 * 60 * 1000;
 export const PERMACC_API_KEY_ENVS = ["PERMA_CC_API_KEY", "PERMACC_API_KEY"] as const;
 
 // oxlint-disable-next-line no-control-regex -- Terminal control bytes are precisely what this boundary removes.
@@ -129,6 +134,9 @@ export async function snapshotArchives(
   const target = params.target.trim();
   if (!target) {
     throw new Error("Target cannot be empty");
+  }
+  if (target.length > MAX_TARGET_LENGTH) {
+    throw new Error(`Target must be at most ${MAX_TARGET_LENGTH} characters`);
   }
 
   const provider = normalizeProvider(params.provider);
@@ -226,12 +234,56 @@ function isKnownProvider(name: string): name is ProviderInput {
   return (PROVIDERS as readonly string[]).includes(name);
 }
 
+/** Numeric bounds every surface's schema restates, enforced once where it matters. */
+const NUMERIC_BOUNDS = {
+  limit: { minimum: 1, maximum: MAX_LIMIT },
+  ttl: { minimum: 0, maximum: MAX_TTL },
+  concurrency: { minimum: 1, maximum: 10 },
+  batchSize: { minimum: 1, maximum: 100 },
+  timeout: { minimum: 1, maximum: MAX_TIMEOUT },
+  retries: { minimum: 0, maximum: MAX_RETRIES },
+} as const satisfies Record<string, { minimum: number; maximum: number }>;
+
+const TEXT_BOUNDS = {
+  collection: MAX_PARAMETER_LENGTH,
+  collapse: MAX_PARAMETER_LENGTH,
+  filter: MAX_PARAMETER_LENGTH,
+} as const satisfies Record<string, number>;
+
+/**
+ * Rejects an out-of-range argument the same way on every surface.
+ *
+ * A schema is the first line, not the only one: a fractional `limit` that slips
+ * past one reaches the CDX query as `&limit=10.5`, which Wayback answers by
+ * never returning.
+ */
+function checkNumber(name: keyof typeof NUMERIC_BOUNDS, value: number | undefined): void {
+  if (value === undefined) return;
+  const { minimum, maximum } = NUMERIC_BOUNDS[name];
+  if (!Number.isInteger(value)) {
+    throw new Error(`${name} must be a whole number`);
+  }
+  if (value < minimum || value > maximum) {
+    throw new Error(`${name} must be between ${minimum} and ${maximum}`);
+  }
+}
+
+function checkText(name: keyof typeof TEXT_BOUNDS, value: string | undefined): void {
+  if (value === undefined) return;
+  if (value.length > TEXT_BOUNDS[name]) {
+    throw new Error(`${name} must be at most ${TEXT_BOUNDS[name]} characters`);
+  }
+}
+
 function buildSnapshotOptions(params: SnapshotParams, provider: ProviderName): SnapshotOptions {
-  const limit = params.limit ?? DEFAULT_LIMIT;
-  if (limit < 1 || limit > MAX_LIMIT) {
-    throw new Error(`limit must be between 1 and ${MAX_LIMIT}`);
+  for (const name of Object.keys(NUMERIC_BOUNDS) as Array<keyof typeof NUMERIC_BOUNDS>) {
+    checkNumber(name, params[name]);
+  }
+  for (const name of Object.keys(TEXT_BOUNDS) as Array<keyof typeof TEXT_BOUNDS>) {
+    checkText(name, params[name]);
   }
 
+  const limit = params.limit ?? DEFAULT_LIMIT;
   const options: SnapshotOptions = { limit };
   if (params.cache !== undefined) options.cache = params.cache;
   if (params.ttl !== undefined) options.ttl = params.ttl;

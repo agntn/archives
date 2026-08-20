@@ -55,12 +55,24 @@ const MAX_TARGET_LENGTH = 2048;
 const MAX_PARAMETER_LENGTH = 256;
 const MAX_TTL = 30 * 24 * 60 * 60 * 1000;
 const MAX_RETRIES = 10;
+const MAX_TIMEOUT = 5 * 60 * 1000;
 // oxlint-disable-next-line no-control-regex -- Terminal control bytes are precisely what this boundary removes.
 const UNSAFE_TERMINAL_CONTROLS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/gu;
 
 /** Local copy: the TUI renders call previews before the executors can be loaded. */
 function sanitizeTerminalText(text: string): string {
   return text.replace(UNSAFE_TERMINAL_CONTROLS, "");
+}
+
+/**
+ * One-line form for anything the UI prints.
+ *
+ * Stripping control bytes is not enough: a bare newline in a provider value or a
+ * tool argument still opens a second line, which is how a forged field gets to
+ * look like a real one.
+ */
+function sanitizeLine(text: string): string {
+  return sanitizeTerminalText(text).replace(/[\n\r\t]+/g, " ");
 }
 
 // Integers, not plain numbers: a fractional limit clears validation and reaches
@@ -101,7 +113,11 @@ const snapshotParameters = Type.Object({
     }),
   ),
   timeout: Type.Optional(
-    Type.Integer({ description: "Request timeout in milliseconds.", minimum: 1 }),
+    Type.Integer({
+      description: "Request timeout in milliseconds.",
+      minimum: 1,
+      maximum: MAX_TIMEOUT,
+    }),
   ),
   retries: Type.Optional(
     Type.Integer({
@@ -217,14 +233,14 @@ export default function archivesExtension(pi: ExtensionAPI) {
 
       if (response.pages.length === 0) {
         ctx.ui.notify(
-          `No archived snapshots for "${sanitizeTerminalText(trimmed)}" via Wayback.`,
+          `No archived snapshots for "${sanitizeLine(trimmed)}" via Wayback.`,
           "warning",
         );
         return;
       }
 
       const labels = response.pages.map((page) => formatPage(page));
-      const selected = await ctx.ui.select(`archives — ${sanitizeTerminalText(trimmed)}`, labels);
+      const selected = await ctx.ui.select(`archives — ${sanitizeLine(trimmed)}`, labels);
       if (!selected) return;
 
       const picked = response.pages[labels.indexOf(selected)];
@@ -232,7 +248,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
 
       const safeSnapshot = sanitizeTerminalText(picked.snapshot);
       ctx.ui.pasteToEditor(safeSnapshot);
-      ctx.ui.notify(`Pasted ${safeSnapshot}`, "info");
+      ctx.ui.notify(`Pasted ${sanitizeLine(safeSnapshot)}`, "info");
     },
   });
 
@@ -253,11 +269,10 @@ export default function archivesExtension(pi: ExtensionAPI) {
 function renderSnapshotCall(params: SnapshotParams, theme: RenderTheme): string {
   const parts = [theme.fg("toolTitle", theme.bold("archives"))];
   parts.push(theme.fg("dim", truncateSingleLine(sanitizeTerminalText(params.target), 120)));
-  if (params.provider)
-    parts.push(theme.fg("muted", `provider=${sanitizeTerminalText(params.provider)}`));
+  if (params.provider) parts.push(theme.fg("muted", `provider=${sanitizeLine(params.provider)}`));
   if (params.limit !== undefined) parts.push(theme.fg("muted", `limit=${params.limit}`));
   if (params.collection)
-    parts.push(theme.fg("muted", `collection=${sanitizeTerminalText(params.collection)}`));
+    parts.push(theme.fg("muted", `collection=${sanitizeLine(params.collection)}`));
   if (params.timeout !== undefined) parts.push(theme.fg("muted", `timeout=${params.timeout}`));
   return parts.join(" ");
 }

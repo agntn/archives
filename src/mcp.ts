@@ -11,6 +11,11 @@ import {
   DEFAULT_LIMIT,
   listArchiveProviders,
   MAX_LIMIT,
+  MAX_PARAMETER_LENGTH,
+  MAX_RETRIES,
+  MAX_TARGET_LENGTH,
+  MAX_TIMEOUT,
+  MAX_TTL,
   PROVIDER_HINT,
   PROVIDER_INPUTS,
   sanitizeTerminalText,
@@ -19,11 +24,6 @@ import {
   type ToolResult,
 } from "./tool-operations";
 import { version } from "./version";
-
-const MAX_TARGET_LENGTH = 2048;
-const MAX_PARAMETER_LENGTH = 256;
-const MAX_TTL = 30 * 24 * 60 * 60 * 1000;
-const MAX_RETRIES = 10;
 
 interface ToolDefinition {
   name: string;
@@ -83,7 +83,11 @@ const tools: ToolDefinition[] = [
           }),
         ),
         timeout: Type.Optional(
-          Type.Integer({ description: "Request timeout in milliseconds.", minimum: 1 }),
+          Type.Integer({
+            description: "Request timeout in milliseconds.",
+            minimum: 1,
+            maximum: MAX_TIMEOUT,
+          }),
         ),
         retries: Type.Optional(
           Type.Integer({
@@ -150,12 +154,28 @@ const tools: ToolDefinition[] = [
 function validationError(schema: TSchema, value: unknown): string {
   const first = Value.Errors(schema, value)[0];
   if (!first) return "Invalid arguments";
+  const unknown = unknownProperties(schema, value);
+  if (unknown.length > 0) {
+    // TypeBox reports this at the object root, so the misspelled key never
+    // appears and the caller cannot tell `limt` from `limit`.
+    return `Invalid arguments: unknown ${unknown.length === 1 ? "argument" : "arguments"} ${unknown.join(", ")}`;
+  }
+
   const path = first.instancePath || "/";
   const allowed = allowedValues(schema, first.instancePath);
   // TypeBox reports a rejected literal union as "must be equal to constant",
   // which tells the caller nothing about what it should have sent.
   const detail = allowed ? `must be one of: ${allowed}` : first.message;
   return `Invalid arguments at ${path}: ${detail}`;
+}
+
+/** Names the arguments a closed schema does not declare. */
+function unknownProperties(schema: TSchema, value: unknown): string[] {
+  const node = schema as Record<string, unknown>;
+  if (node["additionalProperties"] !== false) return [];
+  if (typeof value !== "object" || value === null) return [];
+  const declared = new Set(Object.keys((node["properties"] as object | undefined) ?? {}));
+  return Object.keys(value).filter((key) => !declared.has(key));
 }
 
 /** Lists the literals a union at `instancePath` accepts, when that is what failed. */
