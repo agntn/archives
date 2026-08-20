@@ -57,6 +57,25 @@ const getDefaultConfig = () =>
 // Cache for resolved config
 let cachedConfig: ArchivesConfig | undefined;
 
+// Directory c12 searches when a caller does not pass its own `cwd`.
+let configCwd: string | undefined;
+
+/**
+ * Pins config discovery to `cwd` for every later call that passes none.
+ *
+ * A long-lived server is started by whoever spawns it, in whatever directory
+ * that caller happens to be in. Leaving discovery on `process.cwd()` there means
+ * the first request executes an `archives.config.ts` belonging to a checkout the
+ * server never chose. Library consumers are unaffected: without this call the
+ * default stays `process.cwd()`.
+ *
+ * @param cwd - Directory to resolve `archives.config.ts`, `.archives` and `package.json` from
+ */
+export function setConfigCwd(cwd: string): void {
+  configCwd = cwd;
+  cachedConfig = undefined;
+}
+
 /**
  * Load Archives configuration from all available sources
  */
@@ -84,7 +103,7 @@ export async function resolveConfig(
     defaultConfig: options.defaults || undefined,
     overrides: options.overrides || undefined,
     envName: options.envName ?? process.env.NODE_ENV,
-    cwd: options.cwd,
+    cwd: options.cwd ?? configCwd,
     configFile: options.configFile,
     rcFile: options.rcFile === undefined ? ".archives" : options.rcFile,
     packageJson: true,
