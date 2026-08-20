@@ -416,7 +416,6 @@ export async function decodeContentEncoding(
   body: Uint8Array,
   encoding: string | undefined,
   maxBytes: number,
-  sourceTruncated = false,
 ): Promise<{ bytes: Uint8Array; truncated: boolean }> {
   const format = encoding?.trim().toLowerCase() ?? "";
   if (!format || format === "identity") return { bytes: body, truncated: false };
@@ -426,15 +425,11 @@ export async function decodeContentEncoding(
     throw new Error(`The capture is ${format}-encoded, which this client cannot decode`);
   }
 
-  try {
-    return await decompress(body, maxBytes, compression);
-  } catch (error) {
-    // An encoded body cut off upstream ends mid-member, and the decoder says so.
-    // That is the same situation as any other oversized body, which comes back
-    // short with a flag rather than as a failure.
-    if (!sourceTruncated) throw error;
-    return { bytes: new Uint8Array(0), truncated: true };
-  }
+  // A member cut short by the read cap cannot reach the decoder as an error:
+  // decompression only expands, so a compressed prefix already past this cap
+  // decodes past it too and the cap ends the read cleanly. An error here is a
+  // corrupt member, and it belongs to the caller.
+  return decompress(body, maxBytes, compression);
 }
 
 /**

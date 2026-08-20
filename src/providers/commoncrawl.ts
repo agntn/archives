@@ -386,12 +386,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       ? dechunkHttpBody(parts.body)
       : parts.body;
 
-    const decoded = await decodeContentEncoding(
-      framed,
-      contentEncoding,
-      maxBytes,
-      record.truncated,
-    );
+    const decoded = await decodeContentEncoding(framed, contentEncoding, maxBytes);
 
     const overflowed = decoded.bytes.byteLength > maxBytes;
     const body = overflowed ? decoded.bytes.subarray(0, maxBytes) : decoded.bytes;
