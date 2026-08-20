@@ -38,12 +38,13 @@ function isStoredArchiveResponse(value: unknown): value is StoredArchiveResponse
   return isRecord(value) && isArchiveResponse(value.response);
 }
 
-// Only successful reads are stored, so an entry without a decoded body is a
-// corrupt one rather than a cached failure.
+// Only successful reads are stored, so an entry that does not say so is corrupt
+// or written by an older version, and the provider is the better answer.
 function isStoredArchiveContent(value: unknown): value is StoredArchiveContent {
   return (
     isRecord(value) &&
     isRecord(value.response) &&
+    value.response.success === true &&
     isRecord(value.response.content) &&
     typeof value.response.content.content === "string"
   );
