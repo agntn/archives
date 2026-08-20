@@ -48,7 +48,7 @@ archives/
 | Modify caching            | `src/storage.ts`                                        | Key format: `{prefix}:{providerSlug}:{domain}:{limit?}`                            |
 | Config defaults           | `src/config.ts` → `getDefaultConfig()`                  | c12 loads from `.archives`, `archives.config.ts`, `package.json`                   |
 | Response helpers          | `src/utils/_utils.ts`                                   | `createSuccessResponse`, `createErrorResponse`, `mergeOptions`                     |
-| Read an archived body     | `src/utils/_content.ts`                                 | Capture selection, `id_` playback, WARC ranges, charset, `htmlToText`              |
+| Read an archived body     | `src/utils/_content.ts`                                 | Capture selection, `id_` playback, WARC ranges, transfer/content encodings, charset, `htmlToText` |
 | Add content to a provider | provider file → `override content()`                    | Optional on `ArchiveProvider`; a provider that cannot serve bodies says so instead |
 | Parallel processing       | `src/utils/_utils.ts` → `processInParallel`             | Concurrency + batch control                                                        |
 | CDX row mapping           | `src/utils/_utils.ts` → `mapCdxRows`                    | Wayback/CommonCrawl share CDX format                                               |
@@ -89,8 +89,8 @@ archives/
 | `ArchivedContent`           | interface | types.ts              | `{ url, timestamp, snapshot, content, mime?, bytes, truncated, _meta }`.                    |
 | `ArchiveContentOptions`     | interface | types.ts              | `ArchiveOptions` + `timestamp` (capture to read) + `maxBytes` (read cap).                   |
 | `readPlaybackCapture`       | function  | utils/_content.ts     | Reads a Wayback-style `<prefix>/<stamp>id_/<url>` capture into `ArchivedContent`.            |
-| `selectCapture`             | function  | utils/_content.ts     | Newest capture at or before the request, else the closest after; prefers a 2xx one.         |
-| `preferSameUrl`             | function  | utils/_content.ts     | Keeps candidates recorded under the requested URL, not just its canonical key.               |
+| `selectCapture`             | function  | utils/_content.ts     | An exact stamp names one capture; otherwise newest at or before, else closest after, preferring a 2xx one. |
+| `preferSameUrl`             | function  | utils/_content.ts     | Keeps candidates recorded under the requested URL, and the scheme when the caller named one. |
 | `unwrapSnapshotUrl`         | function  | utils/_content.ts     | Splits a playback URL back into original URL + capture stamp.                                |
 | `htmlToText`                | function  | utils/_content.ts     | Lossy markup stripping, applied by the surfaces, never by the library response.              |
 | `contentArchives`           | function  | tool-operations.ts    | Shared executor behind the content tool on every surface.                                    |
@@ -110,6 +110,7 @@ archives/
 - **MCP result is text only**: `details` never reaches an MCP client, so anything a caller needs for the next call belongs in `content[].text`.
 - **Listing fans out, reading falls back**: `snapshots()` queries providers in parallel and merges; `content()` walks them in order and stops at the first body, because there is one page to read rather than a set to merge. Providers that failed or cannot read are reported beside the body in `_meta`.
 - **A capture is read raw or not at all**: bodies come from `id_` playback (Wayback, Archive-It) or a WARC byte range (Common Crawl). An archive that only serves its own rendition of a page returns `createUnsupportedContentResponse` with the reason instead.
+- **A stored capture is the response as it travelled**: a WARC record keeps the chunked framing and the `Content-Encoding` the server used, so reading its text means undoing both before the charset is applied. Playback endpoints do it for you, which is why only the Common Crawl path carries this.
 - **The library returns bytes, a surface returns a reading of them**: decoding (charset, WARC unwrapping) is library work; `htmlToText`, clipping to `maxChars` and the untrusted-data fence are applied in `tool-operations.ts`, so a library consumer keeps full fidelity.
 - **The MCP process does not trust its own cwd**: `src/commands/mcp.ts` calls `setConfigCwd(homedir())` because a client spawns the server in an arbitrary checkout, and c12 executes the `archives.config.ts` it finds. `consola.level` is pinned there too — stdout carries the JSON-RPC frames.
 - **Pi extension packaging**: distributable extension lives under `packages/pi/extensions/*.ts`; `package.json` `pi.extensions` points there and `files` includes the directory.
