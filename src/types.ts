@@ -98,11 +98,17 @@ export interface ArchiveContentOptions extends ArchiveOptions {
 }
 
 // One archived capture together with its body.
+//
+// The body is text. A capture that is not text decodes lossily here, and the
+// bytes stay where they are: `_meta.rawSnapshot` for a playback provider, and
+// `snapshot` with `_meta.filename`/`offset`/`length` for a WARC record. Reading
+// pages is what this operation is for; a bytes channel can be added beside it
+// without changing this one.
 export interface ArchivedContent {
   url: string; // Original URL that was archived
   timestamp: string; // ISO 8601 date of the capture actually returned
   snapshot: string; // URL the body was read from
-  content: string; // Decoded body of the archived response
+  content: string; // Decoded body of the archived response, as text
   mime?: string; // Content type the archive reports for the capture
   bytes: number; // Bytes read from the body, after any cap
   truncated: boolean; // Body was cut off at maxBytes
