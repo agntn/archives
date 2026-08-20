@@ -166,7 +166,10 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
     const captures = await this.queryCaptures(params, options);
     if (captures.length > 0 || !wanted) return captures;
 
-    return this.queryCaptures({ ...params, from: wanted, limit: "5" }, options);
+    // Without dropping `to`, the second query asks for the window that just came
+    // back empty and the later capture is never found.
+    const { to: _bounded, ...unbounded } = params;
+    return this.queryCaptures({ ...unbounded, from: wanted, limit: "5" }, options);
   }
 
   private async queryCaptures(

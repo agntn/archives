@@ -26,6 +26,7 @@ import {
   resolveRequestedTimestamp,
   selectCapture,
   splitWarcRecord,
+  timestampUpperBound,
   toWaybackTimestamp,
   withHeaderSlack,
 } from "../utils";
@@ -169,7 +170,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       const index = await this.resolveIndex(options);
       collectionName = index.collectionName;
 
-      const captures = await this.findCaptures(index.indexName, target, options);
+      const captures = await this.findCaptures(index.indexName, target, wanted, options);
       const capture = selectCapture(
         preferSameUrl(captures, target, (candidate) => candidate.url),
         wanted,
@@ -279,6 +280,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
   private async findCaptures(
     indexName: string,
     target: string,
+    wanted: string,
     options: ArchiveContentOptions,
   ): Promise<CrawlCapture[]> {
     const params: Record<string, string> = {
@@ -287,6 +289,17 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       fl: "url,timestamp,status,mime,length,offset,filename,digest",
       limit: String(CONTENT_CAPTURE_LIMIT),
     };
+
+    // The row cap is what makes this matter: a URL crawled more often than the
+    // cap would otherwise be answered from an arbitrary slice of its captures.
+    // Both parameters are the index's own, and a deployment that ignores them
+    // leaves the choice where it already is, in `selectCapture`.
+    if (wanted) {
+      params.closest = timestampUpperBound(wanted);
+      params.sort = "closest";
+    } else {
+      params.sort = "reverse";
+    }
 
     const fetchOptions = await createFetchOptions(BASE_URL, params, {
       retries: options.retries,

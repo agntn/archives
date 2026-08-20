@@ -18,6 +18,7 @@ import {
   readPlaybackCapture,
   resolveRequestedTimestamp,
   selectCapture,
+  timestampUpperBound,
   toWaybackTimestamp,
 } from "../utils";
 import { BaseProvider } from "./base-provider";
@@ -177,9 +178,18 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
       fl: "original,timestamp,statuscode",
       limit: String(CONTENT_CAPTURE_LIMIT),
     };
-    // A bound this deployment honors keeps the response small; one it ignores
-    // costs nothing, because the capture is chosen from the rows either way.
-    if (wanted) params.to = wanted;
+
+    // `closest` asks the collection for the captures nearest the instant, from
+    // both sides, which is what a timestamp request means. A `to` bound looked
+    // equivalent and was not: the collection honors it, so a request older than
+    // its first capture came back empty and the later ones stayed unreachable.
+    // Without an instant, ask for the newest rows rather than the oldest ones.
+    if (wanted) {
+      params.closest = timestampUpperBound(wanted);
+      params.sort = "closest";
+    } else {
+      params.sort = "reverse";
+    }
 
     const fetchOptions = await createFetchOptions(BASE_URL, params, {
       retries: options.retries,
