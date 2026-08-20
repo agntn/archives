@@ -238,9 +238,9 @@ export async function snapshotArchives(
  * Reads the body of one archived capture.
  *
  * The listing tools say which captures exist; this one answers what the page
- * said, which is the step a caller otherwise has to take outside the archive —
- * and a plain fetch of a playback URL returns the archive's own framing rather
- * than the capture.
+ * said, which is the step a caller otherwise has to take outside the archive.
+ * A plain fetch of a playback URL returns the archive's own framing rather than
+ * the capture.
  *
  * @param params - Tool arguments; `target` is a URL, archived or original
  * @returns The rendered body plus the capture it came from
@@ -494,16 +494,9 @@ async function buildContentOptions(
   if (params.retries !== undefined) options.retries = params.retries;
   if (params.collection !== undefined) options.collection = params.collection;
 
-  if (provider === "permacc") {
-    const { apiKey } = getPermaccApiKeyState();
-    if (!apiKey) {
-      throw new Error(
-        `Perma.cc provider requires an API key in ${PERMACC_API_KEY_ENVS.join(" or ")}.`,
-      );
-    }
-    options.apiKey = apiKey;
-  }
-
+  // No key is read here on purpose. Perma.cc serves no capture bodies, so its
+  // own unsupported answer is the useful one; demanding a key first would send
+  // the caller to fix an environment that changes nothing.
   return options;
 }
 
@@ -709,9 +702,16 @@ function contentBody(capture: ArchiveContentResponse["content"], rendered: Rende
   if (!capture) return [];
 
   if (!isTextualMime(capture.mime)) {
+    // Only the raw playback URL returns the archived bytes. A plain snapshot URL
+    // answers with the archive's own page, and a Common Crawl snapshot names a
+    // WARC file that has to be range-requested, so pointing there would send the
+    // caller after a download that cannot give them the file either way.
+    const raw = capture._meta.rawSnapshot;
+    const where =
+      typeof raw === "string" && raw ? ` Its raw bytes are at ${sanitizeField(raw)}.` : "";
     return [
       "",
-      `The capture is ${sanitizeField(capture.mime ?? "of an unknown type")}, which this tool does not return as text. Fetch the snapshot URL directly to retrieve the file.`,
+      `The capture is ${sanitizeField(capture.mime ?? "of an unknown type")}, which this tool does not return as text.${where}`,
     ];
   }
 

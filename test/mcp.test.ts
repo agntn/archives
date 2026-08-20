@@ -476,7 +476,15 @@ describe("archives MCP server", () => {
   it("points at the snapshot instead of decoding a capture that is not text", async () => {
     stubContentProvider(
       providersMock.wayback,
-      capture({ content: "%PDF-1.4 …", mime: "application/pdf" }),
+      capture({
+        content: "%PDF-1.4 …",
+        mime: "application/pdf",
+        _meta: {
+          provider: "wayback",
+          rawSnapshot:
+            "https://web.archive.org/web/20240102030405id_/https://example.com/paper.pdf",
+        },
+      }),
     );
     const client = await connectTestClient();
 
@@ -487,6 +495,11 @@ describe("archives MCP server", () => {
 
     const rendered = text(response.content);
     expect(rendered).toContain("The capture is application/pdf");
+    // The plain snapshot URL returns the archive's own page, so the follow-up has
+    // to be the raw one or no follow-up at all.
+    expect(rendered).toContain(
+      "raw bytes are at https://web.archive.org/web/20240102030405id_/https://example.com/paper.pdf",
+    );
     expect(rendered).not.toContain("--- begin archived content");
     expect(rendered).not.toContain("clipped to");
     // Nothing of the body was handed back, so the counts must not claim otherwise.
@@ -558,6 +571,32 @@ describe("archives MCP server", () => {
     expect(rendered).toContain('[provider=all] no capture read for "https://example.com/"');
     expect(rendered).toContain("wayback: Wayback unavailable");
     expect(rendered).toContain("archive-today: no raw-capture endpoint");
+  });
+
+  it("lets Perma.cc answer that it serves no bodies, key or no key", async () => {
+    providersMock.permacc.mockResolvedValue({
+      name: "Perma.cc",
+      slug: "permacc",
+      snapshots: vi.fn(),
+      content: vi.fn().mockResolvedValue({
+        success: false,
+        unsupported: true,
+        unsupportedReason: "Perma.cc's API returns capture metadata only.",
+        _meta: { source: "permacc", provider: "permacc" },
+      } satisfies ArchiveContentResponse),
+    });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "permacc" },
+    });
+
+    // Reading needs no key there, so demanding one would replace the real answer
+    // with an environment problem that changes nothing.
+    const rendered = text(response.content);
+    expect(rendered).toContain("capture metadata only");
+    expect(rendered).not.toContain("PERMA_CC_API_KEY");
   });
 
   it("rejects a rendering it does not offer, naming the ones it does", async () => {
