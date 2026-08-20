@@ -147,7 +147,7 @@ const tools: ToolDefinition[] = [
     name: "archives_content",
     title: "Archive Content",
     description:
-      "Read what an archived page said, not just that a capture of it exists. Returns the capture's original URL, its date, the snapshot it was read from, and the body — markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback and Common Crawl serve capture bodies; Archive.today, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
+      "Read what an archived page said, not just that a capture of it exists. Returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback and Common Crawl serve capture bodies; Archive.today, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
     inputSchema: Type.Object(
       {
         target: Type.String({

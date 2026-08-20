@@ -121,7 +121,7 @@ response.content?.snapshot; // the playback URL it came from
 const older = await archive.content("https://example.com/page", { timestamp: "2019-03-01" });
 ```
 
-`timestamp` takes an ISO 8601 date or archive digits (`2019`, `201903`, up to `20190301120000`), and selects the newest capture at or before it — or, when the archive only holds later ones, the closest capture after it. A snapshot URL works as the target as well, in which case the capture it names is the one read:
+`timestamp` takes an ISO 8601 date or archive digits (`2019`, `201903`, up to `20190301120000`), and selects the newest capture at or before it. When the archive only holds later ones, it reads the closest capture after it. A snapshot URL works as the target as well, in which case the capture it names is the one read:
 
 ```ts
 await archive.content("https://web.archive.org/web/20190301120000/https://example.com/");
@@ -149,7 +149,7 @@ response._meta?.unsupportedProviders; // [{ provider: "archive-today", reason: "
 | Common Crawl    | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                |
 | Perma.cc        | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                |
 | WebCite         | `providers.webcite()`      | no          | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019). |
-| All             | `providers.all()`          | —           | Wayback, Archive.today, Common Crawl, and WebCite                                                  |
+| All             | `providers.all()`          | n/a         | Wayback, Archive.today, Common Crawl, and WebCite                                                  |
 
 A provider that cannot serve bodies answers `content()` as unsupported with the reason, exactly as it does for a listing it has no endpoint for.
 
@@ -179,7 +179,7 @@ Speaks MCP over stdio and exposes three tools: `archives_snapshots`, `archives_c
 
 An MCP client sees the text a tool returns and nothing else, so the text carries the whole answer: the provider that was queried, every snapshot with its timestamp and original URL, and the providers that could not answer, named with their reason instead of silently dropped. `archives_providers` is there for the same reason — without it the only way to learn which providers exist, which ones `provider=all` covers, and whether Perma.cc has a key is to send a value you expect to fail.
 
-`archives_content` returns the capture's original URL, its date, the snapshot it was read from, and the body — markup stripped to readable text unless `format=raw`, and clipped to `maxChars` (20 000 by default) with a note saying so. The body is fenced and labelled as untrusted data: it is a recording of a web page, not a message to the caller. A capture that is not text is described instead of decoded.
+`archives_content` returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless `format=raw` and clipped to `maxChars` (20 000 by default) with a note saying so. The body is fenced and labelled as untrusted data: it is a recording of a web page, not a message to the caller. A capture that is not text is described instead of decoded.
 
 `archives_snapshots` is annotated read-only and open-world: it leaves the machine on every call, and archives keep growing, so two identical calls may legitimately differ. An answer replayed from the response cache is marked `; cached` in its header. A provider that returns no snapshots is an answer, not a tool error. Only a rejected argument or a failed query sets `isError`.
 
@@ -201,7 +201,7 @@ pi install git:github.com/agntn/archives
 Tools:
 
 - `archives` — query archived snapshots for a domain or URL. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
-- `archives_content` — read the body of one archived capture. Pass `timestamp` for a point in time, or a snapshot URL to read the capture it names.
+- `archives_content` - read the body of one archived capture. Pass `timestamp` for a point in time, or a snapshot URL to read the capture it names.
 - `archives_providers` — list built-in archive providers and Perma.cc API-key environment status.
 
 Commands:
