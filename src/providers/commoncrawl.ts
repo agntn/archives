@@ -386,16 +386,12 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       ? dechunkHttpBody(parts.body)
       : parts.body;
 
-    // A compressed entity cut off by the outer cap is not a shorter page, it is
-    // a broken member the decoder cannot finish. Say which cap to raise instead
-    // of failing inside the decompressor.
-    if (record.truncated && contentEncoding) {
-      throw new Error(
-        `The capture is ${contentEncoding}-encoded and larger than the ${maxBytes} byte cap; raise it to read this record`,
-      );
-    }
-
-    const decoded = await decodeContentEncoding(framed, contentEncoding, maxBytes);
+    const decoded = await decodeContentEncoding(
+      framed,
+      contentEncoding,
+      maxBytes,
+      record.truncated,
+    );
 
     const overflowed = decoded.bytes.byteLength > maxBytes;
     const body = overflowed ? decoded.bytes.subarray(0, maxBytes) : decoded.bytes;

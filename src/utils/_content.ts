@@ -416,13 +416,25 @@ export async function decodeContentEncoding(
   body: Uint8Array,
   encoding: string | undefined,
   maxBytes: number,
+  sourceTruncated = false,
 ): Promise<{ bytes: Uint8Array; truncated: boolean }> {
   const format = encoding?.trim().toLowerCase() ?? "";
   if (!format || format === "identity") return { bytes: body, truncated: false };
-  if (format === "gzip" || format === "x-gzip") return decompress(body, maxBytes, "gzip");
-  if (format === "deflate") return decompress(body, maxBytes, "deflate");
 
-  throw new Error(`The capture is ${format}-encoded, which this client cannot decode`);
+  const compression = format === "gzip" || format === "x-gzip" ? "gzip" : format;
+  if (compression !== "gzip" && compression !== "deflate") {
+    throw new Error(`The capture is ${format}-encoded, which this client cannot decode`);
+  }
+
+  try {
+    return await decompress(body, maxBytes, compression);
+  } catch (error) {
+    // An encoded body cut off upstream ends mid-member, and the decoder says so.
+    // That is the same situation as any other oversized body, which comes back
+    // short with a flag rather than as a failure.
+    if (!sourceTruncated) throw error;
+    return { bytes: new Uint8Array(0), truncated: true };
+  }
 }
 
 /**

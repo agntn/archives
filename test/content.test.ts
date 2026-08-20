@@ -561,6 +561,43 @@ describe("common crawl content", () => {
     expect(response.content?.content).toBe("<html><body>Encoded body</body></html>");
   });
 
+  it("returns a cut-off encoded body as truncated rather than failing", async () => {
+    // Poorly compressible bytes, so the encoded entity stays larger than the cap
+    // plus the slack the WARC headers get.
+    let seed = 1;
+    const noisy = Buffer.from(
+      Array.from({ length: 300_000 }, () => {
+        seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+        return 32 + (seed % 95);
+      }),
+    );
+    const encodedRecord = Buffer.concat([
+      Buffer.from("WARC/1.0\r\nWARC-Type: response\r\n\r\n"),
+      Buffer.from("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Encoding: gzip\r\n\r\n"),
+      gzipSync(noisy),
+    ]);
+    fetchMock
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          url: "https://example.com/",
+          timestamp: "20240101000000",
+          status: "200",
+          length: "512",
+          offset: "0",
+          filename: "segment.warc.gz",
+        }),
+      )
+      .mockResolvedValueOnce(gzipSync(encodedRecord));
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com", { maxBytes: 64 });
+
+    // An oversized body comes back short with the flag set, encoded or not.
+    expect(response.success).toBe(true);
+    expect(response.content?.truncated).toBe(true);
+  });
+
   it("reports a record whose HTTP response cannot be found", async () => {
     fetchMock
       .mockResolvedValueOnce(
