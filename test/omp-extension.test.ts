@@ -3,6 +3,7 @@ import { $fetch } from "ofetch";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import archivesOmpExtension from "../packages/omp/extensions/archives.js";
+import { MAX_LIMIT, PROVIDER_INPUTS } from "../src/tool-operations";
 
 vi.mock("ofetch", () => ({
   $fetch: vi.fn(),
@@ -83,6 +84,19 @@ describe("archives OMP extension", () => {
     expect(accepts(tool, { target: "example.com", timeout: 1.5 })).toBe(false);
   });
 
+  it("bounds limit where the shared executors reject it", () => {
+    const tool = requireTool(registerExtension().tools, "archives");
+
+    // The parameters are declared before the executors can be loaded, so the
+    // restated bound has to match what src/tool-operations actually enforces.
+    expect(accepts(tool, { target: "example.com", limit: MAX_LIMIT })).toBe(true);
+    expect(accepts(tool, { target: "example.com", limit: MAX_LIMIT + 1 })).toBe(false);
+    for (const provider of PROVIDER_INPUTS) {
+      expect(accepts(tool, { target: "example.com", provider })).toBe(true);
+    }
+    expect(accepts(tool, { target: "example.com", provider: "waybackmachine" })).toBe(false);
+  });
+
   it("dispatches Archive-It requests with the required collection", async () => {
     vi.mocked($fetch).mockResolvedValueOnce("https://example.com/ 20220101000000 200");
     const tool = requireTool(registerExtension().tools, "archives");
@@ -139,8 +153,30 @@ describe("archives OMP extension", () => {
     const rendered = component.render(120).join("\n");
 
     expect(rendered).toContain("safe]52;c;SGVsbG8=.example");
+    expect(rendered.split("\n")).toHaveLength(1);
     // oxlint-disable-next-line no-control-regex -- This assertion proves the terminal boundary.
     expect(rendered).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/u);
+  });
+
+  it("keeps a newline in an argument from opening a second preview line", () => {
+    const tool = requireTool(registerExtension().tools, "archives");
+    const renderCall = tool.renderCall;
+    if (!renderCall) throw new Error("archives has no call renderer");
+
+    type RenderCall = NonNullable<ToolDefinition["renderCall"]>;
+    type RenderTheme = Parameters<RenderCall>[2];
+    const theme = {
+      bold: (text: string) => text,
+      fg: (_color: string, text: string) => text,
+    } as unknown as RenderTheme;
+    const component = renderCall(
+      { target: "example.com", collection: "4399\nforged: value" },
+      { expanded: false, isPartial: false },
+      theme,
+    );
+
+    // Control bytes are not the only way to forge a line.
+    expect(component.render(200).join("\n").split("\n")).toHaveLength(1);
   });
 
   it("lists provider status without network access", async () => {

@@ -15,6 +15,7 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 - ⚡ **Parallel queries** - concurrency control, batching, automatic retries, configurable timeouts
 - 🔧 **Config files** - supports `archives.config.ts`, `.archives`, and `package.json` via [c12](https://github.com/unjs/c12)
 - 🏷️ **Fully typed** - TypeScript definitions for all responses, options, and provider-specific metadata
+- 🔌 **Agent surfaces** - an MCP server plus native OMP and Pi extensions, all answering from the same executors
 
 ## Install
 
@@ -122,6 +123,32 @@ await archive.use(providers.archiveToday());
 await archive.useAll([providers.commoncrawl(), providers.webcite()]);
 ```
 
+## MCP server
+
+```bash
+archives mcp
+```
+
+Speaks MCP over stdio and exposes two tools: `archives_snapshots` and `archives_providers`. Point a client at it:
+
+```json
+{
+  "mcpServers": {
+    "archives": { "command": "npx", "args": ["-y", "@agntn/archives", "mcp"] }
+  }
+}
+```
+
+An MCP client sees the text a tool returns and nothing else, so the text carries the whole answer: the provider that was queried, every snapshot with its timestamp and original URL, and the providers that could not answer, named with their reason instead of silently dropped. `archives_providers` is there for the same reason — without it the only way to learn which providers exist, which ones `provider=all` covers, and whether Perma.cc has a key is to send a value you expect to fail.
+
+`archives_snapshots` is annotated read-only and open-world: it leaves the machine on every call, and archives keep growing, so two identical calls may legitimately differ. An answer replayed from the response cache is marked `; cached` in its header. A provider that returns no snapshots is an answer, not a tool error. Only a rejected argument or a failed query sets `isError`.
+
+The Perma.cc key is read from `PERMA_CC_API_KEY` or `PERMACC_API_KEY` and never accepted as a tool argument; it is redacted before the options reach any result.
+
+An MCP client starts the server in whatever directory it has open, so `archives mcp` resolves `archives.config.ts`, `.archives` and `package.json#archives` from the **home directory of the account running it**, not from that project. A config file belonging to a repository you are merely browsing is code you did not choose to run. The library keeps resolving from `process.cwd()`, unchanged.
+
+`createMcpServer()` is exported from `@agntn/archives/mcp` for hosts that bring their own transport.
+
 ## Agent extensions
 
 `@agntn/archives` ships native extensions for [OMP](https://omp.sh) and [Pi](https://pi.dev). Install the package directly from GitHub with the matching host:
@@ -140,6 +167,8 @@ Commands:
 
 - `/archive [domain-or-url]` — search Wayback snapshots interactively and paste the selected snapshot URL into the editor.
 - `/archive-providers` — show provider availability notes.
+
+All three surfaces call the executors in `src/tool-operations.ts`, so the MCP server and the two extensions answer identically. The extensions add the structured details the harnesses render; MCP drops them and keeps the text. The extensions read the executors from source in a working tree and from `dist/` inside an installed package, so run `pnpm build` before loading an extension from a checkout.
 
 ## Response format
 

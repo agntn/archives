@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-08-20
 **Branch:** main
 
 > Verify against current HEAD: `git rev-parse HEAD`. Code map line numbers reflect the snapshot above; rerun `grep -n` if they look stale.
@@ -20,11 +20,19 @@ archives/
 │   ├── _providers.ts     # provider-specific option types (internal)
 │   ├── config.ts         # c12-based config loading with caching
 │   ├── storage.ts        # unstorage caching layer
+│   ├── tool-operations.ts # executors shared by MCP, Pi and OMP
+│   ├── mcp.ts            # createMcpServer() over the shared executors
+│   ├── cli.ts            # citty entry (bin: archives), lazy `mcp` subcommand
+│   ├── commands/mcp.ts   # `archives mcp` - stdio transport
+│   ├── version.ts        # package.json version, single source
 │   ├── providers/        # one file per archive source + barrel
 │   └── utils/            # parallel processing, response helpers, domain normalization
+├── build.config.ts       # obuild: one bundle, four inputs (shared chunks)
 ├── test/                 # mirrors src/ structure, one .test.ts per module
 ├── packages/pi/extensions/
 │   └── archives.ts       # Pi tool/command surface shipped via package.json pi.extensions
+├── packages/omp/extensions/
+│   └── archives.ts       # OMP tool/command surface shipped via package.json omp.extensions
 ├── playground/           # Nuxt app (Cloudflare preset) for manual provider testing
 └── .github/workflows/    # ci.yml + autofix.yml
 ```
@@ -44,7 +52,9 @@ archives/
 | Test a provider           | `test/{provider}.test.ts`                               | Uses vitest, mocks with `vi.fn()`                                                  |
 | Manual testing            | `playground/server/api/snapshots/`                      | One Nuxt endpoint per provider                                                     |
 | Extend Pi extension       | `packages/pi/extensions/archives.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb            |
-| Integration test          | `test.sh`                                               | Builds lib, then builds playground against it                                      |
+| Change what a tool does   | `src/tool-operations.ts`                                | One implementation for MCP, Pi and OMP. Never fix a tool in one surface only        |
+| Add/change an MCP tool    | `src/mcp.ts` + `test/mcp.test.ts`                       | Executor in tool-operations first, then the TypeBox schema and annotations here     |
+| Verify the shipped package | `pnpm pack` + install the tarball elsewhere            | Catches missing `files`, a wrong `exports` map and absent runtime deps             |
 
 ## CODE MAP
 
@@ -64,8 +74,12 @@ archives/
 | `createErrorResponse`       | function  | utils/_utils.ts       | Build a normalized runtime-error `ArchiveResponse`.                                         |
 | `createUnsupportedResponse` | function  | utils/_utils.ts:184   | Build a response signalling the operation is outside the provider's API surface.            |
 | `configureStorage`          | function  | storage.ts:147        | **@deprecated** – use config files or `createArchive` options.                              |
-| `archives`                  | Pi tool   | packages/pi/extensions/archives.ts | Query archive snapshots through Pi; dynamic-imports package dist with source fallback.       |
+| `archives`                  | Pi tool   | packages/pi/extensions/archives.ts | Query archive snapshots through Pi; delegates to the shared executors (source first, `dist/` in an installed package).       |
 | `archives_providers`        | Pi tool   | packages/pi/extensions/archives.ts | List provider status and Perma.cc env configuration.                                        |
+| `snapshotArchives`          | function  | tool-operations.ts    | Shared executor behind the snapshot tool on every surface. Throws on bad provider/prereqs.  |
+| `listArchiveProviders`      | function  | tool-operations.ts    | Shared executor listing providers, `provider=all` membership and Perma.cc key state.        |
+| `waybackSnapshots`          | function  | tool-operations.ts    | Wayback-only lookup behind the interactive `/archive` command.                              |
+| `createMcpServer`           | function  | mcp.ts                | Unconnected MCP server exposing `archives_snapshots` and `archives_providers`.              |
 
 ## CONVENTIONS
 
@@ -77,7 +91,10 @@ archives/
 - **Timestamp format**: providers convert native timestamps to ISO 8601. Raw format preserved in `_meta`.
 - **Option merging**: three-level cascade: config defaults → init options → request options. Via `mergeOptions()`.
 - **Linting**: `oxlint` only; ESLint was removed intentionally.
-- **Build**: `obuild src/index.ts` → `dist/`. Single entry point.
+- **Build**: `obuild` reads `build.config.ts` → `dist/`. Four inputs in **one** bundle entry so the entrypoint, the CLI, the MCP server and the executors share chunks instead of each carrying a private copy of the provider factory.
+- **One executor per operation**: MCP, Pi and OMP all call `src/tool-operations.ts`. A surface owns only its schema, its call rendering and its result envelope. Schema metadata (`PROVIDER_HINT`, limits) is restated per surface because parameters are declared before the executors can be loaded — the extension tests guard it against drift.
+- **MCP result is text only**: `details` never reaches an MCP client, so anything a caller needs for the next call belongs in `content[].text`.
+- **The MCP process does not trust its own cwd**: `src/commands/mcp.ts` calls `setConfigCwd(homedir())` because a client spawns the server in an arbitrary checkout, and c12 executes the `archives.config.ts` it finds. `consola.level` is pinned there too — stdout carries the JSON-RPC frames.
 - **Pi extension packaging**: distributable extension lives under `packages/pi/extensions/*.ts`; `package.json` `pi.extensions` points there and `files` includes the directory.
 - **Release**: `pnpm test && changelogen --release --push && pnpm publish`.
 
@@ -89,6 +106,8 @@ archives/
 - **Do not add Perma.cc to `providers.all()`**: requires API key. Excluded intentionally.
 - **Do not put provider types in `providers/`**: provider-specific option types live in `src/_providers.ts`, not alongside implementations.
 - **Do not add deployable Pi package extensions under `.pi/extensions/`**: this project ships its Pi surface from `packages/pi/extensions/` via `package.json` `pi.extensions`, following askweb.
+- **Do not reimplement a tool inside a surface**: MCP, Pi and OMP delegate to `src/tool-operations.ts`. A fix applied in one extension only is a drift bug waiting to happen.
+- **Do not put `dist/` first in the extension loader**: the extensions prefer `src/` so a working tree (and vitest) runs the code under test; `dist/` is the installed-package fallback.
 
 ## COMMANDS
 
@@ -99,9 +118,9 @@ pnpm test             # lint + type-check + vitest with coverage
 pnpm test:types       # tsc lib + packages/pi/extensions type checks
 pnpm lint             # oxlint
 pnpm lint:fix         # oxlint --fix
-pnpm build            # obuild src/index.ts → dist/
+pnpm build            # obuild (build.config.ts) → dist/
+node dist/cli.mjs mcp # run the MCP server over stdio (bin: archives mcp)
 pnpm release          # test + changelogen + publish
-bash test.sh          # build lib + build playground (integration)
 ```
 
 ## NOTES
