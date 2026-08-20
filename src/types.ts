@@ -90,7 +90,8 @@ export interface UnsupportedProviderRecord {
 export interface ArchiveContentOptions extends ArchiveOptions {
   // Capture to read, as a Wayback-style timestamp (YYYY through YYYYMMDDhhmmss)
   // or an ISO 8601 date. Providers answer with the newest capture at or before
-  // it; without it, with the newest capture they have.
+  // it, or, when they hold nothing that old, with the closest capture after it;
+  // so the body can postdate the request. Without it, the newest capture.
   timestamp?: string;
   // Hard cap on the bytes read from the archived body (default 2 MiB).
   maxBytes?: number;

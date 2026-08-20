@@ -50,7 +50,7 @@ const PROVIDERS = [
 const PROVIDER_ALIASES = ["archive-today", "archive-it"] as const;
 const PROVIDER_INPUTS = [...PROVIDERS, ...PROVIDER_ALIASES] as const;
 const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Archive-It requires a numeric collection id. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
-const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback first and falls back to Common Crawl. Archive.today, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported. Archive-It requires a numeric collection id.`;
+const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback first and falls back to Common Crawl. Archive-It reads bodies too, with a numeric collection id. Archive.today, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 const CONTENT_FORMATS = ["text", "raw"] as const;
 const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the archived bytes as they were served.`;
 const DEFAULT_LIMIT = 10;
@@ -255,7 +255,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives_content",
     label: "Archives Content",
     description:
-      "Read-only/open-world network fetch: read what an archived page said, not just that a capture exists. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback and Common Crawl serve capture bodies; Archive.today, WebCite and Perma.cc answer as unsupported.",
+      "Read-only/open-world network fetch: read what an archived page said, not just that a capture exists. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Archive-It and Common Crawl serve capture bodies; Archive.today, WebCite and Perma.cc answer as unsupported.",
     promptSnippet:
       "Read an archived page's text with archives_content; archives lists which captures exist, this returns what one of them said.",
     promptGuidelines: [
