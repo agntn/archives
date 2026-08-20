@@ -173,10 +173,26 @@ describe("wayback content", () => {
       timestamp: "2019",
     });
 
-    expect(fetchMock.mock.calls[1][1]).toMatchObject({
-      params: expect.objectContaining({ from: "2019", limit: "5" }),
-    });
+    // The bound that just came back empty has to go, or the second query asks
+    // for the same window and the later capture stays invisible.
+    const fallback = (fetchMock.mock.calls[1][1] as { params: Record<string, string> }).params;
+    expect(fallback).toMatchObject({ from: "2019", limit: "5" });
+    expect(fallback).not.toHaveProperty("to");
     expect(response.content?.timestamp).toBe("2021-05-05T00:00:00Z");
+  });
+
+  it("reads an ISO instant that names its offset as the UTC one", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20190302040000", "200"]]));
+    rawMock.mockResolvedValueOnce(rawResponse("utc", { url: "" }));
+
+    await createArchive(createWayback()).content("example.com", {
+      timestamp: "2019-03-01T23:30:00-05:00",
+    });
+
+    // 23:30 in -05:00 is 04:30 the next day in UTC, which is how archives index it.
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      params: expect.objectContaining({ to: "20190302043000" }),
+    });
   });
 
   it("reads the capture a playback URL names instead of searching for that URL", async () => {
@@ -304,6 +320,31 @@ describe("archive-it content", () => {
     expect(rawMock.mock.calls[0][1]).toMatchObject({ baseURL: "https://wayback.archive-it.org" });
   });
 
+  it("asks the collection for the captures nearest the instant, not a closed window", async () => {
+    fetchMock.mockResolvedValueOnce("https://example.com/ 20180101000000 200");
+    rawMock.mockResolvedValueOnce(rawResponse("near", { url: "" }));
+
+    await createArchive(createArchiveIt({ collection: 4399 })).content("example.com", {
+      timestamp: "2019",
+    });
+
+    const params = (fetchMock.mock.calls[0][1] as { params: Record<string, string> }).params;
+    expect(params).toMatchObject({ closest: "20199999999999", sort: "closest" });
+    // A `to` bound is honored by the collection, so it would hide later captures.
+    expect(params).not.toHaveProperty("to");
+  });
+
+  it("asks for the newest captures when no instant is named", async () => {
+    fetchMock.mockResolvedValueOnce("https://example.com/ 20180101000000 200");
+    rawMock.mockResolvedValueOnce(rawResponse("newest", { url: "" }));
+
+    await createArchive(createArchiveIt({ collection: 4399 })).content("example.com");
+
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      params: expect.objectContaining({ sort: "reverse" }),
+    });
+  });
+
   it("chooses the capture locally, so an ignored bound cannot pick the wrong one", async () => {
     fetchMock.mockResolvedValueOnce(
       ["https://example.com/ 20180101000000 200", "https://example.com/ 20220101000000 200"].join(
@@ -357,6 +398,30 @@ describe("common crawl content", () => {
     expect(fetchMock.mock.calls[1][1]).toMatchObject({
       baseURL: "https://data.commoncrawl.org",
       headers: { range: "bytes=1024-1535" },
+    });
+  });
+
+  it("bounds the index query around the requested instant", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          url: "https://example.com/",
+          timestamp: "20240101000000",
+          status: "200",
+          length: "512",
+          offset: "1024",
+          filename: "segment.warc.gz",
+        }),
+      )
+      .mockResolvedValueOnce(gzipSync(record));
+
+    await createArchive(createCommonCrawl({ collection: "CC-MAIN-2024-10" })).content(
+      "example.com",
+      { timestamp: "2024-01" },
+    );
+
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      params: expect.objectContaining({ closest: "20240199999999", sort: "closest" }),
     });
   });
 

@@ -23,6 +23,10 @@ const WARC_HEADER_SLACK = 16 * 1024;
 const WAYBACK_TIMESTAMP_LENGTHS = new Set([4, 6, 8, 10, 12, 14]);
 const ISO_LIKE_TIMESTAMP =
   /^(\d{4})-(\d{2})(?:-(\d{2})(?:[T ](\d{2})(?::(\d{2})(?::(\d{2}))?)?)?)?/;
+// An ISO instant that names its offset means a different instant than its digits
+// read literally, and archives index captures in UTC.
+const ZONED_ISO_TIMESTAMP =
+  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/i;
 
 // A playback URL is `<prefix>/<timestamp><modifier?>/<original>`; the two-letter
 // modifiers (`id_`, `if_`, `im_`, …) select which rendition the archive replays.
@@ -63,7 +67,15 @@ export function toWaybackTimestamp(value: string): string {
 }
 
 function isoToWaybackDigits(value: string): string {
-  const match = ISO_LIKE_TIMESTAMP.exec(value.trim());
+  const trimmed = value.trim();
+
+  if (ZONED_ISO_TIMESTAMP.test(trimmed)) {
+    const instant = new Date(trimmed);
+    if (Number.isNaN(instant.getTime())) return "";
+    return instant.toISOString().replace(/\D/g, "").slice(0, 14);
+  }
+
+  const match = ISO_LIKE_TIMESTAMP.exec(trimmed);
   if (!match) return "";
   return match
     .slice(1)
