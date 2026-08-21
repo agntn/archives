@@ -176,6 +176,7 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
             Authorization: `ApiKey ${apiKey}`,
           },
           retries: options.retries,
+          signal: options.signal,
           timeout: options.timeout,
         },
       );

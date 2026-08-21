@@ -305,6 +305,7 @@ export async function fetchBody(
     {
       responseType: "stream",
       retries: options.retries,
+      signal: options.signal,
       timeout: options.timeout,
       ...(options.headers ? { headers: options.headers } : {}),
     },
