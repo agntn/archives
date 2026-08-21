@@ -15,7 +15,7 @@ Unified TypeScript interface for querying web archive providers (Wayback Machine
 archives/
 ├── src/
 │   ├── index.ts          # barrel - public API surface
-│   ├── archive.ts        # createArchive factory + combineResults
+│   ├── archive.ts        # createArchive factory + combineResults/combineContentResults
 │   ├── types.ts          # all public interfaces/types
 │   ├── _providers.ts     # provider-specific option types (internal)
 │   ├── config.ts         # c12-based config loading with caching
@@ -26,7 +26,8 @@ archives/
 │   ├── commands/mcp.ts   # `archives mcp` - stdio transport
 │   ├── version.ts        # package.json version, single source
 │   ├── providers/        # one file per archive source + barrel
-│   └── utils/            # parallel processing, response helpers, domain normalization
+│   └── utils/            # _utils.ts: parallel work, response helpers, domain/timestamp
+│                         # _content.ts: capture reading, WARC, charset, html-to-text
 ├── build.config.ts       # obuild: one bundle, four inputs (shared chunks)
 ├── test/                 # mirrors src/ structure, one .test.ts per module
 ├── packages/pi/extensions/
@@ -47,6 +48,8 @@ archives/
 | Modify caching            | `src/storage.ts`                                        | Key format: `{prefix}:{providerSlug}:{domain}:{limit?}`                            |
 | Config defaults           | `src/config.ts` → `getDefaultConfig()`                  | c12 loads from `.archives`, `archives.config.ts`, `package.json`                   |
 | Response helpers          | `src/utils/_utils.ts`                                   | `createSuccessResponse`, `createErrorResponse`, `mergeOptions`                     |
+| Read an archived body     | `src/utils/_content.ts`                                 | Capture selection, `id_` playback, WARC ranges, transfer/content encodings, charset, `htmlToText` |
+| Add content to a provider | provider file → `override content()`                    | Optional on `ArchiveProvider`; a provider that cannot serve bodies says so instead |
 | Parallel processing       | `src/utils/_utils.ts` → `processInParallel`             | Concurrency + batch control                                                        |
 | CDX row mapping           | `src/utils/_utils.ts` → `mapCdxRows`                    | Wayback/CommonCrawl share CDX format                                               |
 | Test a provider           | `test/{provider}.test.ts`                               | Uses vitest, mocks with `vi.fn()`                                                  |
@@ -79,7 +82,18 @@ archives/
 | `snapshotArchives`          | function  | tool-operations.ts    | Shared executor behind the snapshot tool on every surface. Throws on bad provider/prereqs.  |
 | `listArchiveProviders`      | function  | tool-operations.ts    | Shared executor listing providers, `provider=all` membership and Perma.cc key state.        |
 | `waybackSnapshots`          | function  | tool-operations.ts    | Wayback-only lookup behind the interactive `/archive` command.                              |
-| `createMcpServer`           | function  | mcp.ts                | Unconnected MCP server exposing `archives_snapshots` and `archives_providers`.              |
+| `createMcpServer`           | function  | mcp.ts                | Unconnected MCP server exposing `archives_snapshots`, `archives_content`, `archives_providers`. |
+| `Archive.content`           | method    | archive.ts            | Reads one capture. Tries providers in order; the first body wins.                           |
+| `Archive.getContent`        | method    | archive.ts            | Throwing variant of `content()`, mirroring `getPages()`.                                    |
+| `combineContentResults`     | function  | archive.ts            | Picks the winning body and keeps the other providers' outcomes in `_meta`.                  |
+| `ArchivedContent`           | interface | types.ts              | `{ url, timestamp, snapshot, content, mime?, bytes, truncated, _meta }`.                    |
+| `ArchiveContentOptions`     | interface | types.ts              | `ArchiveOptions` + `timestamp` (capture to read) + `maxBytes` (read cap).                   |
+| `readPlaybackCapture`       | function  | utils/_content.ts     | Reads a Wayback-style `<prefix>/<stamp>id_/<url>` capture into `ArchivedContent`.            |
+| `selectCapture`             | function  | utils/_content.ts     | An exact stamp names one capture; otherwise newest at or before, else closest after, preferring a 2xx one. |
+| `preferSameUrl`             | function  | utils/_content.ts     | Keeps candidates recorded under the requested URL, and the scheme when the caller named one. |
+| `unwrapSnapshotUrl`         | function  | utils/_content.ts     | Splits a playback URL back into original URL + capture stamp.                                |
+| `htmlToText`                | function  | utils/_content.ts     | Lossy markup stripping, applied by the surfaces, never by the library response.              |
+| `contentArchives`           | function  | tool-operations.ts    | Shared executor behind the content tool on every surface.                                    |
 
 ## CONVENTIONS
 
@@ -94,6 +108,10 @@ archives/
 - **Build**: `obuild` reads `build.config.ts` → `dist/`. Four inputs in **one** bundle entry so the entrypoint, the CLI, the MCP server and the executors share chunks instead of each carrying a private copy of the provider factory.
 - **One executor per operation**: MCP, Pi and OMP all call `src/tool-operations.ts`. A surface owns only its schema, its call rendering and its result envelope. Schema metadata (`PROVIDER_HINT`, limits) is restated per surface because parameters are declared before the executors can be loaded — the extension tests guard it against drift.
 - **MCP result is text only**: `details` never reaches an MCP client, so anything a caller needs for the next call belongs in `content[].text`.
+- **Listing fans out, reading falls back**: `snapshots()` queries providers in parallel and merges; `content()` walks them in order and stops at the first body, because there is one page to read rather than a set to merge. Providers that failed or cannot read are reported beside the body in `_meta`.
+- **A capture is read raw or not at all**: bodies come from `id_` playback (Wayback, Archive-It) or a WARC byte range (Common Crawl). An archive that only serves its own rendition of a page returns `createUnsupportedContentResponse` with the reason instead.
+- **A stored capture is the response as it travelled**: a WARC record keeps the chunked framing and the `Content-Encoding` the server used, so reading its text means undoing both before the charset is applied. Playback endpoints do it for you, which is why only the Common Crawl path carries this.
+- **The library decodes, a surface renders**: charset decoding, WARC unwrapping and transfer/content encodings are library work, and the body it returns is text; `htmlToText`, clipping to `maxChars` and the untrusted-data fence are applied in `tool-operations.ts`, so a library consumer keeps the whole document rather than a reader's view of it. Text is the contract, not the raw bytes: a capture that is not text decodes lossily and its bytes stay behind `_meta.rawSnapshot` or the WARC coordinates.
 - **The MCP process does not trust its own cwd**: `src/commands/mcp.ts` calls `setConfigCwd(homedir())` because a client spawns the server in an arbitrary checkout, and c12 executes the `archives.config.ts` it finds. `consola.level` is pinned there too — stdout carries the JSON-RPC frames.
 - **Pi extension packaging**: distributable extension lives under `packages/pi/extensions/*.ts`; `package.json` `pi.extensions` points there and `files` includes the directory.
 - **Release**: `pnpm test && changelogen --release --push && pnpm publish`.
@@ -107,6 +125,9 @@ archives/
 - **Do not put provider types in `providers/`**: provider-specific option types live in `src/_providers.ts`, not alongside implementations.
 - **Do not add deployable Pi package extensions under `.pi/extensions/`**: this project ships its Pi surface from `packages/pi/extensions/` via `package.json` `pi.extensions`, following askweb.
 - **Do not reimplement a tool inside a surface**: MCP, Pi and OMP delegate to `src/tool-operations.ts`. A fix applied in one extension only is a drift bug waiting to happen.
+- **Do not fetch a playback URL without `id_`**: without the modifier the archive returns the capture inside its own toolbar with every link rewritten, which is the archive's rendition and not what the site served.
+- **Do not report a missing implementation as `unsupported`**: that flag means the provider's API has no such endpoint, and the reason string is read by callers deciding whether to try elsewhere.
+- **Do not put the whole body in a tool's `details`**: `content[].text` is the answer, and a second, longer copy in the transcript disagrees with what the caller was handed.
 - **Do not put `dist/` first in the extension loader**: the extensions prefer `src/` so a working tree (and vitest) runs the code under test; `dist/` is the installed-package fallback.
 
 ## COMMANDS

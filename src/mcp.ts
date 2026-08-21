@@ -8,18 +8,27 @@ import {
 import { Type, type TSchema } from "typebox";
 import { Value } from "typebox/value";
 import {
+  contentArchives,
+  CONTENT_FORMAT_HINT,
+  CONTENT_FORMATS,
+  CONTENT_PROVIDER_HINT,
+  DEFAULT_CONTENT_TIMEOUT,
   DEFAULT_LIMIT,
+  DEFAULT_MAX_CHARS,
   listArchiveProviders,
+  MAX_CONTENT_CHARS,
   MAX_LIMIT,
   MAX_PARAMETER_LENGTH,
   MAX_RETRIES,
   MAX_TARGET_LENGTH,
   MAX_TIMEOUT,
+  MAX_TIMESTAMP_LENGTH,
   MAX_TTL,
   PROVIDER_HINT,
   PROVIDER_INPUTS,
   sanitizeTerminalText,
   snapshotArchives,
+  type ContentParams,
   type SnapshotParams,
   type ToolResult,
 } from "./tool-operations";
@@ -133,6 +142,86 @@ const tools: ToolDefinition[] = [
       openWorldHint: true,
     },
     execute: (args) => snapshotArchives(args as unknown as SnapshotParams),
+  },
+  {
+    name: "archives_content",
+    title: "Archive Content",
+    description:
+      "Read what an archived page said, not just that a capture of it exists. Returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback, Archive-It and Common Crawl serve capture bodies; Archive.today, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
+    inputSchema: Type.Object(
+      {
+        target: Type.String({
+          description: "URL to read: the original URL, or a snapshot URL from a listing.",
+          minLength: 1,
+          maxLength: MAX_TARGET_LENGTH,
+        }),
+        provider: Type.Optional(
+          Type.Union(
+            PROVIDER_INPUTS.map((name) => Type.Literal(name)),
+            { description: CONTENT_PROVIDER_HINT },
+          ),
+        ),
+        timestamp: Type.Optional(
+          Type.String({
+            description:
+              "Capture to read, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Defaults to the newest capture.",
+            minLength: 1,
+            maxLength: MAX_TIMESTAMP_LENGTH,
+          }),
+        ),
+        format: Type.Optional(
+          Type.Union(
+            CONTENT_FORMATS.map((name) => Type.Literal(name)),
+            { description: CONTENT_FORMAT_HINT },
+          ),
+        ),
+        maxChars: Type.Optional(
+          Type.Integer({
+            description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}.`,
+            minimum: 1,
+            maximum: MAX_CONTENT_CHARS,
+          }),
+        ),
+        cache: Type.Optional(
+          Type.Boolean({ description: "Enable or disable archives response caching." }),
+        ),
+        ttl: Type.Optional(
+          Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+        ),
+        timeout: Type.Optional(
+          Type.Integer({
+            description: `Request timeout in milliseconds. Defaults to ${DEFAULT_CONTENT_TIMEOUT}.`,
+            minimum: 1,
+            maximum: MAX_TIMEOUT,
+          }),
+        ),
+        retries: Type.Optional(
+          Type.Integer({
+            description: "Retry attempts for failed requests.",
+            minimum: 0,
+            maximum: MAX_RETRIES,
+          }),
+        ),
+        collection: Type.Optional(
+          Type.String({
+            description:
+              "Archive-It numeric collection id, or Common Crawl collection id such as CC-MAIN-latest.",
+            minLength: 1,
+            maxLength: MAX_PARAMETER_LENGTH,
+          }),
+        ),
+      },
+      { additionalProperties: false },
+    ),
+    // Archives keep capturing, so "the newest capture" is not a fixed answer
+    // even though any one capture is immutable.
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    execute: (args) => contentArchives(args as unknown as ContentParams),
   },
   {
     name: "archives_providers",

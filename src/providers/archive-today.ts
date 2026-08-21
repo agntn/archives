@@ -2,6 +2,8 @@ import { consola } from "consola";
 import { $fetch } from "ofetch";
 import { cleanDoubleSlashes, withoutTrailingSlash } from "ufo";
 import type {
+  ArchiveContentOptions,
+  ArchiveContentResponse,
   ArchiveResponse,
   ArchivedPage,
   ArchiveTodayMetadata,
@@ -10,9 +12,13 @@ import type { ArchiveTodayOptions } from "../_providers";
 import {
   createSuccessResponse,
   createErrorResponse,
+  createUnsupportedContentResponse,
   normalizeDomain,
 } from "../utils";
 import { BaseProvider } from "./base-provider";
+
+const UNSUPPORTED_CONTENT_REASON =
+  "Archive.today has no raw-capture endpoint. A snapshot is served only as a rendered page inside the site's own frame and behind bot protection, so its bytes are not the response the site returned.";
 
 /**
  * Archive.today archive provider. Uses the Memento timemap endpoint.
@@ -60,9 +66,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
               ? new Date().toISOString()
               : parsedDate.toISOString();
             const cleanedUrl = withoutTrailingSlash(
-              cleanDoubleSlashes(
-                origUrl.includes("://") ? origUrl : `https://${origUrl}`,
-              ),
+              cleanDoubleSlashes(origUrl.includes("://") ? origUrl : `https://${origUrl}`),
             );
             const cleanedSnapshotUrl = withoutTrailingSlash(snapshotUrl);
 
@@ -97,6 +101,22 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
         domain: cleanDomain,
       });
     }
+  }
+
+  /**
+   * Archive.today lists captures but never hands out their bytes, so a content
+   * request is answered as unsupported rather than with the wrapper page that a
+   * snapshot URL actually returns.
+   */
+  override content(
+    _url: string,
+    _options: ArchiveContentOptions = {},
+  ): Promise<ArchiveContentResponse> {
+    return Promise.resolve(
+      createUnsupportedContentResponse(UNSUPPORTED_CONTENT_REASON, "archive-today", {
+        operation: "content",
+      }),
+    );
   }
 }
 
