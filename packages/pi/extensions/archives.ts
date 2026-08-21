@@ -245,9 +245,9 @@ export default function archivesExtension(pi: ExtensionAPI) {
     renderCall(args, theme) {
       return new Text(renderSnapshotCall(args, theme), 0, 0);
     },
-    async execute(_toolCallId, params): Promise<AgentToolResult<SnapshotDetails>> {
+    async execute(_toolCallId, params, signal): Promise<AgentToolResult<SnapshotDetails>> {
       const { snapshotArchives } = await loadToolOperations();
-      return snapshotArchives(params);
+      return snapshotArchives(params, signal);
     },
   });
 
@@ -268,9 +268,9 @@ export default function archivesExtension(pi: ExtensionAPI) {
     renderCall(args, theme) {
       return new Text(renderContentCall(args, theme), 0, 0);
     },
-    async execute(_toolCallId, params): Promise<AgentToolResult<ContentDetails>> {
+    async execute(_toolCallId, params, signal): Promise<AgentToolResult<ContentDetails>> {
       const { contentArchives } = await loadToolOperations();
-      return contentArchives(params);
+      return contentArchives(params, signal);
     },
   });
 

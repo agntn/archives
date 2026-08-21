@@ -93,6 +93,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
 
       const fetchOptions = await createFetchOptions(baseUrl, params, {
         retries: options.retries,
+        signal: options.signal,
         timeout: options.timeout,
       });
       const response: string = await $fetch(`/${collection}/timemap/cdx`, {
@@ -193,6 +194,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
 
     const fetchOptions = await createFetchOptions(BASE_URL, params, {
       retries: options.retries,
+      signal: options.signal,
       timeout: options.timeout,
     });
     const response: string = await $fetch(`/${collection}/timemap/cdx`, {

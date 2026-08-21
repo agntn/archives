@@ -28,7 +28,8 @@ describe("archive.today", () => {
 
     const archiveInstance = createArchiveToday();
     const archive = createArchiveClient(archiveInstance);
-    const result = await archive.snapshots("example.com");
+    const controller = new AbortController();
+    const result = await archive.snapshots("example.com", { signal: controller.signal });
 
     expect(result.success).toBe(true);
     expect(result.pages).toHaveLength(4);
@@ -44,6 +45,7 @@ describe("archive.today", () => {
       "/timemap/http://example.com",
       expect.objectContaining({
         baseURL: "https://archive.is",
+        signal: controller.signal,
         responseType: "text",
         retry: 1,
         timeout: 10000,

@@ -218,6 +218,52 @@ describe("Pi extension", () => {
     expect(archivesMock.content).not.toHaveBeenCalled();
   });
 
+  it("stops an in-flight archive request when the tool is cancelled", async () => {
+    archivesMock.snapshots.mockImplementation(
+      (_target: string, options: { signal?: AbortSignal }) =>
+        new Promise<ArchiveResponse>((_resolve, reject) => {
+          const signal = options.signal;
+          if (!signal) {
+            reject(new Error("missing AbortSignal"));
+            return;
+          }
+          const abort = () => reject(signal.reason ?? new Error("cancelled"));
+          if (signal.aborted) {
+            abort();
+            return;
+          }
+          signal.addEventListener("abort", abort, { once: true });
+        }),
+    );
+    const tool = getExecutableTool(loadExtension(), "archives");
+    const controller = new AbortController();
+
+    const execution = tool.execute(
+      "test",
+      { target: "example.com", provider: "wayback", cache: false },
+      controller.signal,
+      undefined,
+      {} as ExtensionContext,
+    );
+    await vi.waitFor(
+      () =>
+        expect(archivesMock.snapshots).toHaveBeenCalledWith(
+          "example.com",
+          expect.objectContaining({ signal: controller.signal }),
+        ),
+      { timeout: 100 },
+    );
+    controller.abort(new Error("cancelled by test"));
+
+    const result = await execution;
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toEqual(
+      expect.objectContaining({ type: "text", text: expect.stringContaining("cancelled by test") }),
+    );
+    expect((result.details as { options: Record<string, unknown> }).options).not.toHaveProperty(
+      "signal",
+    );
+  });
   it("declares the schema bounds the shared executors enforce", () => {
     const tool = getExecutableTool(loadExtension(), "archives");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;

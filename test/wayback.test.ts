@@ -26,7 +26,8 @@ describe("wayback machine", () => {
 
     const waybackInstance = createWayback();
     const archive = createArchive(waybackInstance);
-    const result = await archive.snapshots("example.com");
+    const controller = new AbortController();
+    const result = await archive.snapshots("example.com", { signal: controller.signal });
 
     expect(result.success).toBe(true);
     expect(result.pages).toHaveLength(2);
@@ -47,6 +48,7 @@ describe("wayback machine", () => {
       "/cdx/search/cdx",
       expect.objectContaining({
         baseURL: "https://web.archive.org",
+        signal: controller.signal,
         method: "GET",
       }),
     );

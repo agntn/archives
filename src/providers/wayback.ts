@@ -74,6 +74,7 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
 
       const fetchOptions = await createFetchOptions(baseUrl, params, {
         retries: options.retries,
+        signal: options.signal,
         timeout: options.timeout,
       });
 
@@ -178,6 +179,7 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
   ): Promise<CdxCapture[]> {
     const fetchOptions = await createFetchOptions(BASE_URL, params, {
       retries: options.retries,
+      signal: options.signal,
       timeout: options.timeout,
     });
 

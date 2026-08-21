@@ -330,6 +330,7 @@ export async function createFetchOptions(
     params,
     retry: options.retries ?? config.performance.retries,
     timeout: options.timeout ?? config.performance.timeout,
+    signal: options.signal,
     retryDelay: 300, // Add delay between retries
     retryStatusCodes: [408, 409, 425, 429, 500, 502, 503, 504], // Standard retry status codes
     onResponseError: ({ request, response, options }) => {

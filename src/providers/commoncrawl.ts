@@ -99,6 +99,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
 
       const fetchOptions = await createFetchOptions(BASE_URL, params, {
         retries: options.retries,
+        signal: options.signal,
         timeout: options.timeout ?? 60_000,
         responseType: "text",
       });
@@ -250,6 +251,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
         {},
         {
           retries: options.retries,
+          signal: options.signal,
           timeout: options.timeout ?? 60_000,
         },
       );
@@ -311,6 +313,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
 
     const fetchOptions = await createFetchOptions(BASE_URL, params, {
       retries: options.retries,
+      signal: options.signal,
       timeout: options.timeout ?? 60_000,
       responseType: "text",
     });
@@ -361,6 +364,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       {
         responseType: "stream",
         retries: options.retries,
+        signal: options.signal,
         timeout: options.timeout ?? 60_000,
         headers: { range: `bytes=${start}-${start + length - 1}` },
       },
