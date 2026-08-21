@@ -40,7 +40,10 @@ interface ToolDefinition {
   description: string;
   inputSchema: TSchema;
   annotations: Tool["annotations"];
-  execute(args: Record<string, unknown>): ToolResult<unknown> | Promise<ToolResult<unknown>>;
+  execute(
+    args: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): ToolResult<unknown> | Promise<ToolResult<unknown>>;
 }
 
 const tools: ToolDefinition[] = [
@@ -141,7 +144,7 @@ const tools: ToolDefinition[] = [
       idempotentHint: false,
       openWorldHint: true,
     },
-    execute: (args) => snapshotArchives(args as unknown as SnapshotParams),
+    execute: (args, signal) => snapshotArchives(args as unknown as SnapshotParams, signal),
   },
   {
     name: "archives_content",
@@ -221,7 +224,7 @@ const tools: ToolDefinition[] = [
       idempotentHint: false,
       openWorldHint: true,
     },
-    execute: (args) => contentArchives(args as unknown as ContentParams),
+    execute: (args, signal) => contentArchives(args as unknown as ContentParams, signal),
   },
   {
     name: "archives_providers",
@@ -322,7 +325,7 @@ export function createMcpServer(): Server {
     })),
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const tool = toolsByName.get(request.params.name);
     if (!tool) return errorResult(`Unknown archives tool: ${request.params.name}`);
 
@@ -332,7 +335,7 @@ export function createMcpServer(): Server {
     }
 
     try {
-      return toCallToolResult(await tool.execute(args));
+      return toCallToolResult(await tool.execute(args, extra.signal));
     } catch (error) {
       return errorResult(
         `${tool.name} failed: ${error instanceof Error ? error.message : String(error)}`,

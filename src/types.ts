@@ -1,6 +1,7 @@
 export interface ArchiveOptions {
   // Pagination option
   limit?: number; // Maximum number of results to return
+  signal?: AbortSignal; // Cancels in-flight provider requests
 
   // Caching options
   cache?: boolean; // Enable/disable caching

@@ -218,6 +218,31 @@ describe("Pi extension", () => {
     expect(archivesMock.content).not.toHaveBeenCalled();
   });
 
+  it("passes tool cancellation to archive requests", async () => {
+    archivesMock.snapshots.mockResolvedValue({
+      success: true,
+      pages: [],
+      _meta: { source: "wayback", provider: "wayback" },
+    } satisfies ArchiveResponse);
+    const tool = getExecutableTool(loadExtension(), "archives");
+    const controller = new AbortController();
+
+    const result = await tool.execute(
+      "test",
+      { target: "example.com", provider: "wayback", cache: false },
+      controller.signal,
+      undefined,
+      {} as ExtensionContext,
+    );
+
+    expect(archivesMock.snapshots).toHaveBeenCalledWith(
+      "example.com",
+      expect.objectContaining({ signal: controller.signal }),
+    );
+    expect((result.details as { options: Record<string, unknown> }).options).not.toHaveProperty(
+      "signal",
+    );
+  });
   it("declares the schema bounds the shared executors enforce", () => {
     const tool = getExecutableTool(loadExtension(), "archives");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;

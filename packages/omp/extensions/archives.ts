@@ -238,9 +238,9 @@ export default function archivesOmpExtension(pi: ExtensionAPI) {
     renderCall(args, _options, theme) {
       return new Text(renderSnapshotCall(args, theme), 0, 0);
     },
-    async execute(_toolCallId, params) {
+    async execute(_toolCallId, params, signal) {
       const { snapshotArchives } = await loadToolOperations();
-      return snapshotArchives(params);
+      return snapshotArchives(params, signal);
     },
   });
 
@@ -254,9 +254,9 @@ export default function archivesOmpExtension(pi: ExtensionAPI) {
     renderCall(args, _options, theme) {
       return new Text(renderContentCall(args, theme), 0, 0);
     },
-    async execute(_toolCallId, params) {
+    async execute(_toolCallId, params, signal) {
       const { contentArchives } = await loadToolOperations();
-      return contentArchives(params);
+      return contentArchives(params, signal);
     },
   });
 

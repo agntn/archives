@@ -96,7 +96,7 @@ export type SnapshotOptions = ArchiveOptions & {
 };
 
 /** Snapshot options as they reach a harness transcript: never carrying the key. */
-export type RedactedSnapshotOptions = Omit<SnapshotOptions, "apiKey"> & {
+export type RedactedSnapshotOptions = Omit<SnapshotOptions, "apiKey" | "signal"> & {
   apiKey?: "<redacted>";
 };
 
@@ -107,7 +107,7 @@ export type ContentOptions = ArchiveContentOptions & {
 };
 
 /** Content options as they reach a harness transcript: never carrying the key. */
-export type RedactedContentOptions = Omit<ContentOptions, "apiKey"> & {
+export type RedactedContentOptions = Omit<ContentOptions, "apiKey" | "signal"> & {
   apiKey?: "<redacted>";
 };
 
@@ -194,6 +194,7 @@ interface PermaccApiKeyState {
  */
 export async function snapshotArchives(
   params: SnapshotParams,
+  signal?: AbortSignal,
 ): Promise<ToolResult<SnapshotDetails>> {
   const target = params.target.trim();
   if (!target) {
@@ -204,7 +205,7 @@ export async function snapshotArchives(
   }
 
   const provider = normalizeProvider(params.provider);
-  const options = buildSnapshotOptions(params, provider);
+  const options = { ...buildSnapshotOptions(params, provider), signal };
   const archiveProvider = await createProvider(provider, options);
   const archive = createArchive(archiveProvider, options);
   const response = await archive.snapshots(target, options);
@@ -247,7 +248,10 @@ export async function snapshotArchives(
  * @throws When the target is empty, an argument is out of range, the provider is
  * unknown, or its prerequisites are missing
  */
-export async function contentArchives(params: ContentParams): Promise<ToolResult<ContentDetails>> {
+export async function contentArchives(
+  params: ContentParams,
+  signal?: AbortSignal,
+): Promise<ToolResult<ContentDetails>> {
   const target = params.target.trim();
   if (!target) {
     throw new Error("Target cannot be empty");
@@ -259,7 +263,7 @@ export async function contentArchives(params: ContentParams): Promise<ToolResult
   const provider = normalizeProvider(params.provider);
   const format = normalizeFormat(params.format);
   const maxChars = params.maxChars ?? DEFAULT_MAX_CHARS;
-  const options = await buildContentOptions(params, provider, format, maxChars);
+  const options = { ...(await buildContentOptions(params, provider, format, maxChars)), signal };
   const archiveProvider = await createProvider(provider, options);
   const archive = createArchive(archiveProvider, options);
   const response = await archive.content(target, options);
@@ -500,11 +504,11 @@ async function buildContentOptions(
   return options;
 }
 
-/** Strips the Perma.cc key before options reach a transcript or a tool result. */
-export function redactOptions<TOptions extends { apiKey?: string }>(
+/** Strips private runtime state before options reach a transcript or a tool result. */
+export function redactOptions<TOptions extends { apiKey?: string; signal?: AbortSignal }>(
   options: TOptions,
-): Omit<TOptions, "apiKey"> & { apiKey?: "<redacted>" } {
-  const { apiKey: _apiKey, ...rest } = options;
+): Omit<TOptions, "apiKey" | "signal"> & { apiKey?: "<redacted>" } {
+  const { apiKey: _apiKey, signal: _signal, ...rest } = options;
   return options.apiKey ? { ...rest, apiKey: "<redacted>" } : rest;
 }
 
