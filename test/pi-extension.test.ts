@@ -218,26 +218,34 @@ describe("Pi extension", () => {
     expect(archivesMock.content).not.toHaveBeenCalled();
   });
 
-  it("passes tool cancellation to archive requests", async () => {
-    archivesMock.snapshots.mockResolvedValue({
-      success: true,
-      pages: [],
-      _meta: { source: "wayback", provider: "wayback" },
-    } satisfies ArchiveResponse);
+  it("stops an in-flight archive request when the tool is cancelled", async () => {
+    archivesMock.snapshots.mockImplementation(
+      (_target: string, options: { signal?: AbortSignal }) =>
+        new Promise<ArchiveResponse>((_resolve, reject) => {
+          const abort = () => reject(options.signal?.reason ?? new Error("cancelled"));
+          if (options.signal?.aborted) {
+            abort();
+            return;
+          }
+          options.signal?.addEventListener("abort", abort, { once: true });
+        }),
+    );
     const tool = getExecutableTool(loadExtension(), "archives");
     const controller = new AbortController();
 
-    const result = await tool.execute(
+    const execution = tool.execute(
       "test",
       { target: "example.com", provider: "wayback", cache: false },
       controller.signal,
       undefined,
       {} as ExtensionContext,
     );
+    controller.abort(new Error("cancelled by test"));
 
-    expect(archivesMock.snapshots).toHaveBeenCalledWith(
-      "example.com",
-      expect.objectContaining({ signal: controller.signal }),
+    const result = await execution;
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toEqual(
+      expect.objectContaining({ type: "text", text: expect.stringContaining("cancelled by test") }),
     );
     expect((result.details as { options: Record<string, unknown> }).options).not.toHaveProperty(
       "signal",
