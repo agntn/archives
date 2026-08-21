@@ -222,12 +222,17 @@ describe("Pi extension", () => {
     archivesMock.snapshots.mockImplementation(
       (_target: string, options: { signal?: AbortSignal }) =>
         new Promise<ArchiveResponse>((_resolve, reject) => {
-          const abort = () => reject(options.signal?.reason ?? new Error("cancelled"));
-          if (options.signal?.aborted) {
+          const signal = options.signal;
+          if (!signal) {
+            reject(new Error("missing AbortSignal"));
+            return;
+          }
+          const abort = () => reject(signal.reason ?? new Error("cancelled"));
+          if (signal.aborted) {
             abort();
             return;
           }
-          options.signal?.addEventListener("abort", abort, { once: true });
+          signal.addEventListener("abort", abort, { once: true });
         }),
     );
     const tool = getExecutableTool(loadExtension(), "archives");
@@ -239,6 +244,14 @@ describe("Pi extension", () => {
       controller.signal,
       undefined,
       {} as ExtensionContext,
+    );
+    await vi.waitFor(
+      () =>
+        expect(archivesMock.snapshots).toHaveBeenCalledWith(
+          "example.com",
+          expect.objectContaining({ signal: controller.signal }),
+        ),
+      { timeout: 100 },
     );
     controller.abort(new Error("cancelled by test"));
 
