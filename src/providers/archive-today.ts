@@ -42,6 +42,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
 
       const timemapResponse = await $fetch(timemapUrl, {
         baseURL,
+        signal: options.signal,
         retry: options.retries ?? 5,
         timeout: options.timeout ?? 60000,
         responseType: "text",
