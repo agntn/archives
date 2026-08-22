@@ -176,6 +176,65 @@ describe("Archive.snapshots / window", () => {
     expect(response.pages.map((page) => page._meta.provider)).toEqual(["a"]);
   });
 
+  it("honors a window configured on the provider itself", async () => {
+    // providers.all({ from: "2019" }) hands the bounds to every factory, and a
+    // provider without a window-aware index cannot apply them on its own.
+    const provider: ArchiveProvider = {
+      ...successProvider("timemap", [
+        pageAt("timemap", "2018-11-05T00:00:00Z"),
+        pageAt("timemap", "2019-03-01T12:00:00Z"),
+        pageAt("timemap", "2020-01-01T00:00:00Z"),
+      ]),
+      options: { from: "2019", to: "2019" },
+    };
+    const archive = createArchive(provider);
+
+    const response = await archive.snapshots("example.com");
+
+    expect(response.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T12:00:00Z"]);
+  });
+
+  it("lifts the provider limit while a window is active and caps after filtering", async () => {
+    const provider = successProvider("timemap", [
+      pageAt("timemap", "2020-01-01T00:00:00Z"),
+      pageAt("timemap", "2019-06-01T00:00:00Z"),
+      pageAt("timemap", "2019-03-01T00:00:00Z"),
+    ]);
+    const archive = createArchive(provider);
+
+    const response = await archive.snapshots("example.com", {
+      from: "2019",
+      to: "2019",
+      limit: 1,
+    });
+
+    // A provider-side limit would cap the rows before the filter and turn a
+    // tight limit into a false "nothing captured in this window".
+    const providerOptions = vi.mocked(provider.snapshots).mock.calls[0][1];
+    expect(providerOptions?.limit).toBeUndefined();
+    expect(response.pages).toHaveLength(1);
+    expect(response.pages[0].timestamp).toBe("2019-06-01T00:00:00Z");
+  });
+
+  it("answers different windows correctly from one unfiltered cache entry", async () => {
+    const provider = successProvider("cachey", [
+      pageAt("cachey", "2019-03-01T00:00:00Z"),
+      pageAt("cachey", "2020-03-01T00:00:00Z"),
+    ]);
+    const archive = createArchive(provider);
+
+    const first = await archive.snapshots("example.com", { from: "2020", to: "2020" });
+    const replayed = await archive.snapshots("example.com", { from: "2019", to: "2019" });
+
+    // The stored entry is the provider's unfiltered answer, so a second window
+    // replays it and filters on the way out instead of inheriting the first
+    // window's rows.
+    expect(provider.snapshots).toHaveBeenCalledTimes(1);
+    expect(first.pages.map((page) => page.timestamp)).toEqual(["2020-03-01T00:00:00Z"]);
+    expect(replayed.fromCache).toBe(true);
+    expect(replayed.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T00:00:00Z"]);
+  });
+
   it("rejects an inverted window before any provider is queried", async () => {
     const provider = successProvider("timemap", []);
     const archive = createArchive(provider);

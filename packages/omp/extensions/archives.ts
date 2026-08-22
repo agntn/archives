@@ -377,6 +377,8 @@ function renderSnapshotCall(params: SnapshotParams, theme: RenderTheme): string 
   parts.push(theme.fg("dim", truncateSingleLine(sanitizeTerminalText(params.target), 120)));
   if (params.provider) parts.push(theme.fg("muted", `provider=${sanitizeLine(params.provider)}`));
   if (params.limit !== undefined) parts.push(theme.fg("muted", `limit=${params.limit}`));
+  if (params.from) parts.push(theme.fg("muted", `from=${sanitizeLine(params.from)}`));
+  if (params.to) parts.push(theme.fg("muted", `to=${sanitizeLine(params.to)}`));
   if (params.collection)
     parts.push(theme.fg("muted", `collection=${sanitizeLine(params.collection)}`));
   if (params.timeout !== undefined) parts.push(theme.fg("muted", `timeout=${params.timeout}`));

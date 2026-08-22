@@ -62,7 +62,7 @@ const archive = createArchive(
 const response = await archive.snapshots("example.com", { from: "2019", to: "2019-06" });
 ```
 
-Providers whose index takes a window (Wayback, Archive-It) narrow the query itself; for the rest the listing is filtered after it returns, so captures outside the window never mix into a fan-out. A filtered listing can come back shorter than `limit` - raise it when a sparse window needs more of the archive.
+Providers whose index takes a window (Wayback, Archive-It) narrow the query itself; for the rest the listing is filtered after it returns, so captures outside the window never mix into a fan-out. While a window is active, `limit` applies after the filter rather than at the provider, so a tight limit cannot eat the window.
 
 ### Perma.cc
 

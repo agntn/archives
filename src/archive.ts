@@ -259,6 +259,13 @@ function windowPages(response: ArchiveResponse, from: string, to: string): Archi
   return pages.length === response.pages.length ? response : { ...response, pages };
 }
 
+/** Caps the pages of one filtered response, the way the lifted provider limit would have. */
+function capPages(response: ArchiveResponse, limit: number | undefined): ArchiveResponse {
+  if (typeof limit !== "number" || !Number.isFinite(limit)) return response;
+  if (response.pages.length <= limit) return response;
+  return { ...response, pages: response.pages.slice(0, Math.max(0, limit)) };
+}
+
 /**
  * Unified archive client aggregating one or more `ArchiveProvider`s.
  *
@@ -389,22 +396,36 @@ export class Archive implements ArchiveInterface {
 
     const providerArray = await this.resolveProviders();
 
+    // The effective window completes the option cascade per provider: a bound
+    // set at initialization counts too, because a provider without a
+    // window-aware index cannot apply its own. Request and archive bounds win
+    // per edge; an init bound that parses as no timestamp stays the provider's
+    // problem, as it always was.
+    const fetchWindowed = async (provider: ArchiveProvider): Promise<ArchiveResponse> => {
+      const windowFrom = from || toWaybackTimestamp(provider.options?.from ?? "");
+      const windowTo = to || toWaybackTimestamp(provider.options?.to ?? "");
+      if (!windowFrom && !windowTo) {
+        return this.fetchFromProvider(provider, domain, mergedOptions);
+      }
+
+      // A provider-side limit caps the rows before the window applies, so a
+      // tight limit turns into a false "nothing captured in this window". The
+      // cap moves after the filter instead, at the price of a fuller fetch.
+      const { limit: _limit, ...unlimited } = mergedOptions;
+      const response = await this.fetchFromProvider(provider, domain, unlimited);
+      return capPages(windowPages(response, windowFrom, windowTo), mergedOptions.limit);
+    };
+
     // For a single provider, use direct approach
     if (providerArray.length === 1) {
-      const response = await this.fetchFromProvider(providerArray[0], domain, mergedOptions);
-      return windowPages(response, from, to);
+      return fetchWindowed(providerArray[0]);
     }
 
     // For multiple providers, fetch in parallel with concurrency control
-    const responses = await processInParallel(
-      providerArray,
-      async (provider) =>
-        windowPages(await this.fetchFromProvider(provider, domain, mergedOptions), from, to),
-      {
-        concurrency: mergedOptions.concurrency,
-        batchSize: mergedOptions.batchSize,
-      },
-    );
+    const responses = await processInParallel(providerArray, fetchWindowed, {
+      concurrency: mergedOptions.concurrency,
+      batchSize: mergedOptions.batchSize,
+    });
 
     return combineResults(responses, mergedOptions.limit);
   }

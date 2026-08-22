@@ -248,6 +248,29 @@ describe("archives OMP extension", () => {
     expect(rendered).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/u);
   });
 
+  it("shows the requested window in the call preview", () => {
+    const tool = requireTool(registerExtension().tools, "archives");
+    const renderCall = tool.renderCall;
+    if (!renderCall) throw new Error("archives has no call renderer");
+
+    type RenderCall = NonNullable<ToolDefinition["renderCall"]>;
+    type RenderTheme = Parameters<RenderCall>[2];
+    const theme = {
+      bold: (text: string) => text,
+      fg: (_color: string, text: string) => text,
+    } as unknown as RenderTheme;
+    const component = renderCall(
+      { target: "example.com", from: "2019", to: "2019-06" },
+      { expanded: false, isPartial: false },
+      theme,
+    );
+    const rendered = component.render(200).join("\n");
+
+    // A windowed call must not preview like a full-archive scan.
+    expect(rendered).toContain("from=2019");
+    expect(rendered).toContain("to=2019-06");
+  });
+
   it("keeps a newline in an argument from opening a second preview line", () => {
     const tool = requireTool(registerExtension().tools, "archives");
     const renderCall = tool.renderCall;

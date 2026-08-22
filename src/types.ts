@@ -167,6 +167,10 @@ export interface ArchiveResponse {
 export interface ArchiveProvider {
   name: string;
   slug?: string;
+  // Initialization options the provider was created with. The aggregator reads
+  // the listing window from them, because a provider without a window-aware
+  // index has no way to apply its own init-level bounds.
+  readonly options?: ArchiveOptions;
   cacheKey?: (options?: ArchiveOptions) => string | undefined;
   snapshots: (domain: string, options?: ArchiveOptions) => Promise<ArchiveResponse>;
 
