@@ -14,6 +14,7 @@ import {
   createErrorResponse,
   createUnsupportedContentResponse,
   normalizeDomain,
+  waybackTimestampToISO,
 } from "../utils";
 import { BaseProvider } from "./base-provider";
 
@@ -29,6 +30,11 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
 
   /**
    * Fetch archived snapshots from Archive.today.
+   *
+   * A memento's `datetime` is not always something `Date` can read, but the
+   * snapshot URL names the same instant, so its stamp is the fallback. Stamping
+   * "now" instead would push the row above every real capture once a merged
+   * response sorts newest-first; a row with no readable time at all is dropped.
    */
   async snapshots(domain: string, reqOptions: ArchiveTodayOptions = {}): Promise<ArchiveResponse> {
     const cleanDomain = normalizeDomain(domain, false);
@@ -62,10 +68,22 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
 
         if (origUrl.includes(cleanDomain)) {
           try {
+            // The snapshot URL carries the capture stamp too, so a datetime the
+            // regex matched but `Date` cannot read falls back to those digits.
+            // Fabricating the current time instead would sort the capture above
+            // every real one in a merged, newest-first response, and the cache
+            // would then repeat that answer for days.
             const parsedDate = new Date(datetime);
             const isoTimestamp = Number.isNaN(parsedDate.getTime())
-              ? new Date().toISOString()
+              ? waybackTimestampToISO(timestamp)
               : parsedDate.toISOString();
+            if (!isoTimestamp) {
+              consola.debug("[archive-today] Dropping memento with unreadable capture time", {
+                datetime,
+                snapshot: snapshotUrl,
+              });
+              continue;
+            }
             const cleanedUrl = withoutTrailingSlash(
               cleanDoubleSlashes(origUrl.includes("://") ? origUrl : `https://${origUrl}`),
             );

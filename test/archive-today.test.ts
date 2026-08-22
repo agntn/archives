@@ -53,6 +53,28 @@ describe("archive.today", () => {
     );
   });
 
+  it("falls back to the snapshot URL stamp when a memento datetime is unreadable", async () => {
+    const mockTimemapResponse = `
+    <http://archive.md/20140101030405/https://example.com/>; rel="memento"; datetime="not a date",
+    <http://archive.md/201503081/https://example.com/>; rel="memento"; datetime="also not a date",
+    <http://archive.md/20160810200921/https://example.com/>; rel="memento"; datetime="Wed, 10 Aug 2016 20:09:21 GMT"
+    `;
+
+    vi.mocked($fetch).mockResolvedValueOnce(mockTimemapResponse);
+
+    const archive = createArchiveClient(createArchiveToday());
+    const result = await archive.snapshots("example.com");
+
+    expect(result.success).toBe(true);
+    // The first memento keeps the capture time its URL names instead of "now";
+    // the second has no readable time anywhere and is dropped.
+    expect(result.pages).toHaveLength(2);
+    expect(result.pages[0].timestamp).toBe("2014-01-01T03:04:05Z");
+    expect(result.pages[0]._meta.hash).toBe("20140101030405");
+    expect(result.pages[1].timestamp).toBe("2016-08-10T20:09:21.000Z");
+    expect(result.pages[1]._meta.position).toBe(1);
+  });
+
   it("returns an error response when the Memento API fails", async () => {
     vi.mocked($fetch).mockRejectedValueOnce(new Error("API error"));
 
