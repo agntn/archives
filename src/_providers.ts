@@ -9,8 +9,6 @@ export interface ArchiveItOptions extends ArchiveOptions {
   collection: number | string;
   collapse?: string;
   filter?: string;
-  from?: string;
-  to?: string;
 }
 
 export interface ConiferOptions extends ArchiveOptions {

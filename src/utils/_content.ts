@@ -123,6 +123,14 @@ export function timestampUpperBound(timestamp: string): string {
 }
 
 /**
+ * Pads a possibly partial timestamp to the lower edge of the period it names.
+ * The counterpart of {@link timestampUpperBound}, for the `from` side of a window.
+ */
+export function timestampLowerBound(timestamp: string): string {
+  return timestamp.length >= 14 ? timestamp : timestamp + "0".repeat(14 - timestamp.length);
+}
+
+/**
  * Splits an archive playback URL back into the original URL and capture stamp.
  *
  * `snapshots()` prints playback URLs, so they are what a caller holds when it

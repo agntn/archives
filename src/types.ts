@@ -3,6 +3,13 @@ export interface ArchiveOptions {
   limit?: number; // Maximum number of results to return
   signal?: AbortSignal; // Cancels in-flight provider requests
 
+  // Listing window, inclusive on both ends. Wayback-style digits (YYYY through
+  // YYYYMMDDhhmmss) or ISO 8601 dates; a partial stamp covers the whole period
+  // it names. Providers that can narrow their own query do, the rest are
+  // filtered after the fact, so the window holds across a fan-out.
+  from?: string; // Earliest capture to list
+  to?: string; // Latest capture to list
+
   // Caching options
   cache?: boolean; // Enable/disable caching
   ttl?: number; // Cache TTL in milliseconds

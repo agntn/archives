@@ -125,6 +125,78 @@ describe("Archive.resolveProviders", () => {
   });
 });
 
+describe("Archive.snapshots / window", () => {
+  const pageAt = (slug: string, timestamp: string): ArchivedPage => ({
+    url: "https://example.com",
+    timestamp,
+    snapshot: `https://archive.example/${slug}/${timestamp}`,
+    _meta: { provider: slug },
+  });
+
+  it("drops captures outside the window from a provider that cannot narrow its query", async () => {
+    const provider = successProvider("timemap", [
+      pageAt("timemap", "2018-11-05T00:00:00Z"),
+      pageAt("timemap", "2019-03-01T12:00:00Z"),
+      pageAt("timemap", "2020-01-01T00:00:00Z"),
+    ]);
+    const archive = createArchive(provider);
+
+    const response = await archive.snapshots("example.com", { from: "2019-01-01", to: "2019-06" });
+
+    expect(response.success).toBe(true);
+    expect(response.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T12:00:00Z"]);
+    // The provider still receives the window, as validated digits, so an index
+    // that understands it narrows its own query.
+    expect(provider.snapshots).toHaveBeenCalledWith(
+      "example.com",
+      expect.objectContaining({ from: "20190101", to: "201906" }),
+    );
+  });
+
+  it("keeps both window edges inclusive", async () => {
+    const provider = successProvider("timemap", [
+      pageAt("timemap", "2019-01-01T00:00:00Z"),
+      pageAt("timemap", "2019-12-31T23:59:59Z"),
+    ]);
+    const archive = createArchive(provider);
+
+    const response = await archive.snapshots("example.com", { from: "2019", to: "2019" });
+
+    expect(response.pages).toHaveLength(2);
+  });
+
+  it("filters every provider of a fan-out before their pages merge", async () => {
+    const inWindow = successProvider("a", [pageAt("a", "2019-05-01T00:00:00Z")]);
+    const outOfWindow = successProvider("b", [pageAt("b", "2022-05-01T00:00:00Z")]);
+    const archive = createArchive([inWindow, outOfWindow]);
+
+    const response = await archive.snapshots("example.com", { from: "2019", to: "2019" });
+
+    expect(response.success).toBe(true);
+    expect(response.pages.map((page) => page._meta.provider)).toEqual(["a"]);
+  });
+
+  it("rejects an inverted window before any provider is queried", async () => {
+    const provider = successProvider("timemap", []);
+    const archive = createArchive(provider);
+
+    await expect(archive.snapshots("example.com", { from: "2020", to: "2019" })).rejects.toThrow(
+      "Window is inverted",
+    );
+    expect(provider.snapshots).not.toHaveBeenCalled();
+  });
+
+  it("rejects a window edge no archive could act on", async () => {
+    const provider = successProvider("timemap", []);
+    const archive = createArchive(provider);
+
+    await expect(archive.snapshots("example.com", { from: "last tuesday" })).rejects.toThrow(
+      'Invalid from "last tuesday"',
+    );
+    expect(provider.snapshots).not.toHaveBeenCalled();
+  });
+});
+
 describe("combineResults / deduplication", () => {
   it("keeps the first provider page for duplicate URL and timestamp before limiting", async () => {
     const first = successProvider("shared", [
@@ -163,9 +235,7 @@ describe("combineResults / deduplication", () => {
 
     const response = await archive.snapshots("example.com");
 
-    expect(response.pages.map((page) => page.snapshot)).toEqual([
-      "https://archive.example/first",
-    ]);
+    expect(response.pages.map((page) => page.snapshot)).toEqual(["https://archive.example/first"]);
   });
 
   it("preserves distinct captures from the same provider at the same timestamp", async () => {
@@ -283,12 +353,8 @@ describe("archive.getPages", () => {
 
   // Path 4: multi all success → returns merged pages (covered indirectly elsewhere)
   it("multi-provider all success: returns merged sorted pages", async () => {
-    const a = successProvider("a", [
-      { ...samplePage("a"), timestamp: "2023-01-02T00:00:00Z" },
-    ]);
-    const b = successProvider("b", [
-      { ...samplePage("b"), timestamp: "2023-01-01T00:00:00Z" },
-    ]);
+    const a = successProvider("a", [{ ...samplePage("a"), timestamp: "2023-01-02T00:00:00Z" }]);
+    const b = successProvider("b", [{ ...samplePage("b"), timestamp: "2023-01-01T00:00:00Z" }]);
     const archive = createArchive([a, b]);
     const pages = await archive.getPages("example.com");
     expect(pages).toHaveLength(2);
@@ -299,10 +365,7 @@ describe("archive.getPages", () => {
 
   // Path 5: multi all error → throw generic Error with joined messages
   it("multi-provider all error: throws generic Error with joined messages", async () => {
-    const archive = createArchive([
-      errorProvider("a", "down a"),
-      errorProvider("b", "down b"),
-    ]);
+    const archive = createArchive([errorProvider("a", "down a"), errorProvider("b", "down b")]);
     const error = await captureThrow(archive.getPages("example.com"));
     expect(error).toBeInstanceOf(Error);
     expect(error).not.toBeInstanceOf(UnsupportedOperationError);

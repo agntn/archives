@@ -14,7 +14,10 @@ import { getStoredContent, getStoredResponse, storeContent, storeResponse } from
 import {
   mergeOptions,
   processInParallel,
+  timestampLowerBound,
+  timestampUpperBound,
   toErrorMessage,
+  toWaybackTimestamp,
   unreadableTargetReason,
   unwrapSnapshotUrl,
 } from "./utils";
@@ -214,6 +217,49 @@ export function combineContentResults(responses: ArchiveContentResponse[]): Arch
 }
 
 /**
+ * Validates one edge of a listing window and reduces it to timestamp digits.
+ *
+ * @param name - Which option the value came from, for the error message
+ * @param value - Wayback-style digits or an ISO 8601 date
+ * @returns Validated digits, empty when the edge is open
+ * @throws When the value is not a timestamp any archive could act on
+ */
+function resolveWindowBound(name: "from" | "to", value: string | undefined): string {
+  if (value === undefined || value.trim() === "") return "";
+
+  const digits = toWaybackTimestamp(value);
+  if (!digits) {
+    throw new Error(
+      `Invalid ${name} "${value}": use archive digits (YYYY to YYYYMMDDhhmmss) or an ISO 8601 date`,
+    );
+  }
+
+  return digits;
+}
+
+/**
+ * Drops the pages outside the requested window.
+ *
+ * Providers that can narrow their own index query already have; this is the
+ * guarantee for the ones that cannot, so a fan-out never mixes in-window
+ * listings with out-of-window ones.
+ */
+function windowPages(response: ArchiveResponse, from: string, to: string): ArchiveResponse {
+  if ((!from && !to) || !response.success || response.pages.length === 0) return response;
+
+  const lower = from ? timestampLowerBound(from) : "";
+  const upper = to ? timestampUpperBound(to) : "";
+  const pages = response.pages.filter((page) => {
+    // A capture whose date cannot be read cannot be placed inside the window.
+    const stamp = toWaybackTimestamp(page.timestamp);
+    if (!stamp) return false;
+    return (!lower || stamp >= lower) && (!upper || stamp <= upper);
+  });
+
+  return pages.length === response.pages.length ? response : { ...response, pages };
+}
+
+/**
  * Unified archive client aggregating one or more `ArchiveProvider`s.
  *
  * Use `createArchive()` for the functional entry point; the class exists so
@@ -312,21 +358,48 @@ export class Archive implements ArchiveInterface {
    *   limit: 5,
    *   cache: false // Skip cache for this request
    * })
+   *
+   * // Only the captures from the first half of 2019
+   * const response = await archive.snapshots('example.com', {
+   *   from: '2019',
+   *   to: '2019-06'
+   * })
    * ```
    */
   async snapshots(domain: string, listOptions?: ArchiveOptions): Promise<ArchiveResponse> {
-    const mergedOptions = await mergeOptions(this.options, listOptions);
+    const {
+      from: rawFrom,
+      to: rawTo,
+      ...restOptions
+    } = await mergeOptions(this.options, listOptions);
+
+    const from = resolveWindowBound("from", rawFrom);
+    const to = resolveWindowBound("to", rawTo);
+    if (from && to && timestampLowerBound(from) > timestampUpperBound(to)) {
+      throw new Error(`Window is inverted: from "${from}" is later than to "${to}"`);
+    }
+
+    // Providers see validated digits only, so what reaches an index query and a
+    // cache key never depends on how the caller spelled the instant.
+    const mergedOptions: ArchiveOptions = {
+      ...restOptions,
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+    };
+
     const providerArray = await this.resolveProviders();
 
     // For a single provider, use direct approach
     if (providerArray.length === 1) {
-      return this.fetchFromProvider(providerArray[0], domain, mergedOptions);
+      const response = await this.fetchFromProvider(providerArray[0], domain, mergedOptions);
+      return windowPages(response, from, to);
     }
 
     // For multiple providers, fetch in parallel with concurrency control
     const responses = await processInParallel(
       providerArray,
-      (provider) => this.fetchFromProvider(provider, domain, mergedOptions),
+      async (provider) =>
+        windowPages(await this.fetchFromProvider(provider, domain, mergedOptions), from, to),
       {
         concurrency: mergedOptions.concurrency,
         batchSize: mergedOptions.batchSize,

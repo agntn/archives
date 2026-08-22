@@ -54,6 +54,16 @@ const archive = createArchive(
 );
 ```
 
+### Time window
+
+`snapshots()` takes `from` and `to` bounds, as archive digits (`2019`, `201903`, up to `20190301120000`) or ISO 8601 dates. Both are inclusive, and a partial value covers the whole period it names, so `from: '2019', to: '2019'` is the entire year:
+
+```ts
+const response = await archive.snapshots("example.com", { from: "2019", to: "2019-06" });
+```
+
+Providers whose index takes a window (Wayback, Archive-It) narrow the query itself; for the rest the listing is filtered after it returns, so captures outside the window never mix into a fan-out. A filtered listing can come back shorter than `limit` - raise it when a sparse window needs more of the archive.
+
 ### Perma.cc
 
 Perma.cc requires an API key and searches archives accessible to that account by exact submitted URL:
@@ -193,7 +203,7 @@ An MCP client sees the text a tool returns and nothing else, so the text carries
 
 `archives_content` returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless `format=raw` and clipped to `maxChars` (20 000 by default) with a note saying so. The body is fenced and labelled as untrusted data: it is a recording of a web page, not a message to the caller. A capture that is not text is described instead of decoded.
 
-`archives_snapshots` is annotated read-only and open-world: it leaves the machine on every call, and archives keep growing, so two identical calls may legitimately differ. An answer replayed from the response cache is marked `; cached` in its header. A provider that returns no snapshots is an answer, not a tool error. Only a rejected argument or a failed query sets `isError`.
+`archives_snapshots` is annotated read-only and open-world: it leaves the machine on every call, and archives keep growing, so two identical calls may legitimately differ. An answer replayed from the response cache is marked `; cached` in its header. A provider that returns no snapshots is an answer, not a tool error. Only a rejected argument or a failed query sets `isError`. `from` and `to` bound the listing to a time window, and the applied window is echoed in the header so a narrowed answer never reads as the archive's whole holdings.
 
 The Perma.cc key is read from `PERMA_CC_API_KEY` or `PERMACC_API_KEY` and never accepted as a tool argument; it is redacted before the options reach any result.
 

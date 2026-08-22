@@ -54,6 +54,8 @@ const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queri
 const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback first and falls back to Common Crawl. Archive-It reads bodies too, with a numeric collection id. Archive.today, Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 const CONTENT_FORMATS = ["text", "raw"] as const;
 const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the archived bytes as they were served.`;
+const SNAPSHOT_FROM_HINT = `Earliest capture to list, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Inclusive; a partial stamp starts the window at the beginning of the period it names.`;
+const SNAPSHOT_TO_HINT = `Latest capture to list, in the same formats as "from". Inclusive; a partial stamp stretches the window to the end of the period it names, so from=2019 with to=2019 covers the whole year.`;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 const DEFAULT_MAX_CHARS = 20_000;
@@ -162,6 +164,20 @@ const snapshotParameters = Type.Object({
       description: "Wayback CDX filter parameter.",
       minLength: 1,
       maxLength: MAX_PARAMETER_LENGTH,
+    }),
+  ),
+  from: Type.Optional(
+    Type.String({
+      description: SNAPSHOT_FROM_HINT,
+      minLength: 1,
+      maxLength: MAX_TIMESTAMP_LENGTH,
+    }),
+  ),
+  to: Type.Optional(
+    Type.String({
+      description: SNAPSHOT_TO_HINT,
+      minLength: 1,
+      maxLength: MAX_TIMESTAMP_LENGTH,
     }),
   ),
 });
