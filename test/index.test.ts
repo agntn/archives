@@ -235,6 +235,38 @@ describe("Archive.snapshots / window", () => {
     expect(replayed.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T00:00:00Z"]);
   });
 
+  it("caps a windowed fan-out after the newest-first merge, not per provider", async () => {
+    // Wayback answers oldest first; a cap taken in that order would keep
+    // January and discard the December capture the merge sorts to the top.
+    const oldestFirst = successProvider("wayback-like", [
+      pageAt("wayback-like", "2019-01-01T00:00:00Z"),
+      pageAt("wayback-like", "2019-12-01T00:00:00Z"),
+    ]);
+    const empty = successProvider("other", []);
+    const archive = createArchive([oldestFirst, empty]);
+
+    const response = await archive.snapshots("example.com", {
+      from: "2019",
+      to: "2019",
+      limit: 1,
+    });
+
+    expect(response.pages.map((page) => page.timestamp)).toEqual(["2019-12-01T00:00:00Z"]);
+  });
+
+  it("rejects an inverted window assembled across the option cascade", async () => {
+    const provider: ArchiveProvider = {
+      ...successProvider("timemap", []),
+      options: { from: "2020" },
+    };
+    const archive = createArchive(provider);
+
+    await expect(archive.snapshots("example.com", { to: "2019" })).rejects.toThrow(
+      "Window is inverted",
+    );
+    expect(provider.snapshots).not.toHaveBeenCalled();
+  });
+
   it("rejects an inverted window before any provider is queried", async () => {
     const provider = successProvider("timemap", []);
     const archive = createArchive(provider);

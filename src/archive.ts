@@ -400,29 +400,56 @@ export class Archive implements ArchiveInterface {
     // set at initialization counts too, because a provider without a
     // window-aware index cannot apply its own. Request and archive bounds win
     // per edge; an init bound that parses as no timestamp stays the provider's
-    // problem, as it always was.
-    const fetchWindowed = async (provider: ArchiveProvider): Promise<ArchiveResponse> => {
+    // problem, as it always was. Inversion is checked here, after the cascade,
+    // and before the fan-out so the error surfaces instead of being swallowed
+    // by the parallel runner.
+    const windowed = providerArray.map((provider) => {
       const windowFrom = from || toWaybackTimestamp(provider.options?.from ?? "");
       const windowTo = to || toWaybackTimestamp(provider.options?.to ?? "");
+      if (
+        windowFrom &&
+        windowTo &&
+        timestampLowerBound(windowFrom) > timestampUpperBound(windowTo)
+      ) {
+        throw new Error(`Window is inverted: from "${windowFrom}" is later than to "${windowTo}"`);
+      }
+      return { provider, windowFrom, windowTo };
+    });
+
+    const fetchWindowed = async ({
+      provider,
+      windowFrom,
+      windowTo,
+    }: (typeof windowed)[number]): Promise<ArchiveResponse> => {
       if (!windowFrom && !windowTo) {
         return this.fetchFromProvider(provider, domain, mergedOptions);
       }
 
       // A provider-side limit caps the rows before the window applies, so a
       // tight limit turns into a false "nothing captured in this window". The
-      // cap moves after the filter instead, at the price of a fuller fetch.
-      const { limit: _limit, ...unlimited } = mergedOptions;
+      // explicit undefined is what lifts an init-level limit too: an absent key
+      // would let the provider's own option cascade restore it.
+      const unlimited: ArchiveOptions = { ...mergedOptions, limit: undefined };
       const response = await this.fetchFromProvider(provider, domain, unlimited);
-      return capPages(windowPages(response, windowFrom, windowTo), mergedOptions.limit);
+      return windowPages(response, windowFrom, windowTo);
     };
 
     // For a single provider, use direct approach
     if (providerArray.length === 1) {
-      return fetchWindowed(providerArray[0]);
+      const [single] = windowed;
+      const response = await fetchWindowed(single);
+      // With the provider limit lifted, the cap the caller asked for is applied
+      // here, after the filter.
+      return single.windowFrom || single.windowTo
+        ? capPages(response, mergedOptions.limit)
+        : response;
     }
 
-    // For multiple providers, fetch in parallel with concurrency control
-    const responses = await processInParallel(providerArray, fetchWindowed, {
+    // For multiple providers, fetch in parallel with concurrency control.
+    // Responses stay uncapped through the fan-out: combineResults sorts the
+    // merged pages newest first before limiting, and a per-provider cap taken
+    // in the provider's own order would discard the rows that sort keeps.
+    const responses = await processInParallel(windowed, fetchWindowed, {
       concurrency: mergedOptions.concurrency,
       batchSize: mergedOptions.batchSize,
     });
