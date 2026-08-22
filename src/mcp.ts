@@ -27,6 +27,8 @@ import {
   PROVIDER_HINT,
   PROVIDER_INPUTS,
   sanitizeTerminalText,
+  SNAPSHOT_FROM_HINT,
+  SNAPSHOT_TO_HINT,
   snapshotArchives,
   type ContentParams,
   type SnapshotParams,
@@ -135,6 +137,20 @@ const tools: ToolDefinition[] = [
             description: "Wayback CDX filter parameter.",
             minLength: 1,
             maxLength: MAX_PARAMETER_LENGTH,
+          }),
+        ),
+        from: Type.Optional(
+          Type.String({
+            description: SNAPSHOT_FROM_HINT,
+            minLength: 1,
+            maxLength: MAX_TIMESTAMP_LENGTH,
+          }),
+        ),
+        to: Type.Optional(
+          Type.String({
+            description: SNAPSHOT_TO_HINT,
+            minLength: 1,
+            maxLength: MAX_TIMESTAMP_LENGTH,
           }),
         ),
       },

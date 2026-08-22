@@ -46,9 +46,13 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
     const waybackOptions = options as Partial<WaybackOptions> | undefined;
     const collapse = waybackOptions?.collapse ?? this.options.collapse ?? "timestamp:4";
     const filter = waybackOptions?.filter ?? this.options.filter;
+    const from = waybackOptions?.from ?? this.options.from;
+    const to = waybackOptions?.to ?? this.options.to;
     const parts = [`collapse=${encodeURIComponent(collapse)}`];
 
     if (filter !== undefined) parts.push(`filter=${encodeURIComponent(filter)}`);
+    if (from !== undefined) parts.push(`from=${encodeURIComponent(from)}`);
+    if (to !== undefined) parts.push(`to=${encodeURIComponent(to)}`);
 
     return parts.join(":");
   }
@@ -71,6 +75,8 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
       };
 
       if (options.filter !== undefined) params.filter = options.filter;
+      if (options.from !== undefined) params.from = options.from;
+      if (options.to !== undefined) params.to = options.to;
 
       const fetchOptions = await createFetchOptions(baseUrl, params, {
         retries: options.retries,

@@ -170,6 +170,33 @@ describe("archives MCP server", () => {
     expect(response.structuredContent).toBeUndefined();
   });
 
+  it("applies the requested window and names it in the header", async () => {
+    stubProvider(
+      providersMock.wayback,
+      success([
+        page(),
+        page({
+          timestamp: "2019-03-01T12:00:00.000Z",
+          snapshot: "https://web.archive.org/web/20190301120000/https://example.com/",
+        }),
+      ]),
+    );
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "example.com", provider: "wayback", from: "2019", to: "2019-06" },
+    });
+
+    expect(response.isError).toBeUndefined();
+    const rendered = text(response.content);
+    expect(rendered).toContain('1 snapshot(s) for "example.com"; window=2019..2019-06');
+    expect(rendered).toContain("2019-03-01T12:00:00.000Z");
+    // The stubbed provider ignored the window, the way a timemap backend would,
+    // so the out-of-window capture has to be filtered rather than listed.
+    expect(rendered).not.toContain("2024-01-02");
+  });
+
   it("names providers that cannot answer instead of dropping them", async () => {
     providersMock.all.mockResolvedValue([
       { name: "wayback", slug: "wayback", snapshots: vi.fn().mockResolvedValue(success([page()])) },

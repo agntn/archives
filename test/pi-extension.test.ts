@@ -18,6 +18,8 @@ import {
   MAX_LIMIT,
   PROVIDER_HINT,
   PROVIDER_INPUTS,
+  SNAPSHOT_FROM_HINT,
+  SNAPSHOT_TO_HINT,
 } from "../src/tool-operations";
 import type { ArchiveContentResponse, ArchiveResponse } from "../src/types";
 
@@ -276,11 +278,35 @@ describe("Pi extension", () => {
     expect(properties["limit"]).toMatchObject({ minimum: 1, maximum: MAX_LIMIT });
     expect(properties["limit"]?.["description"]).toContain(`Defaults to ${DEFAULT_LIMIT}.`);
     expect(properties["provider"]?.["description"]).toBe(PROVIDER_HINT);
+    expect(properties["from"]?.["description"]).toBe(SNAPSHOT_FROM_HINT);
+    expect(properties["to"]?.["description"]).toBe(SNAPSHOT_TO_HINT);
     // Every spelling normalizeProvider accepts has to be offered, and no other.
     const offered = ((properties["provider"]?.["anyOf"] ?? []) as Array<{ const: string }>).map(
       (member) => member.const,
     );
     expect(offered.sort()).toEqual([...PROVIDER_INPUTS].sort());
+  });
+
+  it("passes the window to the provider as validated digits", async () => {
+    archivesMock.snapshots.mockResolvedValue({
+      success: true,
+      pages: [],
+      _meta: { source: "wayback", provider: "wayback" },
+    } satisfies ArchiveResponse);
+    const tool = getExecutableTool(loadExtension(), "archives");
+
+    await tool.execute(
+      "test",
+      { target: "example.com", provider: "wayback", from: "2019-03-01", to: "2019-06" },
+      undefined,
+      undefined,
+      {} as ExtensionContext,
+    );
+
+    expect(archivesMock.snapshots).toHaveBeenCalledWith(
+      "example.com",
+      expect.objectContaining({ from: "20190301", to: "201906" }),
+    );
   });
 
   it("does not expose arbitrary API-key or environment-variable parameters", () => {

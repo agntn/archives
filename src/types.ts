@@ -3,6 +3,13 @@ export interface ArchiveOptions {
   limit?: number; // Maximum number of results to return
   signal?: AbortSignal; // Cancels in-flight provider requests
 
+  // Listing window, inclusive on both ends. Wayback-style digits (YYYY through
+  // YYYYMMDDhhmmss) or ISO 8601 dates; a partial stamp covers the whole period
+  // it names. Providers that can narrow their own query do, the rest are
+  // filtered after the fact, so the window holds across a fan-out.
+  from?: string; // Earliest capture to list
+  to?: string; // Latest capture to list
+
   // Caching options
   cache?: boolean; // Enable/disable caching
   ttl?: number; // Cache TTL in milliseconds
@@ -160,6 +167,10 @@ export interface ArchiveResponse {
 export interface ArchiveProvider {
   name: string;
   slug?: string;
+  // Initialization options the provider was created with. The aggregator reads
+  // the listing window from them, because a provider without a window-aware
+  // index has no way to apply its own init-level bounds.
+  readonly options?: ArchiveOptions;
   cacheKey?: (options?: ArchiveOptions) => string | undefined;
   snapshots: (domain: string, options?: ArchiveOptions) => Promise<ArchiveResponse>;
 

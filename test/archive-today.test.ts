@@ -53,6 +53,22 @@ describe("archive.today", () => {
     );
   });
 
+  it("lifts an init-level limit while a window is active", async () => {
+    const mockTimemapResponse = `
+    <http://archive.md/20180101000000/https://example.com/>; rel="memento"; datetime="Mon, 01 Jan 2018 00:00:00 GMT",
+    <http://archive.md/20190601000000/https://example.com/>; rel="memento"; datetime="Sat, 01 Jun 2019 00:00:00 GMT"
+    `;
+    vi.mocked($fetch).mockResolvedValueOnce(mockTimemapResponse);
+
+    const archive = createArchiveClient(createArchiveToday({ limit: 1 }));
+    const result = await archive.snapshots("example.com", { from: "2019", to: "2019" });
+
+    // With the init limit honored before the filter, the 2018 memento would
+    // consume it and the 2019 capture would read as never archived.
+    expect(result.success).toBe(true);
+    expect(result.pages.map((page) => page._meta.hash)).toEqual(["20190601000000"]);
+  });
+
   it("falls back to the snapshot URL stamp when a memento datetime is unreadable", async () => {
     const mockTimemapResponse = `
     <http://archive.md/20140101030405/https://example.com/>; rel="memento"; datetime="not a date",
