@@ -9,6 +9,7 @@ export {
 export { BaseProvider } from "./providers/base-provider";
 export { WaybackProvider } from "./providers/wayback";
 export { ArchiveItProvider } from "./providers/archive-it";
+export { ConiferProvider } from "./providers/conifer";
 export { ArchiveTodayProvider } from "./providers/archive-today";
 export { PermaccProvider } from "./providers/permacc";
 export { CommonCrawlProvider } from "./providers/commoncrawl";

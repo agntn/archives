@@ -2,6 +2,7 @@ import type { ArchiveOptions, ArchiveProvider } from "../types";
 import type {
   WaybackOptions,
   ArchiveItOptions,
+  ConiferOptions,
   ArchiveTodayOptions,
   PermaccOptions,
   CommonCrawlOptions,
@@ -39,6 +40,20 @@ export const providers = {
   async archiveIt(options: ArchiveItOptions): Promise<ArchiveProvider> {
     const { ArchiveItProvider } = await import("./archive-it");
     return new ArchiveItProvider(options);
+  },
+
+  /**
+   * Creates a Conifer provider for one existing public collection.
+   * @param options - Configuration including the required user and collection slugs
+   * @returns The Conifer provider
+   * @example
+   * ```js
+   * const coniferProvider = providers.conifer({ user: 'imamuseum', collection: 'imamuseumorg' })
+   * ```
+   */
+  async conifer(options: ConiferOptions): Promise<ArchiveProvider> {
+    const { ConiferProvider } = await import("./conifer");
+    return new ConiferProvider(options);
   },
 
   /**

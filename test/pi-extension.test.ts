@@ -23,6 +23,7 @@ import type { ArchiveContentResponse, ArchiveResponse } from "../src/types";
 
 const archivesMock = vi.hoisted(() => ({
   archiveIt: vi.fn(),
+  conifer: vi.fn(),
   snapshots: vi.fn(),
   content: vi.fn(),
 }));
@@ -46,6 +47,7 @@ vi.mock("../src/providers", () => ({
       content: archivesMock.content,
     }),
     archiveIt: archivesMock.archiveIt,
+    conifer: archivesMock.conifer,
     archiveToday: async () => ({
       name: "archive.today",
       slug: "archive-today",
@@ -126,6 +128,7 @@ describe("Pi extension", () => {
     await storage.clear();
     archivesMock.snapshots.mockReset();
     archivesMock.archiveIt.mockReset();
+    archivesMock.conifer.mockReset();
     archivesMock.content.mockReset();
   });
 
@@ -403,6 +406,52 @@ describe("Pi extension", () => {
       ),
     ).rejects.toThrow("provider=archiveIt requires a numeric collection id");
     expect(archivesMock.archiveIt).not.toHaveBeenCalled();
+  });
+
+  it("dispatches Conifer requests with the required collection identity", async () => {
+    archivesMock.conifer.mockResolvedValue({
+      name: "Conifer",
+      slug: "conifer",
+      snapshots: archivesMock.snapshots,
+    });
+    archivesMock.snapshots.mockResolvedValue({
+      success: true,
+      pages: [],
+      _meta: { source: "conifer", provider: "conifer" },
+    } satisfies ArchiveResponse);
+    const tool = getExecutableTool(loadExtension(), "archives");
+
+    await tool.execute(
+      "test",
+      {
+        target: "example.com",
+        provider: "conifer",
+        user: " user ",
+        collection: " collection ",
+      },
+      undefined,
+      undefined,
+      {} as ExtensionContext,
+    );
+
+    expect(archivesMock.conifer).toHaveBeenCalledWith(
+      expect.objectContaining({ user: "user", collection: "collection" }),
+    );
+  });
+
+  it("rejects Conifer requests without a user", async () => {
+    const tool = getExecutableTool(loadExtension(), "archives");
+
+    await expect(
+      tool.execute(
+        "test",
+        { target: "example.com", provider: "conifer", collection: "collection" },
+        undefined,
+        undefined,
+        {} as ExtensionContext,
+      ),
+    ).rejects.toThrow("provider=conifer requires user and collection slugs");
+    expect(archivesMock.conifer).not.toHaveBeenCalled();
   });
 
   it("reports /archive API errors instead of showing an empty-result warning", async () => {

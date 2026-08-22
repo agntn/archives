@@ -13,6 +13,11 @@ export interface ArchiveItOptions extends ArchiveOptions {
   to?: string;
 }
 
+export interface ConiferOptions extends ArchiveOptions {
+  user: string;
+  collection: string;
+}
+
 export type ArchiveTodayOptions = ArchiveOptions;
 
 export interface PermaccOptions extends ArchiveOptions {
