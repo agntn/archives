@@ -81,6 +81,7 @@ export class ConiferProvider extends BaseProvider<ConiferOptions> {
       }
       const fetchOptions = await createFetchOptions(baseUrl, params, {
         retries: options.retries,
+        signal: options.signal,
         timeout: options.timeout,
       });
       const response = await $fetch<ConiferSearchResponse>("/api/v1/url_search", {
