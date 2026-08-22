@@ -71,6 +71,21 @@ describe("Conifer", () => {
     );
   });
 
+  it("forwards the caller's cancellation signal to the search request", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce({ results: [] });
+
+    const controller = new AbortController();
+    await createArchive(createConifer({ user: "user", collection: "collection" })).snapshots(
+      "example.com",
+      { signal: controller.signal },
+    );
+
+    expect($fetch).toHaveBeenCalledWith(
+      "/api/v1/url_search",
+      expect.objectContaining({ signal: controller.signal }),
+    );
+  });
+
   it.each([1, 1.5])("applies a requested limit of %s to Conifer results", async (limit) => {
     vi.mocked($fetch).mockResolvedValueOnce({
       results: [
