@@ -117,6 +117,28 @@ describe("wayback machine", () => {
   });
 
   /**
+   * The provider is a public export, so a caller can hand it the ISO bounds
+   * ArchiveOptions promises without going through Archive.snapshots; the digits
+   * have to come out of the provider's own normalization then.
+   */
+  it("normalizes ISO bounds when the provider is called directly", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+
+    const result = await createWayback().snapshots("example.com", {
+      from: "2019-03-01",
+      to: "2019-06",
+    });
+
+    expect(result.success).toBe(true);
+    expect($fetch).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      expect.objectContaining({
+        params: expect.objectContaining({ from: "20190301", to: "201906" }),
+      }),
+    );
+  });
+
+  /**
    * Left raw, the init-level date would reach CDX as from=2019-03-01, which
    * the index does not read as an instant.
    */

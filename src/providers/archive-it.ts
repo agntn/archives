@@ -66,6 +66,10 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
 
   /**
    * Fetch archived snapshots from one Archive-It collection.
+   *
+   * The window bounds are normalized here too, not only in `Archive.snapshots`:
+   * the provider is a public export, and the CDX index does not read a raw ISO
+   * date as an instant.
    */
   async snapshots(
     domain: string,
@@ -84,8 +88,10 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
 
       if (options.collapse !== undefined) params.collapse = options.collapse;
       if (options.filter !== undefined) params.filter = options.filter;
-      if (options.from !== undefined) params.from = options.from;
-      if (options.to !== undefined) params.to = options.to;
+      const from = resolveRequestedTimestamp(options.from, "from");
+      const to = resolveRequestedTimestamp(options.to, "to");
+      if (from) params.from = from;
+      if (to) params.to = to;
 
       const fetchOptions = await createFetchOptions(baseUrl, params, {
         retries: options.retries,
