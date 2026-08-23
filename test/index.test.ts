@@ -221,6 +221,34 @@ describe("Archive.snapshots / window", () => {
   });
 
   /**
+   * The tool surfaces initialize every provider with the same options they
+   * pass as the request, so an init-level limit equal to the request limit
+   * must not cap each provider in its own order before the newest-first merge.
+   */
+  it("lets a request limit outrank an init-level one in a windowed fan-out", async () => {
+    const oldestFirst: ArchiveProvider = {
+      ...successProvider("wayback-like", [
+        pageAt("wayback-like", "2019-01-01T00:00:00Z"),
+        pageAt("wayback-like", "2019-12-01T00:00:00Z"),
+      ]),
+      options: { limit: 1 },
+    };
+    const empty: ArchiveProvider = {
+      ...successProvider("other", []),
+      options: { limit: 1 },
+    };
+    const archive = createArchive([oldestFirst, empty]);
+
+    const response = await archive.snapshots("example.com", {
+      from: "2019",
+      to: "2019",
+      limit: 1,
+    });
+
+    expect(response.pages.map((page) => page.timestamp)).toEqual(["2019-12-01T00:00:00Z"]);
+  });
+
+  /**
    * The natural entry may have been capped by the provider's own limit, so a
    * windowed request must not replay it: the window travels in the cache key
    * and earns its own fetch, made with the limit lifted.

@@ -396,7 +396,10 @@ export class Archive implements ArchiveInterface {
      * init-level value, and with the validated digits in the request options,
      * so a pushdown index never sees a raw init-level date and the cache key
      * separates this fetch from a naturally capped one. The provider's own cap
-     * comes back after the filter.
+     * comes back after the filter, but only while the request names no limit of
+     * its own: a request limit outranks the init level, and in a fan-out it is
+     * applied after the newest-first merge rather than here, where it would cut
+     * in the provider's order.
      */
     const fetchWindowed = async ({
       provider,
@@ -414,7 +417,10 @@ export class Archive implements ArchiveInterface {
         ...(windowTo ? { to: windowTo } : {}),
       };
       const response = await this.fetchFromProvider(provider, domain, bounded);
-      return capPages(windowPages(response, windowFrom, windowTo), provider.options?.limit);
+      return capPages(
+        windowPages(response, windowFrom, windowTo),
+        restOptions.limit === undefined ? provider.options?.limit : undefined,
+      );
     };
 
     // For a single provider, use direct approach
