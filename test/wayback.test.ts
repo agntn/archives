@@ -116,14 +116,16 @@ describe("wayback machine", () => {
     );
   });
 
+  /**
+   * Left raw, the init-level date would reach CDX as from=2019-03-01, which
+   * the index does not read as an instant.
+   */
   it("normalizes an init-level ISO bound before it reaches the CDX query", async () => {
     vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
 
     const archive = createArchive(createWayback({ from: "2019-03-01" }));
     const result = await archive.snapshots("example.com");
 
-    // Left raw, the init-level date would reach CDX as from=2019-03-01, which
-    // the index does not read as an instant.
     expect(result.success).toBe(true);
     expect($fetch).toHaveBeenCalledWith(
       "/cdx/search/cdx",
@@ -133,6 +135,7 @@ describe("wayback machine", () => {
     );
   });
 
+  /** The third query repeats the first window, so it must replay that answer rather than the other window's entry or a fresh fetch. */
   it("separates cache entries by window", async () => {
     vi.mocked($fetch)
       .mockResolvedValueOnce([
@@ -151,8 +154,6 @@ describe("wayback machine", () => {
 
     expect(first.pages[0].url).toBe("https://example.com/2019");
     expect(second.pages[0].url).toBe("https://example.com/2020");
-    // The third query repeats the first window, so it must replay that answer
-    // rather than the other window's entry or a fresh fetch.
     expect(replayed.fromCache).toBe(true);
     expect(replayed.pages[0].url).toBe("https://example.com/2019");
     expect($fetch).toHaveBeenCalledTimes(2);

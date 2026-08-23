@@ -248,6 +248,7 @@ describe("archives OMP extension", () => {
     expect(rendered).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/u);
   });
 
+  /** A windowed call must not preview like a full-archive scan. */
   it("shows the requested window in the call preview", () => {
     const tool = requireTool(registerExtension().tools, "archives");
     const renderCall = tool.renderCall;
@@ -266,7 +267,6 @@ describe("archives OMP extension", () => {
     );
     const rendered = component.render(200).join("\n");
 
-    // A windowed call must not preview like a full-archive scan.
     expect(rendered).toContain("from=2019");
     expect(rendered).toContain("to=2019-06");
   });

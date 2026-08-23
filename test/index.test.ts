@@ -133,6 +133,10 @@ describe("Archive.snapshots / window", () => {
     _meta: { provider: slug },
   });
 
+  /**
+   * The provider still receives the window, as validated digits, so an index
+   * that understands it narrows its own query.
+   */
   it("drops captures outside the window from a provider that cannot narrow its query", async () => {
     const provider = successProvider("timemap", [
       pageAt("timemap", "2018-11-05T00:00:00Z"),
@@ -145,8 +149,6 @@ describe("Archive.snapshots / window", () => {
 
     expect(response.success).toBe(true);
     expect(response.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T12:00:00Z"]);
-    // The provider still receives the window, as validated digits, so an index
-    // that understands it narrows its own query.
     expect(provider.snapshots).toHaveBeenCalledWith(
       "example.com",
       expect.objectContaining({ from: "20190101", to: "201906" }),
@@ -176,9 +178,11 @@ describe("Archive.snapshots / window", () => {
     expect(response.pages.map((page) => page._meta.provider)).toEqual(["a"]);
   });
 
+  /**
+   * providers.all({ from: "2019" }) hands the bounds to every factory, and a
+   * provider without a window-aware index cannot apply them on its own.
+   */
   it("honors a window configured on the provider itself", async () => {
-    // providers.all({ from: "2019" }) hands the bounds to every factory, and a
-    // provider without a window-aware index cannot apply them on its own.
     const provider: ArchiveProvider = {
       ...successProvider("timemap", [
         pageAt("timemap", "2018-11-05T00:00:00Z"),
@@ -194,6 +198,10 @@ describe("Archive.snapshots / window", () => {
     expect(response.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T12:00:00Z"]);
   });
 
+  /**
+   * A provider-side limit would cap the rows before the filter and turn a
+   * tight limit into a false "nothing captured in this window".
+   */
   it("lifts the provider limit while a window is active and caps after filtering", async () => {
     const provider = successProvider("timemap", [
       pageAt("timemap", "2020-01-01T00:00:00Z"),
@@ -208,14 +216,17 @@ describe("Archive.snapshots / window", () => {
       limit: 1,
     });
 
-    // A provider-side limit would cap the rows before the filter and turn a
-    // tight limit into a false "nothing captured in this window".
     const providerOptions = vi.mocked(provider.snapshots).mock.calls[0][1];
     expect(providerOptions?.limit).toBeUndefined();
     expect(response.pages).toHaveLength(1);
     expect(response.pages[0].timestamp).toBe("2019-06-01T00:00:00Z");
   });
 
+  /**
+   * The natural entry may have been capped by the provider's own limit, so a
+   * windowed request must not replay it: the window travels in the cache key
+   * and earns its own fetch, made with the limit lifted.
+   */
   it("keeps windowed fetches out of the naturally capped cache entry", async () => {
     const provider = successProvider("cachey", [
       pageAt("cachey", "2019-03-01T00:00:00Z"),
@@ -226,9 +237,6 @@ describe("Archive.snapshots / window", () => {
     const natural = await archive.snapshots("example.com");
     const windowed = await archive.snapshots("example.com", { from: "2019", to: "2019" });
 
-    // The natural entry may have been capped by the provider's own limit, so a
-    // windowed request must not replay it: the window travels in the cache key
-    // and earns its own fetch, made with the limit lifted.
     expect(provider.snapshots).toHaveBeenCalledTimes(2);
     expect(natural.pages).toHaveLength(2);
     expect(windowed.fromCache).toBeUndefined();
@@ -246,9 +254,11 @@ describe("Archive.snapshots / window", () => {
     expect(provider.snapshots).not.toHaveBeenCalled();
   });
 
+  /**
+   * Wayback answers oldest first; a cap taken in that order would keep January
+   * and discard the December capture the merge sorts to the top.
+   */
   it("caps a windowed fan-out after the newest-first merge, not per provider", async () => {
-    // Wayback answers oldest first; a cap taken in that order would keep
-    // January and discard the December capture the merge sorts to the top.
     const oldestFirst = successProvider("wayback-like", [
       pageAt("wayback-like", "2019-01-01T00:00:00Z"),
       pageAt("wayback-like", "2019-12-01T00:00:00Z"),

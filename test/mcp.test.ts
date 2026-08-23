@@ -170,6 +170,10 @@ describe("archives MCP server", () => {
     expect(response.structuredContent).toBeUndefined();
   });
 
+  /**
+   * The stubbed provider ignores the window, the way a timemap backend would,
+   * so the out-of-window capture has to be filtered rather than listed.
+   */
   it("applies the requested window and names it in the header", async () => {
     stubProvider(
       providersMock.wayback,
@@ -192,8 +196,6 @@ describe("archives MCP server", () => {
     const rendered = text(response.content);
     expect(rendered).toContain('1 snapshot(s) for "example.com"; window=2019..2019-06');
     expect(rendered).toContain("2019-03-01T12:00:00.000Z");
-    // The stubbed provider ignored the window, the way a timemap backend would,
-    // so the out-of-window capture has to be filtered rather than listed.
     expect(rendered).not.toContain("2024-01-02");
   });
 

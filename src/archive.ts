@@ -242,7 +242,8 @@ function resolveWindowBound(name: "from" | "to", value: string | undefined): str
  *
  * Providers that can narrow their own index query already have; this is the
  * guarantee for the ones that cannot, so a fan-out never mixes in-window
- * listings with out-of-window ones.
+ * listings with out-of-window ones. A capture whose date cannot be read cannot
+ * be placed inside the window, so it drops with them.
  */
 function windowPages(response: ArchiveResponse, from: string, to: string): ArchiveResponse {
   if ((!from && !to) || !response.success || response.pages.length === 0) return response;
@@ -250,7 +251,6 @@ function windowPages(response: ArchiveResponse, from: string, to: string): Archi
   const lower = from ? timestampLowerBound(from) : "";
   const upper = to ? timestampUpperBound(to) : "";
   const pages = response.pages.filter((page) => {
-    // A capture whose date cannot be read cannot be placed inside the window.
     const stamp = toWaybackTimestamp(page.timestamp);
     if (!stamp) return false;
     return (!lower || stamp >= lower) && (!upper || stamp <= upper);
@@ -351,6 +351,15 @@ export class Archive implements ArchiveInterface {
    * Fetch archived snapshots for a domain.
    * Returns a full response object with pages, metadata, and cache status.
    *
+   * A `from`/`to` window is validated once here, normalized to digits, and
+   * completed per provider, because init-level bounds count too and a provider
+   * without a window-aware index cannot apply them itself. A windowed fetch
+   * runs with the provider limits lifted; every cap returns after the filter,
+   * the caller's after the newest-first merge, since a cap taken earlier turns
+   * a tight limit into a false "nothing captured in this window". An inverted
+   * window throws before the fan-out, where the parallel runner would swallow
+   * the error.
+   *
    * @param domain - The domain to search for in archive services (e.g., "example.com")
    * @param listOptions - Request-specific options that override the default options
    * @returns Promise resolving to ArchiveResponse with pages, metadata and status
@@ -386,8 +395,6 @@ export class Archive implements ArchiveInterface {
       throw new Error(`Window is inverted: from "${from}" is later than to "${to}"`);
     }
 
-    // Providers see validated digits only, so what reaches an index query and a
-    // cache key never depends on how the caller spelled the instant.
     const mergedOptions: ArchiveOptions = {
       ...restOptions,
       ...(from ? { from } : {}),
@@ -396,14 +403,7 @@ export class Archive implements ArchiveInterface {
 
     const providerArray = await this.resolveProviders();
 
-    // The effective window completes the option cascade per provider: a bound
-    // set at initialization counts too, because a provider without a
-    // window-aware index cannot apply its own. Request and archive bounds win
-    // per edge, and an init bound faces the same validation as they did: a
-    // value no archive could act on throws instead of silently widening the
-    // window. Inversion is checked here, after the cascade, and before the
-    // fan-out so the error surfaces instead of being swallowed by the parallel
-    // runner.
+    /** Effective per-provider window: request and archive bounds win per edge, init bounds complete the cascade, and an inverted result throws ahead of the fan-out. */
     const windowed = providerArray.map((provider) => {
       const windowFrom = from || resolveWindowBound("from", provider.options?.from);
       const windowTo = to || resolveWindowBound("to", provider.options?.to);
@@ -417,6 +417,14 @@ export class Archive implements ArchiveInterface {
       return { provider, windowFrom, windowTo };
     });
 
+    /**
+     * One provider's windowed listing. The fetch runs with every limit lifted,
+     * as an explicit undefined so the provider's own cascade cannot restore an
+     * init-level value, and with the validated digits in the request options,
+     * so a pushdown index never sees a raw init-level date and the cache key
+     * separates this fetch from a naturally capped one. The provider's own cap
+     * comes back after the filter.
+     */
     const fetchWindowed = async ({
       provider,
       windowFrom,
@@ -426,13 +434,6 @@ export class Archive implements ArchiveInterface {
         return this.fetchFromProvider(provider, domain, mergedOptions);
       }
 
-      // A provider-side limit caps the rows before the window applies, so a
-      // tight limit turns into a false "nothing captured in this window". The
-      // explicit undefined is what lifts an init-level limit too: an absent key
-      // would let the provider's own option cascade restore it. The effective
-      // bounds travel in the request options, so a pushdown index receives
-      // validated digits even when the bound came in as an init-level ISO date,
-      // and the cache key separates this fetch from a naturally capped one.
       const bounded: ArchiveOptions = {
         ...mergedOptions,
         limit: undefined,
@@ -440,8 +441,6 @@ export class Archive implements ArchiveInterface {
         ...(windowTo ? { to: windowTo } : {}),
       };
       const response = await this.fetchFromProvider(provider, domain, bounded);
-      // An init-level limit is the provider's own cap, so it comes back after
-      // the filter, the same way the caller's limit does.
       return capPages(windowPages(response, windowFrom, windowTo), provider.options?.limit);
     };
 
@@ -449,17 +448,12 @@ export class Archive implements ArchiveInterface {
     if (providerArray.length === 1) {
       const [single] = windowed;
       const response = await fetchWindowed(single);
-      // With the provider limit lifted, the cap the caller asked for is applied
-      // here, after the filter.
       return single.windowFrom || single.windowTo
         ? capPages(response, mergedOptions.limit)
         : response;
     }
 
-    // For multiple providers, fetch in parallel with concurrency control.
-    // Responses stay uncapped through the fan-out: combineResults sorts the
-    // merged pages newest first before limiting, and a per-provider cap taken
-    // in the provider's own order would discard the rows that sort keeps.
+    // For multiple providers, fetch in parallel with concurrency control
     const responses = await processInParallel(windowed, fetchWindowed, {
       concurrency: mergedOptions.concurrency,
       batchSize: mergedOptions.batchSize,

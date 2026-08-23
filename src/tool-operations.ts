@@ -621,6 +621,12 @@ function getProviderStatuses(): ProviderStatus[] {
   ];
 }
 
+/**
+ * One-line summary above the snapshot records.
+ *
+ * The applied window is part of it: a windowed listing that reads like the
+ * archive's whole holdings invites the wrong conclusion.
+ */
 function buildSnapshotHeader(
   provider: ProviderName,
   target: string,
@@ -635,8 +641,6 @@ function buildSnapshotHeader(
   const failed = providerErrors(response);
   const failedNote = failed.length > 0 ? `; failed=${failed.length}` : "";
   const errorNote = response.error ? `; error=${truncateSingleLine(response.error, 80)}` : "";
-  // A windowed listing that reads like the archive's whole holdings invites the
-  // wrong conclusion, so the applied window is part of the answer.
   const windowNote =
     options.from !== undefined || options.to !== undefined
       ? `; window=${sanitizeField(options.from ?? "")}..${sanitizeField(options.to ?? "")}`
