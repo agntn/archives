@@ -399,13 +399,14 @@ export class Archive implements ArchiveInterface {
     // The effective window completes the option cascade per provider: a bound
     // set at initialization counts too, because a provider without a
     // window-aware index cannot apply its own. Request and archive bounds win
-    // per edge; an init bound that parses as no timestamp stays the provider's
-    // problem, as it always was. Inversion is checked here, after the cascade,
-    // and before the fan-out so the error surfaces instead of being swallowed
-    // by the parallel runner.
+    // per edge, and an init bound faces the same validation as they did: a
+    // value no archive could act on throws instead of silently widening the
+    // window. Inversion is checked here, after the cascade, and before the
+    // fan-out so the error surfaces instead of being swallowed by the parallel
+    // runner.
     const windowed = providerArray.map((provider) => {
-      const windowFrom = from || toWaybackTimestamp(provider.options?.from ?? "");
-      const windowTo = to || toWaybackTimestamp(provider.options?.to ?? "");
+      const windowFrom = from || resolveWindowBound("from", provider.options?.from);
+      const windowTo = to || resolveWindowBound("to", provider.options?.to);
       if (
         windowFrom &&
         windowTo &&
@@ -428,10 +429,20 @@ export class Archive implements ArchiveInterface {
       // A provider-side limit caps the rows before the window applies, so a
       // tight limit turns into a false "nothing captured in this window". The
       // explicit undefined is what lifts an init-level limit too: an absent key
-      // would let the provider's own option cascade restore it.
-      const unlimited: ArchiveOptions = { ...mergedOptions, limit: undefined };
-      const response = await this.fetchFromProvider(provider, domain, unlimited);
-      return windowPages(response, windowFrom, windowTo);
+      // would let the provider's own option cascade restore it. The effective
+      // bounds travel in the request options, so a pushdown index receives
+      // validated digits even when the bound came in as an init-level ISO date,
+      // and the cache key separates this fetch from a naturally capped one.
+      const bounded: ArchiveOptions = {
+        ...mergedOptions,
+        limit: undefined,
+        ...(windowFrom ? { from: windowFrom } : {}),
+        ...(windowTo ? { to: windowTo } : {}),
+      };
+      const response = await this.fetchFromProvider(provider, domain, bounded);
+      // An init-level limit is the provider's own cap, so it comes back after
+      // the filter, the same way the caller's limit does.
+      return capPages(windowPages(response, windowFrom, windowTo), provider.options?.limit);
     };
 
     // For a single provider, use direct approach

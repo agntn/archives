@@ -216,23 +216,34 @@ describe("Archive.snapshots / window", () => {
     expect(response.pages[0].timestamp).toBe("2019-06-01T00:00:00Z");
   });
 
-  it("answers different windows correctly from one unfiltered cache entry", async () => {
+  it("keeps windowed fetches out of the naturally capped cache entry", async () => {
     const provider = successProvider("cachey", [
       pageAt("cachey", "2019-03-01T00:00:00Z"),
       pageAt("cachey", "2020-03-01T00:00:00Z"),
     ]);
     const archive = createArchive(provider);
 
-    const first = await archive.snapshots("example.com", { from: "2020", to: "2020" });
-    const replayed = await archive.snapshots("example.com", { from: "2019", to: "2019" });
+    const natural = await archive.snapshots("example.com");
+    const windowed = await archive.snapshots("example.com", { from: "2019", to: "2019" });
 
-    // The stored entry is the provider's unfiltered answer, so a second window
-    // replays it and filters on the way out instead of inheriting the first
-    // window's rows.
-    expect(provider.snapshots).toHaveBeenCalledTimes(1);
-    expect(first.pages.map((page) => page.timestamp)).toEqual(["2020-03-01T00:00:00Z"]);
-    expect(replayed.fromCache).toBe(true);
-    expect(replayed.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T00:00:00Z"]);
+    // The natural entry may have been capped by the provider's own limit, so a
+    // windowed request must not replay it: the window travels in the cache key
+    // and earns its own fetch, made with the limit lifted.
+    expect(provider.snapshots).toHaveBeenCalledTimes(2);
+    expect(natural.pages).toHaveLength(2);
+    expect(windowed.fromCache).toBeUndefined();
+    expect(windowed.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T00:00:00Z"]);
+  });
+
+  it("rejects an init-level bound no archive could act on", async () => {
+    const provider: ArchiveProvider = {
+      ...successProvider("timemap", []),
+      options: { from: "last tuesday" },
+    };
+    const archive = createArchive(provider);
+
+    await expect(archive.snapshots("example.com")).rejects.toThrow('Invalid from "last tuesday"');
+    expect(provider.snapshots).not.toHaveBeenCalled();
   });
 
   it("caps a windowed fan-out after the newest-first merge, not per provider", async () => {

@@ -116,6 +116,23 @@ describe("wayback machine", () => {
     );
   });
 
+  it("normalizes an init-level ISO bound before it reaches the CDX query", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+
+    const archive = createArchive(createWayback({ from: "2019-03-01" }));
+    const result = await archive.snapshots("example.com");
+
+    // Left raw, the init-level date would reach CDX as from=2019-03-01, which
+    // the index does not read as an instant.
+    expect(result.success).toBe(true);
+    expect($fetch).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      expect.objectContaining({
+        params: expect.objectContaining({ from: "20190301" }),
+      }),
+    );
+  });
+
   it("separates cache entries by window", async () => {
     vi.mocked($fetch)
       .mockResolvedValueOnce([

@@ -62,7 +62,7 @@ const archive = createArchive(
 const response = await archive.snapshots("example.com", { from: "2019", to: "2019-06" });
 ```
 
-Providers whose index takes a window (Wayback, Archive-It) narrow the query itself; for the rest the listing is filtered after it returns, so captures outside the window never mix into a fan-out. While a window is active, `limit` applies after the filter rather than at the provider, so a tight limit cannot eat the window.
+Providers whose index takes a window (Wayback, Archive-It) narrow the query itself; for the rest the listing is filtered after it returns, so captures outside the window never mix into a fan-out. While a window is active, `limit` applies after the filter rather than at the provider, so a tight limit cannot eat the window. What the window cannot reach past is a provider's own batch ceiling: Common Crawl and Conifer serve at most 1000 index rows per query and Perma.cc 100, and the library does not paginate beyond them.
 
 ### Perma.cc
 
