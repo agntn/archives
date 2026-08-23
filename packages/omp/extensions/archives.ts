@@ -18,14 +18,18 @@ let toolOperationsPromise: Promise<typeof ArchivesTools> | undefined;
  *
  * Both specifiers stay literal: OMP rewrites bare dependencies only for imports
  * it can see statically. existsSync chooses the branch; it does not build a URL
- * for a single import().
+ * for a single import(). A failed load is not cached: a call made while dist is
+ * mid-rebuild would otherwise poison every later call until the host restarts.
  */
 function loadToolOperations(): Promise<typeof ArchivesTools> {
   toolOperationsPromise ??= (
     existsSync(sourceModulePath)
       ? (import("../../../src/tool-operations.ts") as unknown as Promise<typeof ArchivesTools>)
       : (import("../../../dist/tool-operations.mjs") as Promise<typeof ArchivesTools>)
-  );
+  ).catch((error: unknown) => {
+    toolOperationsPromise = undefined;
+    throw error;
+  });
 
   return toolOperationsPromise;
 }
