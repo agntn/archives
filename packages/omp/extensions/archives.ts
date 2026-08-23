@@ -8,24 +8,24 @@ type ContentDetails = ArchivesTools.ContentDetails;
 type ProvidersDetails = ArchivesTools.ProvidersDetails;
 type SnapshotDetails = ArchivesTools.SnapshotDetails;
 
-const sourceModuleUrl = new URL("../../../src/tool-operations.ts", import.meta.url);
-const distributionModuleUrl = new URL("../../../dist/tool-operations.mjs", import.meta.url);
-
+const sourceModulePath = fileURLToPath(
+  new URL("../../../src/tool-operations.ts", import.meta.url),
+);
 let toolOperationsPromise: Promise<typeof ArchivesTools> | undefined;
 
 /**
  * Loads the tool executors shared with the MCP server and the Pi extension.
  *
- * Source comes first because a working tree is the only place it exists; an
- * installed package ships `dist` and the extensions, never `src`. A failed load
- * is not cached: a call made while `dist` is mid-rebuild would otherwise poison
- * every later call until the host restarts.
+ * Both specifiers stay literal: OMP rewrites bare dependencies only for imports
+ * it can see statically. existsSync chooses the branch; it does not build a URL
+ * for a single import(). A failed load is not cached: a call made while dist is
+ * mid-rebuild would otherwise poison every later call until the host restarts.
  */
 function loadToolOperations(): Promise<typeof ArchivesTools> {
   toolOperationsPromise ??= (
-    import(
-      existsSync(fileURLToPath(sourceModuleUrl)) ? sourceModuleUrl.href : distributionModuleUrl.href
-    ) as Promise<typeof ArchivesTools>
+    existsSync(sourceModulePath)
+      ? (import("../../../src/tool-operations.ts") as unknown as Promise<typeof ArchivesTools>)
+      : (import("../../../dist/tool-operations.mjs") as Promise<typeof ArchivesTools>)
   ).catch((error: unknown) => {
     toolOperationsPromise = undefined;
     throw error;
