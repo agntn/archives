@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import { Type, type Static } from "@oh-my-pi/omptype/typebox";
 import type * as ArchivesTools from "@agntn/archives/tool-operations";
@@ -6,27 +8,24 @@ type ContentDetails = ArchivesTools.ContentDetails;
 type ProvidersDetails = ArchivesTools.ProvidersDetails;
 type SnapshotDetails = ArchivesTools.SnapshotDetails;
 
+const sourceModulePath = fileURLToPath(
+  new URL("../../../src/tool-operations.ts", import.meta.url),
+);
 let toolOperationsPromise: Promise<typeof ArchivesTools> | undefined;
 
 /**
  * Loads the tool executors shared with the MCP server and the Pi extension.
  *
- * Both specifiers stay literal on purpose: OMP's compiled loader rewrites bare
- * dependencies only for imports it can see statically, so an `import(url.href)`
- * built from a runtime value loses `c12` resolution inside the imported graph.
- * Source is tried first; an installed package has no `src` and falls through to
- * `dist`. A failed load is not cached: a call made while `dist` is mid-rebuild
- * would otherwise poison every later call until the host restarts.
+ * Both specifiers stay literal: OMP rewrites bare dependencies only for imports
+ * it can see statically. existsSync chooses the branch; it does not build a URL
+ * for a single import().
  */
 function loadToolOperations(): Promise<typeof ArchivesTools> {
   toolOperationsPromise ??= (
-    import("../../../src/tool-operations.ts") as unknown as Promise<typeof ArchivesTools>
-  )
-    .catch(() => import("../../../dist/tool-operations.mjs") as Promise<typeof ArchivesTools>)
-    .catch((error: unknown) => {
-      toolOperationsPromise = undefined;
-      throw error;
-    });
+    existsSync(sourceModulePath)
+      ? (import("../../../src/tool-operations.ts") as unknown as Promise<typeof ArchivesTools>)
+      : (import("../../../dist/tool-operations.mjs") as Promise<typeof ArchivesTools>)
+  );
 
   return toolOperationsPromise;
 }
