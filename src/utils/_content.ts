@@ -98,16 +98,20 @@ function isoToWaybackDigits(value: string): string {
  * Validates a caller-supplied instant before it reaches a provider's index query.
  *
  * @param timestamp - Requested capture time, or nothing for the newest capture
+ * @param name - Which option the value came from, for the error message
  * @returns Validated timestamp digits, empty when none was requested
  * @throws When the value is not a timestamp any archive could act on
  */
-export function resolveRequestedTimestamp(timestamp: string | undefined): string {
+export function resolveRequestedTimestamp(
+  timestamp: string | undefined,
+  name = "timestamp",
+): string {
   if (timestamp === undefined || timestamp.trim() === "") return "";
 
   const normalized = toWaybackTimestamp(timestamp);
   if (!normalized) {
     throw new Error(
-      `Invalid timestamp "${timestamp}": use archive digits (YYYY to YYYYMMDDhhmmss) or an ISO 8601 date`,
+      `Invalid ${name} "${timestamp}": use archive digits (YYYY to YYYYMMDDhhmmss) or an ISO 8601 date`,
     );
   }
 
@@ -120,6 +124,14 @@ export function resolveRequestedTimestamp(timestamp: string | undefined): string
  */
 export function timestampUpperBound(timestamp: string): string {
   return timestamp.length >= 14 ? timestamp : timestamp + "9".repeat(14 - timestamp.length);
+}
+
+/**
+ * Pads a possibly partial timestamp to the lower edge of the period it names.
+ * The counterpart of {@link timestampUpperBound}, for the `from` side of a window.
+ */
+export function timestampLowerBound(timestamp: string): string {
+  return timestamp.length >= 14 ? timestamp : timestamp + "0".repeat(14 - timestamp.length);
 }
 
 /**

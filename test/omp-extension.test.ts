@@ -113,6 +113,34 @@ describe("archives OMP extension", () => {
     expect(accepts(tool, { target: "example.com", provider: "waybackmachine" })).toBe(false);
   });
 
+  it("narrows a Wayback query to the requested window", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    const tool = requireTool(registerExtension().tools, "archives");
+
+    expect(accepts(tool, { target: "example.com", from: "2019", to: "2019-06" })).toBe(true);
+
+    await tool.execute(
+      "test",
+      {
+        target: "example.com",
+        provider: "wayback",
+        from: "2019-03-01",
+        to: "2019-06",
+        cache: false,
+      },
+      undefined,
+      undefined,
+      unusedContext,
+    );
+
+    expect($fetch).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      expect.objectContaining({
+        params: expect.objectContaining({ from: "20190301", to: "201906" }),
+      }),
+    );
+  });
+
   it("dispatches Archive-It requests with the required collection", async () => {
     vi.mocked($fetch).mockResolvedValueOnce("https://example.com/ 20220101000000 200");
     const tool = requireTool(registerExtension().tools, "archives");
@@ -218,6 +246,29 @@ describe("archives OMP extension", () => {
     expect(rendered.split("\n")).toHaveLength(1);
     // oxlint-disable-next-line no-control-regex -- This assertion proves the terminal boundary.
     expect(rendered).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/u);
+  });
+
+  /** A windowed call must not preview like a full-archive scan. */
+  it("shows the requested window in the call preview", () => {
+    const tool = requireTool(registerExtension().tools, "archives");
+    const renderCall = tool.renderCall;
+    if (!renderCall) throw new Error("archives has no call renderer");
+
+    type RenderCall = NonNullable<ToolDefinition["renderCall"]>;
+    type RenderTheme = Parameters<RenderCall>[2];
+    const theme = {
+      bold: (text: string) => text,
+      fg: (_color: string, text: string) => text,
+    } as unknown as RenderTheme;
+    const component = renderCall(
+      { target: "example.com", from: "2019", to: "2019-06" },
+      { expanded: false, isPartial: false },
+      theme,
+    );
+    const rendered = component.render(200).join("\n");
+
+    expect(rendered).toContain("from=2019");
+    expect(rendered).toContain("to=2019-06");
   });
 
   it("keeps a newline in an argument from opening a second preview line", () => {

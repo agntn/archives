@@ -67,6 +67,10 @@ export type ContentFormat = (typeof CONTENT_FORMATS)[number];
 
 export const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the archived bytes as they were served.`;
 
+export const SNAPSHOT_FROM_HINT = `Earliest capture to list, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Inclusive; a partial stamp starts the window at the beginning of the period it names.`;
+
+export const SNAPSHOT_TO_HINT = `Latest capture to list, in the same formats as "from". Inclusive; a partial stamp stretches the window to the end of the period it names, so from=2019 with to=2019 covers the whole year.`;
+
 export const DEFAULT_LIMIT = 10;
 export const MAX_LIMIT = 100;
 export const DEFAULT_MAX_CHARS = 20_000;
@@ -129,6 +133,8 @@ export interface SnapshotParams {
   user?: string;
   collapse?: string;
   filter?: string;
+  from?: string;
+  to?: string;
 }
 
 /** The queried window plus the response it came from. */
@@ -220,7 +226,7 @@ export async function snapshotArchives(
       {
         type: "text",
         text: withHeader(
-          buildSnapshotHeader(provider, target, response),
+          buildSnapshotHeader(provider, target, response, options),
           formatSnapshots(response),
         ),
       },
@@ -401,6 +407,8 @@ const TEXT_BOUNDS = {
   collapse: MAX_PARAMETER_LENGTH,
   filter: MAX_PARAMETER_LENGTH,
   timestamp: MAX_TIMESTAMP_LENGTH,
+  from: MAX_TIMESTAMP_LENGTH,
+  to: MAX_TIMESTAMP_LENGTH,
 } as const satisfies Record<string, number>;
 
 /** Validates every bounded argument an operation's parameters happen to carry. */
@@ -456,6 +464,8 @@ function buildSnapshotOptions(params: SnapshotParams, provider: ProviderName): S
   if (params.user !== undefined) options.user = params.user;
   if (params.collapse !== undefined) options.collapse = params.collapse;
   if (params.filter !== undefined) options.filter = params.filter;
+  if (params.from !== undefined) options.from = params.from;
+  if (params.to !== undefined) options.to = params.to;
 
   if (provider === "permacc") {
     const { apiKey } = getPermaccApiKeyState();
@@ -611,10 +621,17 @@ function getProviderStatuses(): ProviderStatus[] {
   ];
 }
 
+/**
+ * One-line summary above the snapshot records.
+ *
+ * The applied window is part of it: a windowed listing that reads like the
+ * archive's whole holdings invites the wrong conclusion.
+ */
 function buildSnapshotHeader(
   provider: ProviderName,
   target: string,
   response: ArchiveResponse,
+  options: SnapshotOptions,
 ): string {
   const unsupported = response._meta?.unsupportedProviders;
   const unsupportedNote =
@@ -624,12 +641,16 @@ function buildSnapshotHeader(
   const failed = providerErrors(response);
   const failedNote = failed.length > 0 ? `; failed=${failed.length}` : "";
   const errorNote = response.error ? `; error=${truncateSingleLine(response.error, 80)}` : "";
+  const windowNote =
+    options.from !== undefined || options.to !== undefined
+      ? `; window=${sanitizeField(options.from ?? "")}..${sanitizeField(options.to ?? "")}`
+      : "";
   // The tool is annotated open-world, so a replay from the 7-day cache has to say
   // so rather than pass for a fresh read of the archive.
   const cacheNote = response.fromCache ? "; cached" : "";
   // The target is caller-supplied and lands one line above the records, so a
   // newline in it forges a snapshot row exactly like a provider field would.
-  return `[provider=${provider}] ${response.pages.length} snapshot(s) for "${sanitizeField(target)}"${unsupportedNote}${failedNote}${errorNote}${cacheNote}`;
+  return `[provider=${provider}] ${response.pages.length} snapshot(s) for "${sanitizeField(target)}"${windowNote}${unsupportedNote}${failedNote}${errorNote}${cacheNote}`;
 }
 
 function sanitizeResponse<TResponse extends { _meta?: ArchiveResponse["_meta"] }>(

@@ -55,6 +55,10 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
 
   /**
    * Fetch archived snapshots from the Internet Archive Wayback Machine.
+   *
+   * The window bounds are normalized here too, not only in `Archive.snapshots`:
+   * the provider is a public export, and CDX does not read a raw ISO date as an
+   * instant.
    */
   async snapshots(domain: string, reqOptions: WaybackOptions = {}): Promise<ArchiveResponse> {
     try {
@@ -71,6 +75,10 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
       };
 
       if (options.filter !== undefined) params.filter = options.filter;
+      const from = resolveRequestedTimestamp(options.from, "from");
+      const to = resolveRequestedTimestamp(options.to, "to");
+      if (from) params.from = from;
+      if (to) params.to = to;
 
       const fetchOptions = await createFetchOptions(baseUrl, params, {
         retries: options.retries,

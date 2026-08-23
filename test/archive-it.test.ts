@@ -30,6 +30,28 @@ describe("Archive-It", () => {
     );
   });
 
+  /**
+   * The provider is a public export, so a caller can hand it the ISO bounds
+   * ArchiveOptions promises without going through Archive.snapshots; the digits
+   * have to come out of the provider's own normalization then.
+   */
+  it("normalizes ISO bounds when the provider is called directly", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce("");
+
+    const result = await createArchiveIt({ collection: 4399 }).snapshots("example.com", {
+      from: "2019-03-01",
+      to: "2019-06",
+    });
+
+    expect(result.success).toBe(true);
+    expect($fetch).toHaveBeenCalledWith(
+      "/4399/timemap/cdx",
+      expect.objectContaining({
+        params: expect.objectContaining({ from: "20190301", to: "201906" }),
+      }),
+    );
+  });
+
   it("lists pages from a collection CDX index", async () => {
     vi.mocked($fetch).mockResolvedValueOnce(
       [

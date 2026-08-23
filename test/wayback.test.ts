@@ -101,6 +101,86 @@ describe("wayback machine", () => {
     );
   });
 
+  it("narrows the CDX query to the requested window", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+
+    const archive = createArchive(createWayback());
+    const result = await archive.snapshots("example.com", { from: "2019-03-01", to: "2019-06" });
+
+    expect(result.success).toBe(true);
+    expect($fetch).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      expect.objectContaining({
+        params: expect.objectContaining({ from: "20190301", to: "201906" }),
+      }),
+    );
+  });
+
+  /**
+   * The provider is a public export, so a caller can hand it the ISO bounds
+   * ArchiveOptions promises without going through Archive.snapshots; the digits
+   * have to come out of the provider's own normalization then.
+   */
+  it("normalizes ISO bounds when the provider is called directly", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+
+    const result = await createWayback().snapshots("example.com", {
+      from: "2019-03-01",
+      to: "2019-06",
+    });
+
+    expect(result.success).toBe(true);
+    expect($fetch).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      expect.objectContaining({
+        params: expect.objectContaining({ from: "20190301", to: "201906" }),
+      }),
+    );
+  });
+
+  /**
+   * Left raw, the init-level date would reach CDX as from=2019-03-01, which
+   * the index does not read as an instant.
+   */
+  it("normalizes an init-level ISO bound before it reaches the CDX query", async () => {
+    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+
+    const archive = createArchive(createWayback({ from: "2019-03-01" }));
+    const result = await archive.snapshots("example.com");
+
+    expect(result.success).toBe(true);
+    expect($fetch).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      expect.objectContaining({
+        params: expect.objectContaining({ from: "20190301" }),
+      }),
+    );
+  });
+
+  /** The third query repeats the first window, so it must replay that answer rather than the other window's entry or a fresh fetch. */
+  it("separates cache entries by window", async () => {
+    vi.mocked($fetch)
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/2019", "20190301000000", "200"],
+      ])
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/2020", "20200301000000", "200"],
+      ]);
+
+    const archive = createArchive(createWayback());
+    const first = await archive.snapshots("example.com", { from: "2019", to: "2019" });
+    const second = await archive.snapshots("example.com", { from: "2020", to: "2020" });
+    const replayed = await archive.snapshots("example.com", { from: "2019", to: "2019" });
+
+    expect(first.pages[0].url).toBe("https://example.com/2019");
+    expect(second.pages[0].url).toBe("https://example.com/2020");
+    expect(replayed.fromCache).toBe(true);
+    expect(replayed.pages[0].url).toBe("https://example.com/2019");
+    expect($fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("separates cache entries for CDX collapse and filter options", async () => {
     vi.mocked($fetch)
       .mockResolvedValueOnce([
@@ -116,9 +196,7 @@ describe("wayback machine", () => {
         ["https://example.com/not-found", "20220101000000", "200"],
       ]);
 
-    const archive = createArchive(
-      createWayback({ collapse: "digest", filter: "statuscode:200" }),
-    );
+    const archive = createArchive(createWayback({ collapse: "digest", filter: "statuscode:200" }));
     const byYear: WaybackOptions = { collapse: "timestamp:4" };
     const notFound: WaybackOptions = { filter: "statuscode:404" };
 

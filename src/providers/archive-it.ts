@@ -54,15 +54,11 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
     const collection = String(requestOptions?.collection ?? this.options.collection).trim();
     const collapse = requestOptions?.collapse ?? this.options.collapse;
     const filter = requestOptions?.filter ?? this.options.filter;
-    const from = requestOptions?.from ?? this.options.from;
-    const to = requestOptions?.to ?? this.options.to;
     const limit = requestOptions?.limit === undefined ? this.options.limit : undefined;
     const parts = [`collection=${encodeURIComponent(collection)}`];
 
     if (collapse !== undefined) parts.push(`collapse=${encodeURIComponent(collapse)}`);
     if (filter !== undefined) parts.push(`filter=${encodeURIComponent(filter)}`);
-    if (from !== undefined) parts.push(`from=${encodeURIComponent(from)}`);
-    if (to !== undefined) parts.push(`to=${encodeURIComponent(to)}`);
     if (limit !== undefined) parts.push(`limit=${limit}`);
 
     return parts.join(":");
@@ -70,6 +66,10 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
 
   /**
    * Fetch archived snapshots from one Archive-It collection.
+   *
+   * The window bounds are normalized here too, not only in `Archive.snapshots`:
+   * the provider is a public export, and the CDX index does not read a raw ISO
+   * date as an instant.
    */
   async snapshots(
     domain: string,
@@ -88,8 +88,10 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
 
       if (options.collapse !== undefined) params.collapse = options.collapse;
       if (options.filter !== undefined) params.filter = options.filter;
-      if (options.from !== undefined) params.from = options.from;
-      if (options.to !== undefined) params.to = options.to;
+      const from = resolveRequestedTimestamp(options.from, "from");
+      const to = resolveRequestedTimestamp(options.to, "to");
+      if (from) params.from = from;
+      if (to) params.to = to;
 
       const fetchOptions = await createFetchOptions(baseUrl, params, {
         retries: options.retries,

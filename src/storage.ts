@@ -68,10 +68,20 @@ function getExpiresAt(ttl: ArchiveOptions["ttl"]): number | undefined {
   return Date.now() + Math.max(0, ttl);
 }
 
+/**
+ * Option-derived parts of one listing cache key.
+ *
+ * The window bounds belong here: a windowed fetch is served with the provider's
+ * limit lifted, so its stored response has a different shape than a naturally
+ * capped one under the same provider and domain, and the bounds keep the two
+ * entries apart.
+ */
 function getCacheKeyParts(provider: CacheKeyProvider, options?: ArchiveOptions): string[] {
   const parts: string[] = [];
 
   if (options?.limit !== undefined) parts.push(`limit=${options.limit}`);
+  if (options?.from !== undefined) parts.push(`from=${encodeURIComponent(options.from)}`);
+  if (options?.to !== undefined) parts.push(`to=${encodeURIComponent(options.to)}`);
 
   const providerKey = provider.cacheKey?.(options);
   if (providerKey) parts.push(providerKey);
