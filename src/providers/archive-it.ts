@@ -54,15 +54,11 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
     const collection = String(requestOptions?.collection ?? this.options.collection).trim();
     const collapse = requestOptions?.collapse ?? this.options.collapse;
     const filter = requestOptions?.filter ?? this.options.filter;
-    const from = requestOptions?.from ?? this.options.from;
-    const to = requestOptions?.to ?? this.options.to;
     const limit = requestOptions?.limit === undefined ? this.options.limit : undefined;
     const parts = [`collection=${encodeURIComponent(collection)}`];
 
     if (collapse !== undefined) parts.push(`collapse=${encodeURIComponent(collapse)}`);
     if (filter !== undefined) parts.push(`filter=${encodeURIComponent(filter)}`);
-    if (from !== undefined) parts.push(`from=${encodeURIComponent(from)}`);
-    if (to !== undefined) parts.push(`to=${encodeURIComponent(to)}`);
     if (limit !== undefined) parts.push(`limit=${limit}`);
 
     return parts.join(":");

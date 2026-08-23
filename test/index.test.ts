@@ -127,10 +127,8 @@ describe("Archive.resolveProviders", () => {
 
 describe("Archive.snapshots / window", () => {
   const pageAt = (slug: string, timestamp: string): ArchivedPage => ({
-    url: "https://example.com",
+    ...samplePage(slug),
     timestamp,
-    snapshot: `https://archive.example/${slug}/${timestamp}`,
-    _meta: { provider: slug },
   });
 
   /**

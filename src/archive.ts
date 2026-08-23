@@ -14,6 +14,7 @@ import { getStoredContent, getStoredResponse, storeContent, storeResponse } from
 import {
   mergeOptions,
   processInParallel,
+  resolveRequestedTimestamp,
   timestampLowerBound,
   timestampUpperBound,
   toErrorMessage,
@@ -101,10 +102,7 @@ export function combineResults(responses: ArchiveResponse[], limit?: number): Ar
   // newest first
   allPages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-  const limitedPages =
-    typeof limit === "number" && Number.isFinite(limit)
-      ? allPages.slice(0, Math.max(0, limit))
-      : allPages;
+  const limitedPages = limitPages(allPages, limit);
 
   const providersList = responses.map((r) => r._meta?.provider || "unknown").filter(Boolean);
 
@@ -217,27 +215,6 @@ export function combineContentResults(responses: ArchiveContentResponse[]): Arch
 }
 
 /**
- * Validates one edge of a listing window and reduces it to timestamp digits.
- *
- * @param name - Which option the value came from, for the error message
- * @param value - Wayback-style digits or an ISO 8601 date
- * @returns Validated digits, empty when the edge is open
- * @throws When the value is not a timestamp any archive could act on
- */
-function resolveWindowBound(name: "from" | "to", value: string | undefined): string {
-  if (value === undefined || value.trim() === "") return "";
-
-  const digits = toWaybackTimestamp(value);
-  if (!digits) {
-    throw new Error(
-      `Invalid ${name} "${value}": use archive digits (YYYY to YYYYMMDDhhmmss) or an ISO 8601 date`,
-    );
-  }
-
-  return digits;
-}
-
-/**
  * Drops the pages outside the requested window.
  *
  * Providers that can narrow their own index query already have; this is the
@@ -246,7 +223,7 @@ function resolveWindowBound(name: "from" | "to", value: string | undefined): str
  * be placed inside the window, so it drops with them.
  */
 function windowPages(response: ArchiveResponse, from: string, to: string): ArchiveResponse {
-  if ((!from && !to) || !response.success || response.pages.length === 0) return response;
+  if (!response.success) return response;
 
   const lower = from ? timestampLowerBound(from) : "";
   const upper = to ? timestampUpperBound(to) : "";
@@ -259,11 +236,16 @@ function windowPages(response: ArchiveResponse, from: string, to: string): Archi
   return pages.length === response.pages.length ? response : { ...response, pages };
 }
 
+/** One shared clamp, so the merge and the windowed paths cannot drift on limit semantics. */
+function limitPages(pages: ArchivedPage[], limit: number | undefined): ArchivedPage[] {
+  if (typeof limit !== "number" || !Number.isFinite(limit)) return pages;
+  return pages.length <= limit ? pages : pages.slice(0, Math.max(0, limit));
+}
+
 /** Caps the pages of one filtered response, the way the lifted provider limit would have. */
 function capPages(response: ArchiveResponse, limit: number | undefined): ArchiveResponse {
-  if (typeof limit !== "number" || !Number.isFinite(limit)) return response;
-  if (response.pages.length <= limit) return response;
-  return { ...response, pages: response.pages.slice(0, Math.max(0, limit)) };
+  const pages = limitPages(response.pages, limit);
+  return pages === response.pages ? response : { ...response, pages };
 }
 
 /**
@@ -389,24 +371,15 @@ export class Archive implements ArchiveInterface {
       ...restOptions
     } = await mergeOptions(this.options, listOptions);
 
-    const from = resolveWindowBound("from", rawFrom);
-    const to = resolveWindowBound("to", rawTo);
-    if (from && to && timestampLowerBound(from) > timestampUpperBound(to)) {
-      throw new Error(`Window is inverted: from "${from}" is later than to "${to}"`);
-    }
-
-    const mergedOptions: ArchiveOptions = {
-      ...restOptions,
-      ...(from ? { from } : {}),
-      ...(to ? { to } : {}),
-    };
+    const from = resolveRequestedTimestamp(rawFrom, "from");
+    const to = resolveRequestedTimestamp(rawTo, "to");
 
     const providerArray = await this.resolveProviders();
 
     /** Effective per-provider window: request and archive bounds win per edge, init bounds complete the cascade, and an inverted result throws ahead of the fan-out. */
     const windowed = providerArray.map((provider) => {
-      const windowFrom = from || resolveWindowBound("from", provider.options?.from);
-      const windowTo = to || resolveWindowBound("to", provider.options?.to);
+      const windowFrom = from || resolveRequestedTimestamp(provider.options?.from, "from");
+      const windowTo = to || resolveRequestedTimestamp(provider.options?.to, "to");
       if (
         windowFrom &&
         windowTo &&
@@ -431,11 +404,11 @@ export class Archive implements ArchiveInterface {
       windowTo,
     }: (typeof windowed)[number]): Promise<ArchiveResponse> => {
       if (!windowFrom && !windowTo) {
-        return this.fetchFromProvider(provider, domain, mergedOptions);
+        return this.fetchFromProvider(provider, domain, restOptions);
       }
 
       const bounded: ArchiveOptions = {
-        ...mergedOptions,
+        ...restOptions,
         limit: undefined,
         ...(windowFrom ? { from: windowFrom } : {}),
         ...(windowTo ? { to: windowTo } : {}),
@@ -449,17 +422,17 @@ export class Archive implements ArchiveInterface {
       const [single] = windowed;
       const response = await fetchWindowed(single);
       return single.windowFrom || single.windowTo
-        ? capPages(response, mergedOptions.limit)
+        ? capPages(response, restOptions.limit)
         : response;
     }
 
     // For multiple providers, fetch in parallel with concurrency control
     const responses = await processInParallel(windowed, fetchWindowed, {
-      concurrency: mergedOptions.concurrency,
-      batchSize: mergedOptions.batchSize,
+      concurrency: restOptions.concurrency,
+      batchSize: restOptions.batchSize,
     });
 
-    return combineResults(responses, mergedOptions.limit);
+    return combineResults(responses, restOptions.limit);
   }
 
   /**
