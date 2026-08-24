@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
-import { Type, type Static } from "@oh-my-pi/omptype/typebox";
+import type { Static } from "@oh-my-pi/omptype/typebox";
 import type * as ArchivesTools from "@agntn/archives/tool-operations";
 
 type ContentDetails = ArchivesTools.ContentDetails;
@@ -86,178 +86,193 @@ function sanitizeLine(text: string): string {
   return sanitizeTerminalText(text).replace(/[\n\r\t]+/g, " ");
 }
 
-const snapshotParameters = Type.Object({
-  target: Type.String({
-    description: "Domain or URL to search for archived snapshots.",
-    minLength: 1,
-    maxLength: MAX_TARGET_LENGTH,
-  }),
-  provider: Type.Optional(
-    Type.Union(
-      PROVIDER_INPUTS.map((name) => Type.Literal(name)),
-      { description: PROVIDER_HINT },
+/**
+ * Builds the tool parameter schemas from the TypeBox build OMP injects.
+ *
+ * Importing `@oh-my-pi/omptype` here instead loads a second copy of the schema
+ * library at module load, before the host has a single tool call to validate,
+ * and that import alone was most of what this extension cost at startup.
+ */
+function buildParameterSchemas({ Type }: ExtensionAPI["typebox"]) {
+  const snapshotParameters = Type.Object({
+    target: Type.String({
+      description: "Domain or URL to search for archived snapshots.",
+      minLength: 1,
+      maxLength: MAX_TARGET_LENGTH,
+    }),
+    provider: Type.Optional(
+      Type.Union(
+        PROVIDER_INPUTS.map((name) => Type.Literal(name)),
+        { description: PROVIDER_HINT },
+      ),
     ),
-  ),
-  limit: Type.Optional(
-    Type.Integer({
-      description: `Maximum snapshots to return. Defaults to ${DEFAULT_LIMIT}.`,
-      minimum: 1,
-      maximum: MAX_LIMIT,
-    }),
-  ),
-  cache: Type.Optional(
-    Type.Boolean({ description: "Enable or disable archives response caching." }),
-  ),
-  ttl: Type.Optional(
-    Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
-  ),
-  concurrency: Type.Optional(
-    Type.Integer({ description: "Maximum parallel provider requests.", minimum: 1, maximum: 10 }),
-  ),
-  batchSize: Type.Optional(
-    Type.Integer({
-      description: "Provider batch size for parallel work.",
-      minimum: 1,
-      maximum: 100,
-    }),
-  ),
-  timeout: Type.Optional(
-    Type.Integer({
-      description: "Request timeout in milliseconds.",
-      minimum: 1,
-      maximum: MAX_TIMEOUT,
-    }),
-  ),
-  retries: Type.Optional(
-    Type.Integer({
-      description: "Retry attempts for failed requests.",
-      minimum: 0,
-      maximum: MAX_RETRIES,
-    }),
-  ),
-  collection: Type.Optional(
-    Type.String({
-      description:
-        "Archive-It numeric collection id, Common Crawl collection id such as CC-MAIN-latest, or Conifer collection slug.",
-      minLength: 1,
-      maxLength: MAX_PARAMETER_LENGTH,
-    }),
-  ),
-  user: Type.Optional(
-    Type.String({
-      description: "Conifer account slug.",
-      minLength: 1,
-      maxLength: MAX_PARAMETER_LENGTH,
-    }),
-  ),
-  collapse: Type.Optional(
-    Type.String({
-      description: "Wayback CDX collapse parameter, e.g. timestamp:4.",
-      minLength: 1,
-      maxLength: MAX_PARAMETER_LENGTH,
-    }),
-  ),
-  filter: Type.Optional(
-    Type.String({
-      description: "Wayback CDX filter parameter.",
-      minLength: 1,
-      maxLength: MAX_PARAMETER_LENGTH,
-    }),
-  ),
-  from: Type.Optional(
-    Type.String({
-      description: SNAPSHOT_FROM_HINT,
-      minLength: 1,
-      maxLength: MAX_TIMESTAMP_LENGTH,
-    }),
-  ),
-  to: Type.Optional(
-    Type.String({
-      description: SNAPSHOT_TO_HINT,
-      minLength: 1,
-      maxLength: MAX_TIMESTAMP_LENGTH,
-    }),
-  ),
-});
-
-const contentParameters = Type.Object({
-  target: Type.String({
-    description: "URL to read: the original URL, or a snapshot URL from a listing.",
-    minLength: 1,
-    maxLength: MAX_TARGET_LENGTH,
-  }),
-  provider: Type.Optional(
-    Type.Union(
-      PROVIDER_INPUTS.map((name) => Type.Literal(name)),
-      { description: CONTENT_PROVIDER_HINT },
+    limit: Type.Optional(
+      Type.Integer({
+        description: `Maximum snapshots to return. Defaults to ${DEFAULT_LIMIT}.`,
+        minimum: 1,
+        maximum: MAX_LIMIT,
+      }),
     ),
-  ),
-  timestamp: Type.Optional(
-    Type.String({
-      description:
-        "Capture to read, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Defaults to the newest capture.",
-      minLength: 1,
-      maxLength: MAX_TIMESTAMP_LENGTH,
-    }),
-  ),
-  format: Type.Optional(
-    Type.Union(
-      CONTENT_FORMATS.map((name) => Type.Literal(name)),
-      { description: CONTENT_FORMAT_HINT },
+    cache: Type.Optional(
+      Type.Boolean({ description: "Enable or disable archives response caching." }),
     ),
-  ),
-  maxChars: Type.Optional(
-    Type.Integer({
-      description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}.`,
-      minimum: 1,
-      maximum: MAX_CONTENT_CHARS,
-    }),
-  ),
-  cache: Type.Optional(
-    Type.Boolean({ description: "Enable or disable archives response caching." }),
-  ),
-  ttl: Type.Optional(
-    Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
-  ),
-  timeout: Type.Optional(
-    Type.Integer({
-      description: `Request timeout in milliseconds. Defaults to ${DEFAULT_CONTENT_TIMEOUT}.`,
-      minimum: 1,
-      maximum: MAX_TIMEOUT,
-    }),
-  ),
-  retries: Type.Optional(
-    Type.Integer({
-      description: "Retry attempts for failed requests.",
-      minimum: 0,
-      maximum: MAX_RETRIES,
-    }),
-  ),
-  collection: Type.Optional(
-    Type.String({
-      description:
-        "Archive-It numeric collection id, Common Crawl collection id such as CC-MAIN-latest, or Conifer collection slug.",
-      minLength: 1,
-      maxLength: MAX_PARAMETER_LENGTH,
-    }),
-  ),
-  user: Type.Optional(
-    Type.String({
-      description: "Conifer account slug.",
-      minLength: 1,
-      maxLength: MAX_PARAMETER_LENGTH,
-    }),
-  ),
-});
+    ttl: Type.Optional(
+      Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+    ),
+    concurrency: Type.Optional(
+      Type.Integer({ description: "Maximum parallel provider requests.", minimum: 1, maximum: 10 }),
+    ),
+    batchSize: Type.Optional(
+      Type.Integer({
+        description: "Provider batch size for parallel work.",
+        minimum: 1,
+        maximum: 100,
+      }),
+    ),
+    timeout: Type.Optional(
+      Type.Integer({
+        description: "Request timeout in milliseconds.",
+        minimum: 1,
+        maximum: MAX_TIMEOUT,
+      }),
+    ),
+    retries: Type.Optional(
+      Type.Integer({
+        description: "Retry attempts for failed requests.",
+        minimum: 0,
+        maximum: MAX_RETRIES,
+      }),
+    ),
+    collection: Type.Optional(
+      Type.String({
+        description:
+          "Archive-It numeric collection id, Common Crawl collection id such as CC-MAIN-latest, or Conifer collection slug.",
+        minLength: 1,
+        maxLength: MAX_PARAMETER_LENGTH,
+      }),
+    ),
+    user: Type.Optional(
+      Type.String({
+        description: "Conifer account slug.",
+        minLength: 1,
+        maxLength: MAX_PARAMETER_LENGTH,
+      }),
+    ),
+    collapse: Type.Optional(
+      Type.String({
+        description: "Wayback CDX collapse parameter, e.g. timestamp:4.",
+        minLength: 1,
+        maxLength: MAX_PARAMETER_LENGTH,
+      }),
+    ),
+    filter: Type.Optional(
+      Type.String({
+        description: "Wayback CDX filter parameter.",
+        minLength: 1,
+        maxLength: MAX_PARAMETER_LENGTH,
+      }),
+    ),
+    from: Type.Optional(
+      Type.String({
+        description: SNAPSHOT_FROM_HINT,
+        minLength: 1,
+        maxLength: MAX_TIMESTAMP_LENGTH,
+      }),
+    ),
+    to: Type.Optional(
+      Type.String({
+        description: SNAPSHOT_TO_HINT,
+        minLength: 1,
+        maxLength: MAX_TIMESTAMP_LENGTH,
+      }),
+    ),
+  });
 
-const emptyParameters = Type.Object({});
+  const contentParameters = Type.Object({
+    target: Type.String({
+      description: "URL to read: the original URL, or a snapshot URL from a listing.",
+      minLength: 1,
+      maxLength: MAX_TARGET_LENGTH,
+    }),
+    provider: Type.Optional(
+      Type.Union(
+        PROVIDER_INPUTS.map((name) => Type.Literal(name)),
+        { description: CONTENT_PROVIDER_HINT },
+      ),
+    ),
+    timestamp: Type.Optional(
+      Type.String({
+        description:
+          "Capture to read, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Defaults to the newest capture.",
+        minLength: 1,
+        maxLength: MAX_TIMESTAMP_LENGTH,
+      }),
+    ),
+    format: Type.Optional(
+      Type.Union(
+        CONTENT_FORMATS.map((name) => Type.Literal(name)),
+        { description: CONTENT_FORMAT_HINT },
+      ),
+    ),
+    maxChars: Type.Optional(
+      Type.Integer({
+        description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}.`,
+        minimum: 1,
+        maximum: MAX_CONTENT_CHARS,
+      }),
+    ),
+    cache: Type.Optional(
+      Type.Boolean({ description: "Enable or disable archives response caching." }),
+    ),
+    ttl: Type.Optional(
+      Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+    ),
+    timeout: Type.Optional(
+      Type.Integer({
+        description: `Request timeout in milliseconds. Defaults to ${DEFAULT_CONTENT_TIMEOUT}.`,
+        minimum: 1,
+        maximum: MAX_TIMEOUT,
+      }),
+    ),
+    retries: Type.Optional(
+      Type.Integer({
+        description: "Retry attempts for failed requests.",
+        minimum: 0,
+        maximum: MAX_RETRIES,
+      }),
+    ),
+    collection: Type.Optional(
+      Type.String({
+        description:
+          "Archive-It numeric collection id, Common Crawl collection id such as CC-MAIN-latest, or Conifer collection slug.",
+        minLength: 1,
+        maxLength: MAX_PARAMETER_LENGTH,
+      }),
+    ),
+    user: Type.Optional(
+      Type.String({
+        description: "Conifer account slug.",
+        minLength: 1,
+        maxLength: MAX_PARAMETER_LENGTH,
+      }),
+    ),
+  });
 
-type SnapshotParams = Static<typeof snapshotParameters>;
-type ContentParams = Static<typeof contentParameters>;
-type EmptyParams = Static<typeof emptyParameters>;
+  const emptyParameters = Type.Object({});
+
+  return { contentParameters, emptyParameters, snapshotParameters };
+}
+
+type ParameterSchemas = ReturnType<typeof buildParameterSchemas>;
+type SnapshotParams = Static<ParameterSchemas["snapshotParameters"]>;
+type ContentParams = Static<ParameterSchemas["contentParameters"]>;
+type EmptyParams = Static<ParameterSchemas["emptyParameters"]>;
 
 export default function archivesOmpExtension(pi: ExtensionAPI) {
   const { Text } = pi.pi;
+  const { contentParameters, emptyParameters, snapshotParameters } = buildParameterSchemas(
+    pi.typebox,
+  );
   pi.setLabel("Archives");
   pi.registerTool<typeof snapshotParameters, SnapshotDetails>({
     name: "archives",
