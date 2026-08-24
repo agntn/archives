@@ -107,7 +107,7 @@ archives/
 - **Linting**: `oxlint` only; ESLint was removed intentionally.
 - **Build**: `obuild` reads `build.config.ts` → `dist/`. Four inputs in **one** bundle entry so the entrypoint, the CLI, the MCP server and the executors share chunks instead of each carrying a private copy of the provider factory.
 - **One executor per operation**: MCP, Pi and OMP all call `src/tool-operations.ts`. A surface owns only its schema, its call rendering and its result envelope. Schema metadata (`PROVIDER_HINT`, limits) is restated per surface because parameters are declared before the executors can be loaded — the extension tests guard it against drift.
-- **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tool-operations.ts")` and `import("../../../dist/tool-operations.mjs")`. Never `import(url.href)`.
+- **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tool-operations.ts")` and `import("../../../dist/tool-operations.mjs")`. Never `import(url.href)`. `tsc` resolves that dist specifier, so `test:types` builds before it type-checks.
 - **MCP result is text only**: `details` never reaches an MCP client, so anything a caller needs for the next call belongs in `content[].text`.
 - **Listing fans out, reading falls back**: `snapshots()` queries providers in parallel and merges; `content()` walks them in order and stops at the first body, because there is one page to read rather than a set to merge. Providers that failed or cannot read are reported beside the body in `_meta`.
 - **A capture is read raw or not at all**: bodies come from `id_` playback (Wayback, Archive-It) or a WARC byte range (Common Crawl). An archive that only serves its own rendition of a page returns `createUnsupportedContentResponse` with the reason instead.
@@ -137,7 +137,7 @@ archives/
 pnpm install          # install deps
 pnpm dev              # vitest watch mode
 pnpm test             # lint + type-check + vitest with coverage
-pnpm test:types       # tsc lib + packages/pi/extensions type checks
+pnpm test:types       # build + tsc over lib and both extension surfaces
 pnpm lint             # oxlint
 pnpm lint:fix         # oxlint --fix
 pnpm build            # obuild (build.config.ts) → dist/
