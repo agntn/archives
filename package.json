@@ -64,7 +64,7 @@
     "fmt": "oxlint . --fix && oxfmt .",
     "fmt:check": "oxfmt --check .",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
-    "test:types": "tsc --noEmit --skipLibCheck && tsc --noEmit --skipLibCheck -p tsconfig.extensions.json",
+    "test:types": "pnpm build && tsc --noEmit --skipLibCheck && tsc --noEmit --skipLibCheck -p tsconfig.extensions.json",
     "build": "obuild",
     "prepack": "pnpm build",
     "release": "pnpm test && changelogen --release --push && pnpm publish"
