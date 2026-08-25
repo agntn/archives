@@ -95,6 +95,48 @@ describe("archive.today", () => {
     expect(result.pages[1]._meta.position).toBe(1);
   });
 
+  /**
+   * The live timemap labels its newest row `rel="last memento"` and a lone
+   * capture `rel="first last memento"`, so a match accepting only the `first`
+   * qualifier silently drops the newest capture from every listing.
+   */
+  it("keeps the memento labeled last", async () => {
+    const mockTimemapResponse = `
+    <https://example.com/>; rel="original",
+    <http://archive.md/timegate/https://example.com/>; rel="timegate",
+    <http://archive.md/20020120142510/http://example.com/>; rel="first memento"; datetime="Sun, 20 Jan 2002 14:25:10 GMT",
+    <http://archive.md/20140101030405/https://example.com/>; rel="memento"; datetime="Wed, 01 Jan 2014 03:04:05 GMT",
+    <http://archive.md/20160810200921/https://example.com/>; rel="last memento"; datetime="Wed, 10 Aug 2016 20:09:21 GMT"
+    `;
+
+    vi.mocked($fetch).mockResolvedValueOnce(mockTimemapResponse);
+
+    const archive = createArchiveClient(createArchiveToday());
+    const result = await archive.snapshots("example.com");
+
+    expect(result.success).toBe(true);
+    expect(result.pages.map((page) => page._meta.hash)).toEqual([
+      "20020120142510",
+      "20140101030405",
+      "20160810200921",
+    ]);
+  });
+
+  it("parses a single-capture timemap labeled first last memento", async () => {
+    const mockTimemapResponse = `
+    <http://archive.md/20160810200921/https://example.com/>; rel="first last memento"; datetime="Wed, 10 Aug 2016 20:09:21 GMT"
+    `;
+
+    vi.mocked($fetch).mockResolvedValueOnce(mockTimemapResponse);
+
+    const archive = createArchiveClient(createArchiveToday());
+    const result = await archive.snapshots("example.com");
+
+    expect(result.success).toBe(true);
+    expect(result.pages).toHaveLength(1);
+    expect(result.pages[0]._meta.hash).toBe("20160810200921");
+  });
+
   it("returns an error response when the Memento API fails", async () => {
     vi.mocked($fetch).mockRejectedValueOnce(new Error("API error"));
 
