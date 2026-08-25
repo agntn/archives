@@ -438,6 +438,126 @@ describe("archive-it content", () => {
   });
 });
 
+describe("archive-today content", () => {
+  const timemap = `
+    <http://archive.md/20190101000000/https://example.com/>; rel="first memento"; datetime="Tue, 01 Jan 2019 00:00:00 GMT",
+    <http://archive.md/20200606060606/https://example.com/>; rel="memento"; datetime="Sat, 06 Jun 2020 06:06:06 GMT",
+    <http://archive.md/20210326214327/https://example.com/>; rel="last memento"; datetime="Fri, 26 Mar 2021 21:43:27 GMT"
+    `;
+
+  it("reads the newest capture's wrapper page from its snapshot URL", async () => {
+    fetchMock.mockResolvedValueOnce(timemap);
+    rawMock.mockResolvedValueOnce(
+      rawResponse("<html><body>archived profile</body></html>", {
+        url: "http://archive.md/20210326214327/https://example.com",
+        headers: {
+          "content-type": "text/html;charset=utf-8",
+          "memento-datetime": "Fri, 26 Mar 2021 21:43:27 GMT",
+        },
+      }),
+    );
+
+    const response = await createArchive(createArchiveToday()).content("example.com");
+
+    expect(response.success).toBe(true);
+    expect(response.content?.url).toBe("https://example.com");
+    expect(response.content?.snapshot).toBe("http://archive.md/20210326214327/https://example.com");
+    expect(response.content?.timestamp).toBe("2021-03-26T21:43:27Z");
+    expect(response.content?.content).toContain("archived profile");
+    expect(rawMock).toHaveBeenCalledWith(
+      "/20210326214327/https://example.com",
+      expect.objectContaining({ baseURL: "http://archive.md" }),
+    );
+  });
+
+  it("picks the capture the requested instant means, not the newest one", async () => {
+    fetchMock.mockResolvedValueOnce(timemap);
+    rawMock.mockResolvedValueOnce(
+      rawResponse("<html>older</html>", {
+        headers: { "memento-datetime": "Sat, 06 Jun 2020 06:06:06 GMT" },
+      }),
+    );
+
+    await createArchive(createArchiveToday()).content("example.com", { timestamp: "2020-12-31" });
+
+    expect(rawMock).toHaveBeenCalledWith(
+      "/20200606060606/https://example.com",
+      expect.objectContaining({ baseURL: "http://archive.md" }),
+    );
+  });
+
+  it("reads the capture a snapshot URL names, asking the timemap about the original", async () => {
+    fetchMock.mockResolvedValueOnce(timemap);
+    rawMock.mockResolvedValueOnce(
+      rawResponse("<html>archived</html>", {
+        headers: { "memento-datetime": "Sat, 06 Jun 2020 06:06:06 GMT" },
+      }),
+    );
+
+    const response = await createArchive(createArchiveToday()).content(
+      "https://archive.ph/20200606060606/https://example.com",
+    );
+
+    expect(response.success).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("/timemap/http://example.com", expect.anything());
+    expect(rawMock).toHaveBeenCalledWith(
+      "/20200606060606/https://example.com",
+      expect.objectContaining({ baseURL: "http://archive.md" }),
+    );
+  });
+
+  /**
+   * The newer capture here is a userinfo variant, so it wins exactly when the
+   * same-url narrowing fails to run: a fragment kept anywhere in the compared
+   * URL empties the narrowing, and a fragment kept in the target empties the
+   * timemap match itself.
+   */
+  it("reads a capture when the target carries a URL fragment", async () => {
+    fetchMock.mockResolvedValueOnce(`
+    <http://archive.md/20200606060606/https://example.com/>; rel="first memento"; datetime="Sat, 06 Jun 2020 06:06:06 GMT",
+    <http://archive.md/20210101000000/https://sample@example.com/>; rel="last memento"; datetime="Fri, 01 Jan 2021 00:00:00 GMT"
+    `);
+    rawMock.mockResolvedValueOnce(
+      rawResponse("<html>archived</html>", {
+        headers: { "memento-datetime": "Sat, 06 Jun 2020 06:06:06 GMT" },
+      }),
+    );
+
+    const response = await createArchive(createArchiveToday()).content(
+      "https://example.com#section",
+    );
+
+    expect(response.success).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("/timemap/http://example.com", expect.anything());
+    expect(response.content?.snapshot).toBe("http://archive.md/20200606060606/https://example.com");
+  });
+
+  it("refuses a body that arrives without a Memento-Datetime header", async () => {
+    fetchMock.mockResolvedValueOnce(timemap);
+    rawMock.mockResolvedValueOnce(
+      rawResponse("<html>please solve this captcha</html>", {
+        headers: { "content-type": "text/html" },
+      }),
+    );
+
+    const response = await createArchive(createArchiveToday()).content("example.com");
+
+    expect(response.success).toBe(false);
+    expect(response.error).toContain("bot-protection");
+  });
+
+  it("reports an archive with no capture of the URL", async () => {
+    fetchMock.mockResolvedValueOnce("");
+
+    const response = await createArchive(createArchiveToday()).content(
+      "https://example.com/missing",
+    );
+
+    expect(response.success).toBe(false);
+    expect(response.error).toContain("No Archive.today capture");
+  });
+});
+
 describe("common crawl content", () => {
   const record = Buffer.concat([
     Buffer.from("WARC/1.0\r\nWARC-Type: response\r\nContent-Length: 96\r\n\r\n"),
@@ -644,14 +764,6 @@ describe("targets that name storage rather than a page", () => {
 });
 
 describe("providers without an archived-body endpoint", () => {
-  it("names Archive.today's gap instead of returning its wrapper page", async () => {
-    const response = await createArchive(createArchiveToday()).content("example.com");
-
-    expect(response.success).toBe(false);
-    expect(response.unsupported).toBe(true);
-    expect(response.unsupportedReason).toContain("no raw-capture endpoint");
-  });
-
   it("names WebCite's gap", async () => {
     const response = await createArchive(createWebcite()).content("example.com");
 
@@ -680,12 +792,12 @@ describe("multi-provider content", () => {
         _meta: { source: "commoncrawl", provider: "commoncrawl" },
       } satisfies ArchiveContentResponse),
     );
-    const unsupported = stubProvider("archive-today", () =>
+    const unsupported = stubProvider("webcite", () =>
       Promise.resolve({
         success: false,
         unsupported: true,
-        unsupportedReason: "no raw-capture endpoint",
-        _meta: { source: "archive-today", provider: "archive-today" },
+        unsupportedReason: "no archived-body endpoint",
+        _meta: { source: "webcite", provider: "webcite" },
       } satisfies ArchiveContentResponse),
     );
 
@@ -695,7 +807,7 @@ describe("multi-provider content", () => {
     expect(response.content?.content).toBe("crawled");
     expect(response._meta?.errors).toEqual(["wayback: Wayback unavailable"]);
     expect(response._meta?.unsupportedProviders).toEqual([
-      { provider: "archive-today", reason: "no raw-capture endpoint" },
+      { provider: "webcite", reason: "no archived-body endpoint" },
     ]);
   });
 
@@ -730,14 +842,14 @@ describe("multi-provider content", () => {
   });
 
   it("throws UnsupportedOperationError from getContent when nobody can read", async () => {
-    const archive = createArchive([createArchiveToday(), createWebcite()]);
+    const archive = createArchive([stubProvider("conifer"), createWebcite()]);
 
     await expect(archive.getContent("example.com")).rejects.toBeInstanceOf(
       UnsupportedOperationError,
     );
     await expect(archive.getContent("example.com")).rejects.toMatchObject({
       providers: [
-        expect.objectContaining({ provider: "archive-today" }),
+        expect.objectContaining({ provider: "conifer" }),
         expect.objectContaining({ provider: "webcite" }),
       ],
     });
