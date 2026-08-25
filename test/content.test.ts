@@ -506,11 +506,20 @@ describe("archive-today content", () => {
     );
   });
 
+  /**
+   * The newer capture here is a userinfo variant, so it wins exactly when the
+   * same-url narrowing fails to run: a fragment kept anywhere in the compared
+   * URL empties the narrowing, and a fragment kept in the target empties the
+   * timemap match itself.
+   */
   it("reads a capture when the target carries a URL fragment", async () => {
-    fetchMock.mockResolvedValueOnce(timemap);
+    fetchMock.mockResolvedValueOnce(`
+    <http://archive.md/20200606060606/https://example.com/>; rel="first memento"; datetime="Sat, 06 Jun 2020 06:06:06 GMT",
+    <http://archive.md/20210101000000/https://sample@example.com/>; rel="last memento"; datetime="Fri, 01 Jan 2021 00:00:00 GMT"
+    `);
     rawMock.mockResolvedValueOnce(
       rawResponse("<html>archived</html>", {
-        headers: { "memento-datetime": "Fri, 26 Mar 2021 21:43:27 GMT" },
+        headers: { "memento-datetime": "Sat, 06 Jun 2020 06:06:06 GMT" },
       }),
     );
 
@@ -519,7 +528,8 @@ describe("archive-today content", () => {
     );
 
     expect(response.success).toBe(true);
-    expect(response.content?.snapshot).toBe("http://archive.md/20210326214327/https://example.com");
+    expect(fetchMock).toHaveBeenCalledWith("/timemap/http://example.com", expect.anything());
+    expect(response.content?.snapshot).toBe("http://archive.md/20200606060606/https://example.com");
   });
 
   it("refuses a body that arrives without a Memento-Datetime header", async () => {

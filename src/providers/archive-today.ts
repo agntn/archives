@@ -67,10 +67,11 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
    * CAPTCHA pages do not, so a body without one is refused as an error instead
    * of being cached for days as the page's content.
    *
-   * The target drops any `#fragment` before it reaches the timemap: a fragment
-   * never travels to the server, so the timemap answers for the bare URL, and a
-   * fragment kept in the target would only make every returned capture fail the
-   * match and read as never archived.
+   * Any `#fragment` is dropped from the URL up front: a fragment never travels
+   * to the server, so the timemap answers for the bare URL, and a fragment kept
+   * on this side would make every returned capture fail the match and read as
+   * never archived. The same fragment-free form feeds the same-url narrowing,
+   * which still wants the caller's scheme, so it is not the timemap target.
    */
   override async content(
     url: string,
@@ -78,7 +79,8 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
   ): Promise<ArchiveContentResponse> {
     try {
       const options = await this.resolveContentOptions(reqOptions);
-      const target = normalizeDomain(url.split("#", 1)[0], false);
+      const page = url.split("#", 1)[0];
+      const target = normalizeDomain(page, false);
       if (target.includes("*")) {
         throw new Error("Reading archived content requires one exact URL, not a wildcard pattern");
       }
@@ -91,7 +93,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
         timestamp: (page._meta as ArchiveTodayMetadata).hash,
       }));
       const capture = selectCapture(
-        preferSameUrl(captures, url, (candidate) => candidate.url),
+        preferSameUrl(captures, page, (candidate) => candidate.url),
         wanted,
       );
       if (!capture) {
