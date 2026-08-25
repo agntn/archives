@@ -66,6 +66,11 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
    * A capture answers with a `Memento-Datetime` header and the rate-limit and
    * CAPTCHA pages do not, so a body without one is refused as an error instead
    * of being cached for days as the page's content.
+   *
+   * The target drops any `#fragment` before it reaches the timemap: a fragment
+   * never travels to the server, so the timemap answers for the bare URL, and a
+   * fragment kept in the target would only make every returned capture fail the
+   * match and read as never archived.
    */
   override async content(
     url: string,
@@ -73,7 +78,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
   ): Promise<ArchiveContentResponse> {
     try {
       const options = await this.resolveContentOptions(reqOptions);
-      const target = normalizeDomain(url, false);
+      const target = normalizeDomain(url.split("#", 1)[0], false);
       if (target.includes("*")) {
         throw new Error("Reading archived content requires one exact URL, not a wildcard pattern");
       }

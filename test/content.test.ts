@@ -506,6 +506,22 @@ describe("archive-today content", () => {
     );
   });
 
+  it("reads a capture when the target carries a URL fragment", async () => {
+    fetchMock.mockResolvedValueOnce(timemap);
+    rawMock.mockResolvedValueOnce(
+      rawResponse("<html>archived</html>", {
+        headers: { "memento-datetime": "Fri, 26 Mar 2021 21:43:27 GMT" },
+      }),
+    );
+
+    const response = await createArchive(createArchiveToday()).content(
+      "https://example.com#section",
+    );
+
+    expect(response.success).toBe(true);
+    expect(response.content?.snapshot).toBe("http://archive.md/20210326214327/https://example.com");
+  });
+
   it("refuses a body that arrives without a Memento-Datetime header", async () => {
     fetchMock.mockResolvedValueOnce(timemap);
     rawMock.mockResolvedValueOnce(
