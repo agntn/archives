@@ -286,7 +286,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives_content",
     label: "Archives Content",
     description:
-      "Read-only/open-world network fetch: read what an archived page said, not just that a capture exists. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Archive-It and Common Crawl serve capture bodies; Archive.today, Conifer, WebCite and Perma.cc answer as unsupported.",
+      "Read-only/open-world network fetch: read what an archived page said, not just that a capture exists. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Archive-It, Archive.today and Common Crawl serve capture bodies, Archive.today as its rendered wrapper page; Conifer, WebCite and Perma.cc answer as unsupported.",
     promptSnippet:
       "Read an archived page's text with archives_content; archives lists which captures exist, this returns what one of them said.",
     promptGuidelines: [
