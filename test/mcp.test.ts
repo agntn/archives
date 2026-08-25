@@ -577,14 +577,14 @@ describe("archives MCP server", () => {
         }),
       },
       {
-        name: "archive-today",
-        slug: "archive-today",
+        name: "webcite",
+        slug: "webcite",
         snapshots: vi.fn(),
         content: vi.fn().mockResolvedValue({
           success: false,
           unsupported: true,
-          unsupportedReason: "no raw-capture endpoint",
-          _meta: { source: "archive-today", provider: "archive-today" },
+          unsupportedReason: "no archived-body endpoint",
+          _meta: { source: "webcite", provider: "webcite" },
         }),
       },
     ]);
@@ -599,7 +599,7 @@ describe("archives MCP server", () => {
     expect(response.isError).toBe(true);
     expect(rendered).toContain('[provider=all] no capture read for "https://example.com/"');
     expect(rendered).toContain("wayback: Wayback unavailable");
-    expect(rendered).toContain("archive-today: no raw-capture endpoint");
+    expect(rendered).toContain("webcite: no archived-body endpoint");
   });
 
   it("lets Perma.cc answer that it serves no bodies, key or no key", async () => {

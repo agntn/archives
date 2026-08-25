@@ -59,7 +59,7 @@ export type ProviderName = Exclude<ProviderInput, "auto">;
 
 export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
 
-export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback first and falls back to Common Crawl. Archive-It reads bodies too, with a numeric collection id. Archive.today, Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
+export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, then Archive.today, then Common Crawl. Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 
 /** Rendering of the archived body: readable text, or the bytes as archived. */
 export const CONTENT_FORMATS = ["text", "raw"] as const;

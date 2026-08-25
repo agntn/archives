@@ -148,14 +148,14 @@ const older = await archive.content("https://example.com/page", { timestamp: "20
 await archive.content("https://web.archive.org/web/20190301120000/https://example.com/");
 ```
 
-Bodies are read through each archive's raw-capture endpoint, never its playback UI: Wayback and Archive-It replay the original response under the `id_` modifier, and Common Crawl serves the byte range of the WARC record the index points at. Fetching a snapshot URL by hand returns the archive's own framing of the page instead.
+Bodies are read through each archive's raw-capture endpoint where one exists: Wayback and Archive-It replay the original response under the `id_` modifier, and Common Crawl serves the byte range of the WARC record the index points at. Archive.today has no raw endpoint at all, so its `content()` returns the page as the site renders it, wrapper markup and all, rather than the bytes the original server sent; a rate-limit or CAPTCHA answer becomes an error instead of posing as the capture.
 
 Providers are tried in order and the first body wins, because there is one page to read rather than a set to merge. The ones that could not answer are reported next to the body:
 
 ```ts
 const response = await createArchive(providers.all()).content("example.com");
 response._meta?.errors; // ["wayback: ..."] when an archive failed
-response._meta?.unsupportedProviders; // [{ provider: "archive-today", reason: "..." }]
+response._meta?.unsupportedProviders; // [{ provider: "webcite", reason: "..." }]
 ```
 
 `content()` reads at most `maxBytes` (2 MiB by default) and reports `truncated: true` when it stopped early, so an archived video or disk image cannot be pulled into memory by accident. `getContent()` is the throwing variant, mirroring `getPages()`.
@@ -167,7 +167,7 @@ response._meta?.unsupportedProviders; // [{ provider: "archive-today", reason: "
 | Wayback Machine | `providers.wayback()`      | yes         | web.archive.org CDX API; captures replayed under `id_`                                             |
 | Archive-It      | `providers.archiveIt()`    | yes         | Requires a numeric `collection`; collection-specific CDX/C API                                     |
 | Conifer         | `providers.conifer()`      | no          | Requires `user` and `collection`; searches an existing public collection                           |
-| Archive.today   | `providers.archiveToday()` | no          | archive.ph via Memento timemap; no raw-capture endpoint                                            |
+| Archive.today   | `providers.archiveToday()` | yes         | archive.ph via Memento timemap; bodies are the rendered wrapper page, not the original bytes       |
 | Common Crawl    | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                |
 | Perma.cc        | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                |
 | WebCite         | `providers.webcite()`      | no          | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019). |
