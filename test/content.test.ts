@@ -478,6 +478,21 @@ describe("common crawl content", () => {
     });
   });
 
+  it("reports the missing capture when the index answers no-captures", async () => {
+    const noCaptures = Object.assign(new Error("404 Not Found"), {
+      statusCode: 404,
+      data: '{"message": "No Captures found for: example.com/"}',
+    });
+    fetchMock.mockRejectedValueOnce(noCaptures);
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com");
+
+    expect(response.success).toBe(false);
+    expect(response.error).toContain("No Common Crawl capture for");
+  });
+
   it("bounds the index query around the requested instant", async () => {
     fetchMock
       .mockResolvedValueOnce(
