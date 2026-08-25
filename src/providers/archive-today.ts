@@ -35,6 +35,11 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
    * snapshot URL names the same instant, so its stamp is the fallback. Stamping
    * "now" instead would push the row above every real capture once a merged
    * response sorts newest-first; a row with no readable time at all is dropped.
+   *
+   * The timemap labels its newest row `last memento` and a lone capture
+   * `first last memento`, so the match takes any first/last qualifiers;
+   * requiring a bare `memento` would drop the newest capture from every
+   * listing.
    */
   async snapshots(domain: string, reqOptions: ArchiveTodayOptions = {}): Promise<ArchiveResponse> {
     const cleanDomain = normalizeDomain(domain, false);
@@ -58,7 +63,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
       // <http://archive.md/20140101030405/https://example.com/>; rel="memento"; datetime="Wed, 01 Jan 2014 03:04:05 GMT"
       const pages: ArchivedPage[] = [];
       const mementoRegex =
-        /<(https?:\/\/archive\.(?:is|today|md|ph)\/([0-9]{8,14})\/(?:https?:\/\/)?([^>]+))>;\s*rel="(?:first\s+)?memento";\s*datetime="([^"]+)"/g;
+        /<(https?:\/\/archive\.(?:is|today|md|ph)\/([0-9]{8,14})\/(?:https?:\/\/)?([^>]+))>;\s*rel="(?:(?:first|last)\s+)*memento";\s*datetime="([^"]+)"/g;
 
       let mementoMatch;
       let index = 0;
