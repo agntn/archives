@@ -103,7 +103,13 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
         timeout: options.timeout ?? 60_000,
         responseType: "text",
       });
-      const raw = await $fetch(`/${index.indexName}`, fetchOptions);
+      let raw: unknown;
+      try {
+        raw = await $fetch(`/${index.indexName}`, fetchOptions);
+      } catch (error) {
+        if (!isNoCapturesError(error)) throw error;
+        raw = "";
+      }
       const records = parseIndexRecords(raw);
 
       if (records.length === 0) {
@@ -317,7 +323,13 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       timeout: options.timeout ?? 60_000,
       responseType: "text",
     });
-    const raw = await $fetch(`/${indexName}`, fetchOptions);
+    let raw: unknown;
+    try {
+      raw = await $fetch(`/${indexName}`, fetchOptions);
+    } catch (error) {
+      if (!isNoCapturesError(error)) throw error;
+      raw = "";
+    }
 
     const captures: CrawlCapture[] = [];
     for (const record of parseIndexRecords(raw)) {
@@ -403,6 +415,24 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       ...(contentType ? { mime: contentType.split(";")[0]?.trim().toLowerCase() } : {}),
     };
   }
+}
+
+/**
+ * Whether a thrown index error is the CDX way of saying the URL was never
+ * captured: the endpoint answers 404 with a JSON `No Captures found` message
+ * instead of an empty body, so a missing page would otherwise read as an
+ * outage. Every other 404 keeps meaning failure.
+ */
+function isNoCapturesError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { status, statusCode, data } = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    data?: unknown;
+  };
+  if (status !== 404 && statusCode !== 404) return false;
+  const body = typeof data === "string" ? data : data ? JSON.stringify(data) : "";
+  return body.includes("No Captures found");
 }
 
 /** Parses the newline-delimited JSON the CDX index answers with. */

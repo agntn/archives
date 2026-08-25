@@ -100,6 +100,37 @@ describe("Common Crawl", () => {
     expect(result._meta?.source).toBe("commoncrawl");
   });
 
+  it("treats the no-captures 404 as an empty result", async () => {
+    const collInfo = [{ name: "CC-MAIN-2023-50" }];
+    const noCaptures = Object.assign(new Error("404 Not Found"), {
+      statusCode: 404,
+      data: '{"message": "No Captures found for: definitely-not-real.example/"}',
+    });
+    vi.mocked($fetch).mockResolvedValueOnce(collInfo).mockRejectedValueOnce(noCaptures);
+
+    const archive = createArchive(createCommonCrawl());
+    const result = await archive.snapshots("definitely-not-real.example");
+
+    expect(result.success).toBe(true);
+    expect(result.pages).toHaveLength(0);
+    expect(result._meta?.collection).toBe("CC-MAIN-2023-50");
+  });
+
+  it("keeps other 404 responses as errors", async () => {
+    const missingIndex = Object.assign(new Error("404 Not Found"), {
+      statusCode: 404,
+      data: "Not Found",
+    });
+    vi.mocked($fetch).mockRejectedValueOnce(missingIndex);
+
+    const options: CommonCrawlOptions = { collection: "CC-MAIN-2019-04" };
+    const archive = createArchive(createCommonCrawl());
+    const result = await archive.snapshots("example.com", options);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("404 Not Found");
+  });
+
   it("drops records with malformed timestamps", async () => {
     const records = [
       {
