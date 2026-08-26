@@ -10,7 +10,7 @@
  */
 
 import { consola } from "consola";
-import { $fetch } from "ofetch";
+import { $fetch, type FetchResponse } from "ofetch";
 import type { ArchiveContentOptions, ArchivedContent } from "../types";
 import { createFetchOptions, waybackTimestampToISO } from "./_utils";
 
@@ -35,6 +35,9 @@ const ZONED_ISO_TIMESTAMP =
 const PLAYBACK_URL =
   /^https?:\/\/(?:web\.archive\.org\/web|wayback\.archive-it\.org\/\d+)\/(\d{4,14})(?:[a-z]{2}_)?\/(\S+)$/i;
 const ARCHIVE_TODAY_URL = /^https?:\/\/archive\.(?:is|today|md|ph|li|vn)\/(\d{4,14})\/(\S+)$/i;
+/** Matches nested Memento URLs without mistaking an ordinary dated path for playback. */
+const GENERIC_MEMENTO_URL =
+  /^https?:\/\/[^/\s]+\/(?:[^/\s]+\/)*(\d{4,14})(?:[a-z]{2}_)?\/(https?:\/\/\S+)$/i;
 
 const CHARSET_PARAMETER = /charset\s*=\s*"?([\w-]+)"?/i;
 const META_CHARSET = /<meta[^>]+charset\s*=\s*["']?\s*([\w-]+)/i;
@@ -146,7 +149,8 @@ export function timestampLowerBound(timestamp: string): string {
  */
 export function unwrapSnapshotUrl(input: string): { url: string; timestamp?: string } {
   const raw = input.trim();
-  const match = PLAYBACK_URL.exec(raw) ?? ARCHIVE_TODAY_URL.exec(raw);
+  const match =
+    PLAYBACK_URL.exec(raw) ?? ARCHIVE_TODAY_URL.exec(raw) ?? GENERIC_MEMENTO_URL.exec(raw);
   if (!match) return { url: raw };
 
   const [, stamp, original] = match;
@@ -295,35 +299,20 @@ export interface FetchedBody {
   capturedAt?: string;
 }
 
-/**
- * GETs one URL and decodes at most `maxBytes` of its body.
- *
- * The body is streamed rather than buffered so the cap is a real one: an
- * archived 60 MB video must not be pulled into memory to be thrown away.
- *
- * @param baseURL - Origin of the archive endpoint
- * @param path - Path to request, already URL-shaped
- * @param options - Byte cap plus the shared timeout and retry options
- */
-export async function fetchBody(
-  baseURL: string,
-  path: string,
-  options: ArchiveContentOptions & { headers?: Record<string, string> } = {},
-): Promise<FetchedBody> {
-  const maxBytes = resolveMaxBytes(options);
-  const fetchOptions = await createFetchOptions(
-    baseURL,
-    {},
-    {
-      responseType: "stream",
-      retries: options.retries,
-      signal: options.signal,
-      timeout: options.timeout,
-      ...(options.headers ? { headers: options.headers } : {}),
-    },
-  );
+/** Optional validation for each URL in a playback redirect chain. */
+export interface FetchBodyPolicy {
+  assertURL(url: URL): void;
+  maxRedirects?: number;
+}
 
-  const response = await $fetch.raw(path, fetchOptions);
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+/** Converts one final raw response into the bounded body contract. */
+async function decodeFetchedResponse(
+  response: FetchResponse<unknown>,
+  maxBytes: number,
+  fallbackURL: string,
+): Promise<FetchedBody> {
   const contentType = headerValue(response.headers, "content-type");
   const { bytes, truncated } = await readCappedBytes(response._data, maxBytes);
 
@@ -333,9 +322,82 @@ export async function fetchBody(
     truncated,
     mime: baseMime(contentType),
     status: typeof response.status === "number" ? response.status : 200,
-    url: typeof response.url === "string" && response.url ? response.url : `${baseURL}${path}`,
+    url: typeof response.url === "string" && response.url ? response.url : fallbackURL,
     capturedAt: parseMementoDatetime(headerValue(response.headers, "memento-datetime")),
   };
+}
+
+/**
+ * GETs one URL and decodes at most `maxBytes` of its body.
+ *
+ * The body is streamed rather than buffered so the cap is a real one: an
+ * archived 60 MB video must not be pulled into memory to be thrown away.
+ * A policy switches redirects to manual handling so every destination can be
+ * checked before the network request rather than only after it has happened.
+ *
+ * @param baseURL - Origin of the archive endpoint
+ * @param path - Path to request, already URL-shaped
+ * @param options - Byte cap plus the shared timeout and retry options
+ * @param policy - Optional validation applied before the initial request and every redirect
+ */
+export async function fetchBody(
+  baseURL: string,
+  path: string,
+  options: ArchiveContentOptions & { headers?: Record<string, string> } = {},
+  policy?: FetchBodyPolicy,
+): Promise<FetchedBody> {
+  const maxBytes = resolveMaxBytes(options);
+
+  if (!policy) {
+    const fetchOptions = await createFetchOptions(
+      baseURL,
+      {},
+      {
+        responseType: "stream",
+        retries: options.retries,
+        signal: options.signal,
+        timeout: options.timeout,
+        ...(options.headers ? { headers: options.headers } : {}),
+      },
+    );
+    const response = await $fetch.raw(path, fetchOptions);
+    return decodeFetchedResponse(response, maxBytes, `${baseURL}${path}`);
+  }
+
+  const maxRedirects = policy.maxRedirects ?? 5;
+  let current = new URL(path, baseURL);
+
+  for (let redirectCount = 0; ; redirectCount++) {
+    policy.assertURL(current);
+    const fetchOptions = await createFetchOptions(
+      current.origin,
+      {},
+      {
+        responseType: "stream",
+        redirect: "manual",
+        retries: options.retries,
+        signal: options.signal,
+        timeout: options.timeout,
+        ...(options.headers ? { headers: options.headers } : {}),
+      },
+    );
+    const requestPath = `${current.pathname}${current.search}`;
+    const response = await $fetch.raw(requestPath, fetchOptions);
+
+    if (!REDIRECT_STATUSES.has(response.status)) {
+      return decodeFetchedResponse(response, maxBytes, current.href);
+    }
+    if (isReadableStream(response._data)) {
+      await response._data.cancel().catch(() => undefined);
+    }
+    if (redirectCount >= maxRedirects) {
+      throw new Error(`Archive playback exceeded ${maxRedirects} redirects`);
+    }
+
+    const location = headerValue(response.headers, "location");
+    if (!location) throw new Error("Archive playback redirected without a Location header");
+    current = new URL(location, current);
+  }
 }
 
 /**

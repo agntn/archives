@@ -53,7 +53,7 @@ const tools: ToolDefinition[] = [
     name: "archives_snapshots",
     title: "Archive Snapshots",
     description:
-      "Query web archive providers for archived snapshots of a domain or URL. Returns one line per snapshot with its timestamp, the archived copy, and the original URL. Omit provider to fan out to Wayback Machine, Archive.today, Common Crawl, and WebCite; providers that cannot answer the query are named in the answer instead of dropped. A fan-out is merged newest first, while a single provider answers in its own order — Wayback returns a domain's oldest captures first, so ask for a larger limit when you need recent ones.",
+      "Query web archive providers for archived snapshots of a domain or URL. Returns one line per snapshot with its timestamp, the archived copy, and the original URL. Omit provider to query Wayback Machine, Archive.today, Common Crawl, and WebCite; use provider=memento for the public MemGator service, which queries several archives. Providers that cannot answer the query are named in the answer instead of dropped. Combined results are merged newest first, while a single provider answers in its own order. Wayback returns a domain's oldest captures first, so ask for a larger limit when you need recent ones.",
     inputSchema: Type.Object(
       {
         target: Type.String({
@@ -173,7 +173,7 @@ const tools: ToolDefinition[] = [
     name: "archives_content",
     title: "Archive Content",
     description:
-      "Read what an archived page said, not just that a capture of it exists. Returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback, Archive-It, Archive.today and Common Crawl serve capture bodies, Archive.today as its rendered wrapper page; Conifer, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
+      "Read what an archived page said, not just that a capture of it exists. Returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
     inputSchema: Type.Object(
       {
         target: Type.String({

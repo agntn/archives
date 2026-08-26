@@ -1,13 +1,13 @@
 # PROJECT KNOWLEDGE BASE
 
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-08-26
 **Branch:** main
 
 > Verify against current HEAD: `git rev-parse HEAD`. Code map line numbers reflect the snapshot above; rerun `grep -n` if they look stale.
 
 ## OVERVIEW
 
-Unified TypeScript interface for querying web archive providers (Wayback Machine, Archive.today, Common Crawl, Perma.cc, WebCite). Built on the unjs ecosystem: ofetch, unstorage, c12, consola, ufo, obuild, changelogen.
+Unified TypeScript interface for querying web archive providers (Wayback Machine, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Built on the unjs ecosystem: ofetch, unstorage, c12, consola, ufo, obuild, changelogen.
 
 ## STRUCTURE
 
@@ -66,6 +66,7 @@ archives/
 | `createArchive`             | function  | archive.ts:56         | Core factory. Accepts provider(s) + options, returns `ArchiveInterface`.                    |
 | `UnsupportedOperationError` | class     | archive.ts:18         | Thrown by `getPages()` when every queried provider is unsupported. Carries `providers` list. |
 | `providers`                 | object    | providers/index.ts:14 | Lazy-loading factory. Each method returns `Promise<ArchiveProvider>`.                       |
+| `MementoProvider`           | class     | providers/memento.ts  | JSON TimeMap from several archives via ODU MemGator; reads exact Memento URI, then proxy fallback. |
 | `ArchiveInterface`          | interface | types.ts:127          | Public API: `snapshots()`, `getPages()`, `use()`, `useAll()`.                               |
 | `ArchiveProvider`           | interface | types.ts:117          | Provider contract: `name`, `slug?`, `snapshots()`.                                          |
 | `ArchiveResponse`           | interface | types.ts:100          | `{ success, pages, error?, unsupported?, unsupportedReason?, _meta?, fromCache? }`.         |
@@ -123,6 +124,7 @@ archives/
 - **Do not call `configureStorage` in new code**: it's `@deprecated`. Use config files or pass options to `createArchive`.
 - **Do not pass `Promise[]` to `createArchive`**: `createArchive([providers.wayback(), ...])` is a type error. Use `Promise.all()` wrapper or `providers.all()`.
 - **Do not add Perma.cc to `providers.all()`**: requires API key. Excluded intentionally.
+- **Do not add Memento to `providers.all()`**: MemGator already fans out across archives, so nesting it duplicates results and multiplies upstream traffic.
 - **Do not put provider types in `providers/`**: provider-specific option types live in `src/_providers.ts`, not alongside implementations.
 - **Do not add deployable Pi package extensions under `.pi/extensions/`**: this project ships its Pi surface from `packages/pi/extensions/` via `package.json` `pi.extensions`, following askweb.
 - **Do not reimplement a tool inside a surface**: MCP, Pi and OMP delegate to `src/tool-operations.ts`. A fix applied in one extension only is a drift bug waiting to happen.
@@ -149,6 +151,7 @@ pnpm release          # test + changelogen + publish
 
 - **Config is async**: `getConfig()`, `resolveConfig()`, `mergeOptions()`, `createFetchOptions()` are all async because c12 config loading is async. This propagates throughout.
 - **Defaults**: concurrency=3, batchSize=20, timeout=10000ms, retries=1, cache TTL=7 days. README and code must match.
+- **Memento Time Travel is gone**: `mementoweb.org` remains a static documentation site after LANL discontinued the aggregator in 2025. `providers.memento()` defaults to the live public ODU MemGator endpoint and may be pointed at another compatible instance with `baseUrl`.
 - **WebCite has no list-by-domain API**: `webcite.snapshots(domain)` returns `unsupported: true` with a `unsupportedReason`. Direct snapshot retrieval (`webcitation.org/<id>`) is planned via a future `getById` API. New archives have not been accepted since ~2019.
 - **Archive.today uses Memento API**: parses timemap link headers with regex. Fragile if format changes.
 - **Playground targets Cloudflare**: `nitro.preset = 'cloudflare_module'` with `nodeCompat: true`.
