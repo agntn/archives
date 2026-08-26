@@ -37,6 +37,7 @@ export const PROVIDERS = [
   "archiveIt",
   "conifer",
   "archiveToday",
+  "memento",
   "commoncrawl",
   "webcite",
   "permacc",
@@ -57,9 +58,9 @@ export const PROVIDER_INPUTS = [
 export type ProviderInput = (typeof PROVIDERS)[number];
 export type ProviderName = Exclude<ProviderInput, "auto">;
 
-export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
+export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Memento uses the public MemGator service to query several archives and stays outside "all" to avoid duplicate requests. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
 
-export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, then Archive.today, then Common Crawl. Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
+export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, then Archive.today, then Common Crawl. Memento reads the selected TimeMap URI directly and uses MemGator's proxy as fallback. Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 
 /** Rendering of the archived body: readable text, or the bytes as archived. */
 export const CONTENT_FORMATS = ["text", "raw"] as const;
@@ -361,6 +362,7 @@ async function createProvider(
     return providers.conifer({ ...options, user, collection });
   }
   if (provider === "archiveToday") return providers.archiveToday(options);
+  if (provider === "memento") return providers.memento(options);
   if (provider === "commoncrawl") return providers.commoncrawl(options);
   if (provider === "webcite") return providers.webcite(options);
   if (provider === "permacc") {
@@ -558,7 +560,7 @@ function getProviderStatuses(): ProviderStatus[] {
       includedInAll: false,
       requiresApiKey: false,
       configured: true,
-      note: "Queries Wayback, Archive.today, Common Crawl, and WebCite; excludes Perma.cc.",
+      note: "Queries Wayback, Archive.today, Common Crawl, and WebCite; excludes Archive-It, Conifer, Memento, and Perma.cc.",
     },
     {
       name: "wayback",
@@ -591,6 +593,14 @@ function getProviderStatuses(): ProviderStatus[] {
       requiresApiKey: false,
       configured: true,
       note: "Archive.today Memento timemap.",
+    },
+    {
+      name: "memento",
+      factory: "providers.memento()",
+      includedInAll: false,
+      requiresApiKey: false,
+      configured: true,
+      note: "Public ODU MemGator JSON TimeMap across several archives; replaces the discontinued Memento Time Travel service.",
     },
     {
       name: "commoncrawl",

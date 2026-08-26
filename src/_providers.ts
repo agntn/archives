@@ -18,6 +18,11 @@ export interface ConiferOptions extends ArchiveOptions {
 
 export type ArchiveTodayOptions = ArchiveOptions;
 
+export interface MementoOptions extends ArchiveOptions {
+  /** Base URL of a Memento aggregator compatible with MemGator. */
+  baseUrl?: string;
+}
+
 export interface PermaccOptions extends ArchiveOptions {
   apiKey: string; // API key is required for Perma.cc
 }

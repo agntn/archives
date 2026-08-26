@@ -1,4 +1,5 @@
 export type * from "./types";
+export type * from "./_providers";
 export {
   createArchive,
   Archive,
@@ -11,6 +12,7 @@ export { WaybackProvider } from "./providers/wayback";
 export { ArchiveItProvider } from "./providers/archive-it";
 export { ConiferProvider } from "./providers/conifer";
 export { ArchiveTodayProvider } from "./providers/archive-today";
+export { MementoProvider } from "./providers/memento";
 export { PermaccProvider } from "./providers/permacc";
 export { CommonCrawlProvider } from "./providers/commoncrawl";
 export { WebCiteProvider } from "./providers/webcite";

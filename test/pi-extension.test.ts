@@ -56,6 +56,12 @@ vi.mock("../src/providers", () => ({
       snapshots: archivesMock.snapshots,
       content: archivesMock.content,
     }),
+    memento: async () => ({
+      name: "Memento (MemGator)",
+      slug: "memento",
+      snapshots: archivesMock.snapshots,
+      content: archivesMock.content,
+    }),
     commoncrawl: async () => ({
       name: "Common Crawl",
       slug: "commoncrawl",

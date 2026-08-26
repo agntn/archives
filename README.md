@@ -9,7 +9,7 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 
 ## Features
 
-- 🔍 **Multiple providers** - Wayback Machine, Archive-It, Conifer, Archive.today, Common Crawl, Perma.cc, WebCite
+- 🔍 **Multiple providers** - Wayback Machine, Archive-It, Conifer, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite
 - 📄 **Reads captures, not just lists them** - `content()` returns what an archived page said, decoded from the original response
 - 🌳 **Tree-shakable** - providers are lazy-loaded via dynamic imports, bundle only what you use
 - 📦 **Caching built in** - pluggable storage layer via [unstorage](https://github.com/unjs/unstorage) with configurable TTL
@@ -39,7 +39,7 @@ if (response.success) {
 }
 ```
 
-Query all providers at once with `providers.all()` (excludes Archive-It and Conifer because they need collection-specific identifiers, and Perma.cc because it needs an API key):
+Query all providers at once with `providers.all()` (excludes Archive-It and Conifer because they need identifiers for a collection, Perma.cc because it needs an API key, and Memento because it already queries several archives):
 
 ```ts
 const archive = createArchive(providers.all());
@@ -97,6 +97,17 @@ const response = await archive.snapshots("imamuseum.org");
 
 Conifer disabled new captures and collection editing ahead of its June 2026 discontinuation, but Rhizome continues to host existing collections in read-only form. The provider is therefore not included in `providers.all()`.
 
+### Memento
+
+The original [Memento Time Travel](https://mementoweb.org/about/) aggregator was discontinued in 2025. `providers.memento()` keeps the same search across several archives through ODU's public [MemGator](https://memgator.cs.odu.edu/) service, which returns Memento JSON TimeMaps:
+
+```ts
+const archive = createArchive(providers.memento());
+const response = await archive.snapshots("https://example.com/");
+```
+
+Memento is deliberately excluded from `providers.all()`: MemGator already queries multiple archives, so calling it inside the package's combined query would duplicate results and multiply upstream requests. Library consumers can point the provider at another instance compatible with MemGator through `providers.memento({ baseUrl: "https://memgator.example" })`; agent tools use the public ODU endpoint. Remote aggregators must use HTTPS (HTTP is accepted only for local development), and TimeMap rows targeting local, private, or link-local addresses are ignored before content retrieval.
+
 ### Error handling
 
 `snapshots()` returns a response object with a `success` flag. If you prefer throwing on failure, use `getPages()`:
@@ -148,7 +159,7 @@ const older = await archive.content("https://example.com/page", { timestamp: "20
 await archive.content("https://web.archive.org/web/20190301120000/https://example.com/");
 ```
 
-Bodies are read through each archive's raw-capture endpoint where one exists: Wayback and Archive-It replay the original response under the `id_` modifier, and Common Crawl serves the byte range of the WARC record the index points at. Archive.today has no raw endpoint at all, so its `content()` returns the page as the site renders it, wrapper markup and all, rather than the bytes the original server sent; a rate-limit or CAPTCHA answer becomes an error instead of posing as the capture.
+Bodies are read through each archive's raw capture endpoint where one exists: Wayback and Archive-It replay the original response under the `id_` modifier, Memento reads the TimeMap's exact Memento URI with a raw replay modifier where supported and falls back to MemGator's proxy when direct playback fails, and Common Crawl serves the byte range of the WARC record the index points at. Archive.today has no raw endpoint at all, so its `content()` returns the page as the site renders it, wrapper markup and all, rather than the bytes the original server sent; a rate limit or CAPTCHA answer becomes an error instead of posing as the capture.
 
 Providers are tried in order and the first body wins, because there is one page to read rather than a set to merge. The ones that could not answer are reported next to the body:
 
@@ -168,6 +179,7 @@ response._meta?.unsupportedProviders; // [{ provider: "webcite", reason: "..." }
 | Archive-It      | `providers.archiveIt()`    | yes         | Requires a numeric `collection`; collection-specific CDX/C API                                     |
 | Conifer         | `providers.conifer()`      | no          | Requires `user` and `collection`; searches an existing public collection                           |
 | Archive.today   | `providers.archiveToday()` | yes         | archive.ph via Memento timemap; bodies are the rendered wrapper page, not the original bytes       |
+| Memento         | `providers.memento()`      | yes         | Public ODU MemGator JSON TimeMap; queries several archives; excluded from `all` to avoid duplicate requests |
 | Common Crawl    | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                |
 | Perma.cc        | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                |
 | WebCite         | `providers.webcite()`      | no          | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019). |
@@ -271,7 +283,7 @@ interface ArchivedContent {
 }
 ```
 
-The `_meta` object on each page carries provider-specific fields. Wayback includes `status` and `timestamp` in its raw format. Common Crawl adds `digest`, `mime`, `collection`. Perma.cc has `guid`, `title`, `created_by`. Archive.today provides `hash` and `raw_date`.
+The `_meta` object on each page carries fields specific to each provider. Wayback includes `status` and `timestamp` in its raw format. Memento adds the upstream `archive` hostname and raw `datetime`. Common Crawl adds `digest`, `mime`, `collection`. Perma.cc has `guid`, `title`, `created_by`. Archive.today provides `hash` and `raw_date`.
 
 ### Unsupported operations
 

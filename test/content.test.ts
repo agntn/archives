@@ -903,8 +903,17 @@ describe("content helpers", () => {
       url: "example.com",
       timestamp: "20190301",
     });
+    expect(
+      unwrapSnapshotUrl("https://arquivo.pt/wayback/20200402133000id_/https://example.com/page"),
+    ).toEqual({ url: "https://example.com/page", timestamp: "20200402133000" });
+    expect(
+      unwrapSnapshotUrl("https://vefsafn.is/20200402195411mp_/https://www.example.com/"),
+    ).toEqual({ url: "https://www.example.com/", timestamp: "20200402195411" });
     expect(unwrapSnapshotUrl("https://example.com/web/page")).toEqual({
       url: "https://example.com/web/page",
+    });
+    expect(unwrapSnapshotUrl("https://example.com/archive/20200402133000/report.html")).toEqual({
+      url: "https://example.com/archive/20200402133000/report.html",
     });
   });
 

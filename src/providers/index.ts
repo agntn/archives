@@ -4,6 +4,7 @@ import type {
   ArchiveItOptions,
   ConiferOptions,
   ArchiveTodayOptions,
+  MementoOptions,
   PermaccOptions,
   CommonCrawlOptions,
   WebCiteOptions,
@@ -70,6 +71,12 @@ export const providers = {
     return new ArchiveTodayProvider(options);
   },
 
+  /** Creates a lazily loaded Memento provider that uses MemGator. */
+  async memento(options?: MementoOptions): Promise<ArchiveProvider> {
+    const { MementoProvider } = await import("./memento");
+    return new MementoProvider(options);
+  },
+
   /**
    * Creates a Perma.cc provider.
    * @param options - Configuration options for the Perma.cc provider (requires apiKey)
@@ -115,6 +122,7 @@ export const providers = {
   /**
    * Helper to initialize all commonly used providers at once.
    * Note: Archive-It is excluded because it requires a collection ID; Perma.cc requires an API key.
+   * Memento is excluded because it already aggregates many of the same archives.
    * @param options - Common configuration options for all providers
    * @returns An array of all common providers
    * @example

@@ -64,6 +64,12 @@ export interface ArchiveTodayMetadata extends ArchiveMetadata {
   position?: number;
 }
 
+export interface MementoMetadata extends ArchiveMetadata {
+  provider: "memento";
+  archive: string;
+  datetime: string;
+}
+
 export interface WebCiteMetadata extends ArchiveMetadata {
   requestId: string;
   position?: number;
