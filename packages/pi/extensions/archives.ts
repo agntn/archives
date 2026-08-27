@@ -103,7 +103,7 @@ const snapshotParameters = Type.Object({
   ),
   limit: Type.Optional(
     Type.Integer({
-      description: `Maximum snapshots to return. Defaults to ${DEFAULT_LIMIT}.`,
+      description: `Maximum snapshots to return. Defaults to ${DEFAULT_LIMIT}. accepted range: 1-${MAX_LIMIT}.`,
       minimum: 1,
       maximum: MAX_LIMIT,
     }),
@@ -112,28 +112,36 @@ const snapshotParameters = Type.Object({
     Type.Boolean({ description: "Enable or disable archives response caching." }),
   ),
   ttl: Type.Optional(
-    Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+    Type.Integer({
+      description: `Cache TTL in milliseconds; accepted range: 0-${MAX_TTL}.`,
+      minimum: 0,
+      maximum: MAX_TTL,
+    }),
   ),
   concurrency: Type.Optional(
-    Type.Integer({ description: "Maximum parallel provider requests.", minimum: 1, maximum: 10 }),
+    Type.Integer({
+      description: "Maximum parallel provider requests; accepted range: 1-10.",
+      minimum: 1,
+      maximum: 10,
+    }),
   ),
   batchSize: Type.Optional(
     Type.Integer({
-      description: "Provider batch size for parallel work.",
+      description: "Provider batch size for parallel work; accepted range: 1-100.",
       minimum: 1,
       maximum: 100,
     }),
   ),
   timeout: Type.Optional(
     Type.Integer({
-      description: "Request timeout in milliseconds.",
+      description: `Request timeout in milliseconds; accepted range: 1-${MAX_TIMEOUT}.`,
       minimum: 1,
       maximum: MAX_TIMEOUT,
     }),
   ),
   retries: Type.Optional(
     Type.Integer({
-      description: "Retry attempts for failed requests.",
+      description: `Retry attempts for failed requests; accepted range: 0-${MAX_RETRIES}.`,
       minimum: 0,
       maximum: MAX_RETRIES,
     }),
@@ -211,7 +219,7 @@ const contentParameters = Type.Object({
   ),
   maxChars: Type.Optional(
     Type.Integer({
-      description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}.`,
+      description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}. accepted range: 1-${MAX_CONTENT_CHARS}.`,
       minimum: 1,
       maximum: MAX_CONTENT_CHARS,
     }),
@@ -220,18 +228,22 @@ const contentParameters = Type.Object({
     Type.Boolean({ description: "Enable or disable archives response caching." }),
   ),
   ttl: Type.Optional(
-    Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+    Type.Integer({
+      description: `Cache TTL in milliseconds; accepted range: 0-${MAX_TTL}.`,
+      minimum: 0,
+      maximum: MAX_TTL,
+    }),
   ),
   timeout: Type.Optional(
     Type.Integer({
-      description: `Request timeout in milliseconds. Defaults to ${DEFAULT_CONTENT_TIMEOUT}.`,
+      description: `Request timeout in milliseconds. Defaults to ${DEFAULT_CONTENT_TIMEOUT}. accepted range: 1-${MAX_TIMEOUT}.`,
       minimum: 1,
       maximum: MAX_TIMEOUT,
     }),
   ),
   retries: Type.Optional(
     Type.Integer({
-      description: "Retry attempts for failed requests.",
+      description: `Retry attempts for failed requests; accepted range: 0-${MAX_RETRIES}.`,
       minimum: 0,
       maximum: MAX_RETRIES,
     }),
@@ -264,7 +276,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives",
     label: "Archives Snapshots",
     description:
-      "Read-only/open-world network fetch: query web archive providers for archived snapshots of a domain or URL. Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all queries Wayback Machine, Archive.today, Common Crawl, and WebCite; provider=memento uses the public MemGator service to query several archives; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY and searches one exact URL.",
+      "Read-only/open-world network fetch: query web archive providers for archived snapshots of a domain or URL. Use this to find captures, timestamps, and snapshot URLs (use archives_content only when you need the archived page body). Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all queries Wayback Machine, Archive.today, Common Crawl, and WebCite; provider=memento uses the public MemGator service to query several archives; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY and searches one exact URL.",
     promptSnippet:
       "Find archived snapshots with archives; use provider=all for broad coverage and provider=wayback for fast Wayback-only lookup.",
     promptGuidelines: [
@@ -287,7 +299,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives_content",
     label: "Archives Content",
     description:
-      "Read-only/open-world network fetch: read what an archived page said, not just that a capture exists. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc answer as unsupported.",
+      "Read-only/open-world network fetch: read what an archived page said, not just that a capture exists. Use this only when you want the archived body or already have a capture to read; use archives to find snapshots and snapshot URLs. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc answer as unsupported.",
     promptSnippet:
       "Read an archived page's text with archives_content; archives lists which captures exist, this returns what one of them said.",
     promptGuidelines: [

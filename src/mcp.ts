@@ -53,7 +53,7 @@ const tools: ToolDefinition[] = [
     name: "archives_snapshots",
     title: "Archive Snapshots",
     description:
-      "Query web archive providers for archived snapshots of a domain or URL. Returns one line per snapshot with its timestamp, the archived copy, and the original URL. Omit provider to query Wayback Machine, Archive.today, Common Crawl, and WebCite; use provider=memento for the public MemGator service, which queries several archives. Providers that cannot answer the query are named in the answer instead of dropped. Combined results are merged newest first, while a single provider answers in its own order. Wayback returns a domain's oldest captures first, so ask for a larger limit when you need recent ones.",
+      "Query web archive providers for archived snapshots of a domain or URL. Use this to find captures, timestamps, and snapshot URLs (use archives_content only when you need the archived page body). Returns one line per snapshot with its timestamp, the archived copy, and the original URL. Omit provider to query Wayback Machine, Archive.today, Common Crawl, and WebCite; use provider=memento for the public MemGator service, which queries several archives. Providers that cannot answer the query are named in the answer instead of dropped. Combined results are merged newest first, while a single provider answers in its own order. Wayback returns a domain's oldest captures first, so ask for a larger limit when you need recent ones.",
     inputSchema: Type.Object(
       {
         target: Type.String({
@@ -71,7 +71,7 @@ const tools: ToolDefinition[] = [
         ),
         limit: Type.Optional(
           Type.Integer({
-            description: `Maximum snapshots to return. Defaults to ${DEFAULT_LIMIT}.`,
+            description: `Maximum snapshots to return. Defaults to ${DEFAULT_LIMIT}. accepted range: 1-${MAX_LIMIT}.`,
             minimum: 1,
             maximum: MAX_LIMIT,
           }),
@@ -80,32 +80,36 @@ const tools: ToolDefinition[] = [
           Type.Boolean({ description: "Enable or disable archives response caching." }),
         ),
         ttl: Type.Optional(
-          Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+          Type.Integer({
+            description: `Cache TTL in milliseconds; accepted range: 0-${MAX_TTL}.`,
+            minimum: 0,
+            maximum: MAX_TTL,
+          }),
         ),
         concurrency: Type.Optional(
           Type.Integer({
-            description: "Maximum parallel provider requests.",
+            description: "Maximum parallel provider requests; accepted range: 1-10.",
             minimum: 1,
             maximum: 10,
           }),
         ),
         batchSize: Type.Optional(
           Type.Integer({
-            description: "Provider batch size for parallel work.",
+            description: "Provider batch size for parallel work; accepted range: 1-100.",
             minimum: 1,
             maximum: 100,
           }),
         ),
         timeout: Type.Optional(
           Type.Integer({
-            description: "Request timeout in milliseconds.",
+            description: `Request timeout in milliseconds; accepted range: 1-${MAX_TIMEOUT}.`,
             minimum: 1,
             maximum: MAX_TIMEOUT,
           }),
         ),
         retries: Type.Optional(
           Type.Integer({
-            description: "Retry attempts for failed requests.",
+            description: `Retry attempts for failed requests; accepted range: 0-${MAX_RETRIES}.`,
             minimum: 0,
             maximum: MAX_RETRIES,
           }),
@@ -173,7 +177,7 @@ const tools: ToolDefinition[] = [
     name: "archives_content",
     title: "Archive Content",
     description:
-      "Read what an archived page said, not just that a capture of it exists. Returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
+      "Read what an archived page said, not just that a capture of it exists. Use this only when you want the archived body or already have a capture to read; use archives_snapshots to find snapshots and snapshot URLs. Returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
     inputSchema: Type.Object(
       {
         target: Type.String({
@@ -203,7 +207,7 @@ const tools: ToolDefinition[] = [
         ),
         maxChars: Type.Optional(
           Type.Integer({
-            description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}.`,
+            description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}. accepted range: 1-${MAX_CONTENT_CHARS}.`,
             minimum: 1,
             maximum: MAX_CONTENT_CHARS,
           }),
@@ -212,18 +216,22 @@ const tools: ToolDefinition[] = [
           Type.Boolean({ description: "Enable or disable archives response caching." }),
         ),
         ttl: Type.Optional(
-          Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+          Type.Integer({
+            description: `Cache TTL in milliseconds; accepted range: 0-${MAX_TTL}.`,
+            minimum: 0,
+            maximum: MAX_TTL,
+          }),
         ),
         timeout: Type.Optional(
           Type.Integer({
-            description: `Request timeout in milliseconds. Defaults to ${DEFAULT_CONTENT_TIMEOUT}.`,
+            description: `Request timeout in milliseconds. Defaults to ${DEFAULT_CONTENT_TIMEOUT}. accepted range: 1-${MAX_TIMEOUT}.`,
             minimum: 1,
             maximum: MAX_TIMEOUT,
           }),
         ),
         retries: Type.Optional(
           Type.Integer({
-            description: "Retry attempts for failed requests.",
+            description: `Retry attempts for failed requests; accepted range: 0-${MAX_RETRIES}.`,
             minimum: 0,
             maximum: MAX_RETRIES,
           }),

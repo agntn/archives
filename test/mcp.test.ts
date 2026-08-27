@@ -140,6 +140,30 @@ describe("archives MCP server", () => {
     });
   });
 
+  it("exposes numeric bounds and distinct discovery boundaries in tool descriptions", async () => {
+    const client = await connectTestClient();
+    const response = await client.listTools();
+
+    const snapshots = response.tools.find((t) => t.name === "archives_snapshots")!;
+    const content = response.tools.find((t) => t.name === "archives_content")!;
+
+    expect(snapshots.description).toContain("Use this to find captures, timestamps, and snapshot URLs");
+    expect(content.description).toContain("Use this only when you want the archived body");
+
+    const snapProps = (snapshots.inputSchema as { properties: Record<string, { description?: string }> }).properties;
+    expect(snapProps["limit"]?.description).toContain("accepted range: 1-100");
+    expect(snapProps["ttl"]?.description).toContain("accepted range: 0-2592000000");
+    expect(snapProps["concurrency"]?.description).toContain("accepted range: 1-10");
+    expect(snapProps["batchSize"]?.description).toContain("accepted range: 1-100");
+    expect(snapProps["timeout"]?.description).toContain("accepted range: 1-300000");
+    expect(snapProps["retries"]?.description).toContain("accepted range: 0-10");
+
+    const contentProps = (content.inputSchema as { properties: Record<string, { description?: string }> }).properties;
+    expect(contentProps["maxChars"]?.description).toContain("accepted range: 1-200000");
+    expect(contentProps["timeout"]?.description).toContain("accepted range: 1-300000");
+    expect(contentProps["retries"]?.description).toContain("accepted range: 0-10");
+  });
+
   it("lists providers and flags Perma.cc as unconfigured without an API key", async () => {
     const client = await connectTestClient();
 
