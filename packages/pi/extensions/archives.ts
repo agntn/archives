@@ -276,11 +276,11 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives",
     label: "Archives Snapshots",
     description:
-      "Read-only/open-world network fetch: query web archive providers for archived snapshots of a domain or URL. Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all queries Wayback Machine, Archive.today, Common Crawl, and WebCite; provider=memento uses the public MemGator service to query several archives; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY and searches one exact URL.",
+      "Read-only/open-world network fetch: find captures, timestamps, and snapshot URLs without reading archived bodies. Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all queries Wayback Machine, Archive.today, Common Crawl, and WebCite; provider=memento uses the public MemGator service to query several archives; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY and searches one exact URL.",
     promptSnippet:
-      "Find archived snapshots with archives; use provider=all for broad coverage and provider=wayback for fast Wayback-only lookup.",
+      "Find capture timestamps and snapshot URLs with archives; use archives_content only to read a body.",
     promptGuidelines: [
-      "Use archives when the user asks for archived pages, Wayback/Common Crawl/Archive.today evidence, or historical snapshots of a URL/domain.",
+      "Use archives when the user asks which captures exist, their timestamps, or their snapshot URLs.",
       "Use provider=wayback for fast lookup; use provider=all when coverage matters and unsupported providers are acceptable metadata.",
       "Pass limit conservatively (5-10) unless the user asks for a larger archive sample.",
       "Do not put API keys in tool arguments; Perma.cc keys are read only from the fixed PERMA_CC_API_KEY/PERMACC_API_KEY environment names.",
@@ -299,9 +299,9 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives_content",
     label: "Archives Content",
     description:
-      "Read-only/open-world network fetch: read what an archived page said, not just that a capture exists. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc answer as unsupported.",
+      "Read-only/open-world network fetch for archived bodies. Use this tool only when the caller wants the archived body or already has a capture to read. Returns the capture's original URL, its date, the snapshot it came from, and the body as readable text (format=raw keeps the archived bytes). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc answer as unsupported.",
     promptSnippet:
-      "Read an archived page's text with archives_content; archives lists which captures exist, this returns what one of them said.",
+      "Read an archived page's body with archives_content; archives lists which captures exist.",
     promptGuidelines: [
       "Use archives_content when the question is what a page said at some time, not merely whether it was archived.",
       "Reading a snapshot URL with a generic web fetch returns the archive's own framing; use this tool instead.",

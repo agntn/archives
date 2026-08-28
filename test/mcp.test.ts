@@ -140,6 +140,20 @@ describe("archives MCP server", () => {
     });
   });
 
+  it("routes snapshot URL discovery to the listing tool", async () => {
+    const client = await connectTestClient();
+    const response = await client.listTools();
+    const snapshots = response.tools.find((tool) => tool.name === "archives_snapshots");
+    const content = response.tools.find((tool) => tool.name === "archives_content");
+
+    expect(snapshots?.description).toMatch(
+      /find captures, timestamps, and snapshot URLs without reading archived bodies\./i,
+    );
+    expect(content?.description).toContain(
+      "Use this tool only when the caller wants the archived body or already has a capture to read.",
+    );
+  });
+
   it("keeps numeric bounds visible in parameter descriptions", async () => {
     const client = await connectTestClient();
     const response = await client.listTools();

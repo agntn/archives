@@ -73,6 +73,19 @@ describe("archives OMP extension", () => {
     for (const tool of tools.values()) expect(tool.approval).toBe("read");
   });
 
+  it("routes snapshot URL discovery to the listing tool", () => {
+    const { tools } = registerExtension();
+    const snapshots = requireTool(tools, "archives");
+    const content = requireTool(tools, "archives_content");
+
+    expect(snapshots.description).toMatch(
+      /find captures, timestamps, and snapshot URLs without reading archived bodies\./i,
+    );
+    expect(content.description).toContain(
+      "Use this tool only when the caller wants the archived body or already has a capture to read.",
+    );
+  });
+
   it("declares the content bounds the shared executors enforce", () => {
     const tool = requireTool(registerExtension().tools, "archives_content");
     const properties = (tool.parameters as unknown as TypeBox.TSchema).toJsonSchema()[
