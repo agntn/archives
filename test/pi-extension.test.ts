@@ -167,7 +167,13 @@ describe("Pi extension", () => {
       minimum: 1,
       maximum: MAX_CONTENT_CHARS,
     });
-    expect(properties["maxChars"]?.["description"]).toContain(`Defaults to ${DEFAULT_MAX_CHARS}.`);
+    expect(properties["maxChars"]?.["description"]).toContain(`Defaults to ${DEFAULT_MAX_CHARS}`);
+    for (const parameterName of ["maxChars", "ttl", "timeout", "retries"]) {
+      const parameter = properties[parameterName];
+      expect(parameter?.["description"]).toContain(
+        `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
+      );
+    }
 
     const offeredFormats = (
       (properties["format"]?.["anyOf"] ?? []) as Array<{ const: string }>
@@ -282,7 +288,20 @@ describe("Pi extension", () => {
     // The parameters are declared before the executors can be loaded, so the
     // restated metadata has to match what src/tool-operations actually applies.
     expect(properties["limit"]).toMatchObject({ minimum: 1, maximum: MAX_LIMIT });
-    expect(properties["limit"]?.["description"]).toContain(`Defaults to ${DEFAULT_LIMIT}.`);
+    expect(properties["limit"]?.["description"]).toContain(`Defaults to ${DEFAULT_LIMIT}`);
+    for (const parameterName of [
+      "limit",
+      "ttl",
+      "concurrency",
+      "batchSize",
+      "timeout",
+      "retries",
+    ]) {
+      const parameter = properties[parameterName];
+      expect(parameter?.["description"]).toContain(
+        `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
+      );
+    }
     expect(properties["provider"]?.["description"]).toBe(PROVIDER_HINT);
     expect(properties["from"]?.["description"]).toBe(SNAPSHOT_FROM_HINT);
     expect(properties["to"]?.["description"]).toBe(SNAPSHOT_TO_HINT);
