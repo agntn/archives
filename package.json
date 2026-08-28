@@ -39,6 +39,9 @@
   ],
   "type": "module",
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -69,7 +72,7 @@
     "test:types": "pnpm build && tsc --noEmit --skipLibCheck && tsc --noEmit --skipLibCheck -p tsconfig.extensions.json",
     "build": "obuild",
     "prepack": "pnpm build",
-    "release": "pnpm test && changelogen --release --push && pnpm publish"
+    "release": "pnpm test && changelogen --release --push"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
