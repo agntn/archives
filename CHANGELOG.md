@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.5.1
+
+[compare changes](https://github.com/agntn/archives/compare/v0.5.0...v0.5.1)
+
+### 🚀 Enhancements
+
+- Add native OMP extension ([#25](https://github.com/agntn/archives/pull/25))
+- Add Archive-It provider ([#26](https://github.com/agntn/archives/pull/26))
+- Serve archives over MCP ([#28](https://github.com/agntn/archives/pull/28))
+- Read archived page content ([#29](https://github.com/agntn/archives/pull/29))
+- Add Conifer provider ([#27](https://github.com/agntn/archives/pull/27))
+- Filter snapshot listings by time window ([#33](https://github.com/agntn/archives/pull/33))
+- Fetch Archive.today capture bodies ([#42](https://github.com/agntn/archives/pull/42))
+- Search Memento archives through MemGator ([#46](https://github.com/agntn/archives/pull/46))
+- Keep numeric limits visible to agents ([#49](https://github.com/agntn/archives/pull/49))
+- Clarify snapshot discovery routing ([#50](https://github.com/agntn/archives/pull/50))
+
+### 🔥 Performance
+
+- Build the OMP schemas from the host TypeBox ([#37](https://github.com/agntn/archives/pull/37))
+- Stop resolving typebox at every spawn ([#43](https://github.com/agntn/archives/pull/43))
+
+### 🩹 Fixes
+
+- Cancel archive requests with tool calls ([#30](https://github.com/agntn/archives/pull/30))
+- Fall back to snapshot stamp for unreadable memento dates ([#31](https://github.com/agntn/archives/pull/31))
+- Forward the cancellation signal to Conifer searches ([#32](https://github.com/agntn/archives/pull/32))
+- Keep the OMP loader imports literal ([#34](https://github.com/agntn/archives/pull/34))
+- Build before type-checking the extensions ([#36](https://github.com/agntn/archives/pull/36))
+- List the newest Archive.today capture ([#39](https://github.com/agntn/archives/pull/39))
+- Treat the Common Crawl no-captures 404 as empty ([#41](https://github.com/agntn/archives/pull/41))
+
+### 🤖 CI
+
+- Publish tagged releases through OIDC ([#48](https://github.com/agntn/archives/pull/48))
+
+### ❤️ Contributors
+
+- Ori ([@oritwoen](https://github.com/oritwoen))
+- Aeitwoen <aeitwoen@gmail.com>
+
 ## v0.5.0
 
 [compare changes](https://github.com/agntn/archives/compare/v0.4.0...v0.5.0)
