@@ -156,6 +156,19 @@ describe("Pi extension", () => {
     expect([...runtime.commands.keys()].sort()).toEqual(["archive", "archive-providers"]);
   });
 
+  it("routes snapshot URL discovery to the listing tool", () => {
+    const runtime = loadExtension();
+    const snapshots = runtime.tools.get("archives");
+    const content = runtime.tools.get("archives_content");
+
+    expect(snapshots?.description).toMatch(
+      /find captures, timestamps, and snapshot URLs without reading archived bodies\./i,
+    );
+    expect(content?.description).toContain(
+      "Use this tool only when the caller wants the archived body or already has a capture to read.",
+    );
+  });
+
   it("declares the content schema the shared executors enforce", () => {
     const tool = getExecutableTool(loadExtension(), "archives_content");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
