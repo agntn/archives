@@ -140,6 +140,27 @@ describe("archives MCP server", () => {
     });
   });
 
+  it("keeps numeric bounds visible in parameter descriptions", async () => {
+    const client = await connectTestClient();
+    const response = await client.listTools();
+
+    for (const [toolName, parameterNames] of [
+      ["archives_snapshots", ["limit", "ttl", "concurrency", "batchSize", "timeout", "retries"]],
+      ["archives_content", ["maxChars", "ttl", "timeout", "retries"]],
+    ] as const) {
+      const tool = response.tools.find((candidate) => candidate.name === toolName);
+      if (!tool) throw new Error(`Tool not registered: ${toolName}`);
+      const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>;
+
+      for (const parameterName of parameterNames) {
+        const parameter = properties[parameterName];
+        expect(parameter?.["description"]).toContain(
+          `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
+        );
+      }
+    }
+  });
+
   it("lists providers and flags Perma.cc as unconfigured without an API key", async () => {
     const client = await connectTestClient();
 

@@ -75,7 +75,16 @@ describe("archives OMP extension", () => {
 
   it("declares the content bounds the shared executors enforce", () => {
     const tool = requireTool(registerExtension().tools, "archives_content");
+    const properties = (tool.parameters as unknown as TypeBox.TSchema).toJsonSchema()[
+      "properties"
+    ] as Record<string, Record<string, unknown>>;
 
+    for (const parameterName of ["maxChars", "ttl", "timeout", "retries"]) {
+      const parameter = properties[parameterName];
+      expect(parameter?.["description"]).toContain(
+        `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
+      );
+    }
     expect(accepts(tool, { target: "example.com" })).toBe(true);
     expect(accepts(tool, { target: "example.com", format: "text" })).toBe(true);
     expect(accepts(tool, { target: "example.com", format: "raw" })).toBe(true);
@@ -102,9 +111,25 @@ describe("archives OMP extension", () => {
 
   it("bounds limit where the shared executors reject it", () => {
     const tool = requireTool(registerExtension().tools, "archives");
+    const properties = (tool.parameters as unknown as TypeBox.TSchema).toJsonSchema()[
+      "properties"
+    ] as Record<string, Record<string, unknown>>;
 
     // The parameters are declared before the executors can be loaded, so the
     // restated bound has to match what src/tool-operations actually enforces.
+    for (const parameterName of [
+      "limit",
+      "ttl",
+      "concurrency",
+      "batchSize",
+      "timeout",
+      "retries",
+    ]) {
+      const parameter = properties[parameterName];
+      expect(parameter?.["description"]).toContain(
+        `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
+      );
+    }
     expect(accepts(tool, { target: "example.com", limit: MAX_LIMIT })).toBe(true);
     expect(accepts(tool, { target: "example.com", limit: MAX_LIMIT + 1 })).toBe(false);
     for (const provider of PROVIDER_INPUTS) {

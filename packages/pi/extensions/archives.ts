@@ -103,7 +103,7 @@ const snapshotParameters = Type.Object({
   ),
   limit: Type.Optional(
     Type.Integer({
-      description: `Maximum snapshots to return. Defaults to ${DEFAULT_LIMIT}.`,
+      description: `Maximum snapshots to return. Defaults to ${DEFAULT_LIMIT}; accepted range: 1-${MAX_LIMIT}.`,
       minimum: 1,
       maximum: MAX_LIMIT,
     }),
@@ -112,28 +112,36 @@ const snapshotParameters = Type.Object({
     Type.Boolean({ description: "Enable or disable archives response caching." }),
   ),
   ttl: Type.Optional(
-    Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+    Type.Integer({
+      description: `Cache TTL in milliseconds; accepted range: 0-${MAX_TTL}.`,
+      minimum: 0,
+      maximum: MAX_TTL,
+    }),
   ),
   concurrency: Type.Optional(
-    Type.Integer({ description: "Maximum parallel provider requests.", minimum: 1, maximum: 10 }),
+    Type.Integer({
+      description: "Maximum parallel provider requests; accepted range: 1-10.",
+      minimum: 1,
+      maximum: 10,
+    }),
   ),
   batchSize: Type.Optional(
     Type.Integer({
-      description: "Provider batch size for parallel work.",
+      description: "Provider batch size for parallel work; accepted range: 1-100.",
       minimum: 1,
       maximum: 100,
     }),
   ),
   timeout: Type.Optional(
     Type.Integer({
-      description: "Request timeout in milliseconds.",
+      description: `Request timeout in milliseconds; accepted range: 1-${MAX_TIMEOUT}.`,
       minimum: 1,
       maximum: MAX_TIMEOUT,
     }),
   ),
   retries: Type.Optional(
     Type.Integer({
-      description: "Retry attempts for failed requests.",
+      description: `Retry attempts for failed requests; accepted range: 0-${MAX_RETRIES}.`,
       minimum: 0,
       maximum: MAX_RETRIES,
     }),
@@ -211,7 +219,7 @@ const contentParameters = Type.Object({
   ),
   maxChars: Type.Optional(
     Type.Integer({
-      description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}.`,
+      description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}; accepted range: 1-${MAX_CONTENT_CHARS}.`,
       minimum: 1,
       maximum: MAX_CONTENT_CHARS,
     }),
@@ -220,18 +228,22 @@ const contentParameters = Type.Object({
     Type.Boolean({ description: "Enable or disable archives response caching." }),
   ),
   ttl: Type.Optional(
-    Type.Integer({ description: "Cache TTL in milliseconds.", minimum: 0, maximum: MAX_TTL }),
+    Type.Integer({
+      description: `Cache TTL in milliseconds; accepted range: 0-${MAX_TTL}.`,
+      minimum: 0,
+      maximum: MAX_TTL,
+    }),
   ),
   timeout: Type.Optional(
     Type.Integer({
-      description: `Request timeout in milliseconds. Defaults to ${DEFAULT_CONTENT_TIMEOUT}.`,
+      description: `Request timeout in milliseconds. Defaults to ${DEFAULT_CONTENT_TIMEOUT}; accepted range: 1-${MAX_TIMEOUT}.`,
       minimum: 1,
       maximum: MAX_TIMEOUT,
     }),
   ),
   retries: Type.Optional(
     Type.Integer({
-      description: "Retry attempts for failed requests.",
+      description: `Retry attempts for failed requests; accepted range: 0-${MAX_RETRIES}.`,
       minimum: 0,
       maximum: MAX_RETRIES,
     }),
