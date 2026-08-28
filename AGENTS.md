@@ -116,7 +116,7 @@ archives/
 - **The library decodes, a surface renders**: charset decoding, WARC unwrapping and transfer/content encodings are library work, and the body it returns is text; `htmlToText`, clipping to `maxChars` and the untrusted-data fence are applied in `tool-operations.ts`, so a library consumer keeps the whole document rather than a reader's view of it. Text is the contract, not the raw bytes: a capture that is not text decodes lossily and its bytes stay behind `_meta.rawSnapshot` or the WARC coordinates.
 - **The MCP process does not trust its own cwd**: `src/commands/mcp.ts` calls `setConfigCwd(homedir())` because a client spawns the server in an arbitrary checkout, and c12 executes the `archives.config.ts` it finds. `consola.level` is pinned there too — stdout carries the JSON-RPC frames.
 - **Pi extension packaging**: distributable extension lives under `packages/pi/extensions/*.ts`; `package.json` `pi.extensions` points there and `files` includes the directory.
-- **Release**: `pnpm test && changelogen --release --push && pnpm publish`.
+- **Release**: `pnpm test && changelogen --release --push`; the pushed `v*` tag triggers `.github/workflows/publish.yml`, which publishes to npm through OIDC.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
