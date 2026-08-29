@@ -9,6 +9,16 @@ import type {
   CommonCrawlOptions,
   WebCiteOptions,
 } from "../_providers";
+import { createRetryableLazyImport } from "./_lazy-import";
+
+const loadWaybackModule = createRetryableLazyImport(() => import("./wayback"));
+const loadArchiveItModule = createRetryableLazyImport(() => import("./archive-it"));
+const loadConiferModule = createRetryableLazyImport(() => import("./conifer"));
+const loadArchiveTodayModule = createRetryableLazyImport(() => import("./archive-today"));
+const loadMementoModule = createRetryableLazyImport(() => import("./memento"));
+const loadPermaccModule = createRetryableLazyImport(() => import("./permacc"));
+const loadCommonCrawlModule = createRetryableLazyImport(() => import("./commoncrawl"));
+const loadWebCiteModule = createRetryableLazyImport(() => import("./webcite"));
 
 /**
  * Provider factory with lazy-loading for optimized tree-shaking.
@@ -25,7 +35,7 @@ export const providers = {
    * ```
    */
   async wayback(options?: WaybackOptions): Promise<ArchiveProvider> {
-    const { WaybackProvider } = await import("./wayback");
+    const { WaybackProvider } = await loadWaybackModule();
     return new WaybackProvider(options);
   },
 
@@ -39,7 +49,7 @@ export const providers = {
    * ```
    */
   async archiveIt(options: ArchiveItOptions): Promise<ArchiveProvider> {
-    const { ArchiveItProvider } = await import("./archive-it");
+    const { ArchiveItProvider } = await loadArchiveItModule();
     return new ArchiveItProvider(options);
   },
 
@@ -53,7 +63,7 @@ export const providers = {
    * ```
    */
   async conifer(options: ConiferOptions): Promise<ArchiveProvider> {
-    const { ConiferProvider } = await import("./conifer");
+    const { ConiferProvider } = await loadConiferModule();
     return new ConiferProvider(options);
   },
 
@@ -67,13 +77,13 @@ export const providers = {
    * ```
    */
   async archiveToday(options?: ArchiveTodayOptions): Promise<ArchiveProvider> {
-    const { ArchiveTodayProvider } = await import("./archive-today");
+    const { ArchiveTodayProvider } = await loadArchiveTodayModule();
     return new ArchiveTodayProvider(options);
   },
 
   /** Creates a lazily loaded Memento provider that uses MemGator. */
   async memento(options?: MementoOptions): Promise<ArchiveProvider> {
-    const { MementoProvider } = await import("./memento");
+    const { MementoProvider } = await loadMementoModule();
     return new MementoProvider(options);
   },
 
@@ -87,7 +97,7 @@ export const providers = {
    * ```
    */
   async permacc(options?: Partial<PermaccOptions>): Promise<ArchiveProvider> {
-    const { PermaccProvider } = await import("./permacc");
+    const { PermaccProvider } = await loadPermaccModule();
     return new PermaccProvider(options);
   },
 
@@ -101,7 +111,7 @@ export const providers = {
    * ```
    */
   async commoncrawl(options?: CommonCrawlOptions): Promise<ArchiveProvider> {
-    const { CommonCrawlProvider } = await import("./commoncrawl");
+    const { CommonCrawlProvider } = await loadCommonCrawlModule();
     return new CommonCrawlProvider(options);
   },
 
@@ -115,7 +125,7 @@ export const providers = {
    * ```
    */
   async webcite(options?: WebCiteOptions): Promise<ArchiveProvider> {
-    const { WebCiteProvider } = await import("./webcite");
+    const { WebCiteProvider } = await loadWebCiteModule();
     return new WebCiteProvider(options);
   },
 
