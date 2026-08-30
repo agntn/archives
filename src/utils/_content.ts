@@ -43,8 +43,13 @@ const CHARSET_PARAMETER = /charset\s*=\s*"?([\w-]+)"?/i;
 const META_CHARSET = /<meta[^>]+charset\s*=\s*["']?\s*([\w-]+)/i;
 const HTTP_STATUS_LINE = /^HTTP\/[\d.]+\s+(\d{3})/i;
 
-/** Effective byte cap for one content request. */
-export function resolveMaxBytes(options: ArchiveContentOptions = {}): number {
+/**
+ * Effective byte cap for one content request.
+ *
+ * @param options - Options.
+ * @returns {number} The resulting number.
+ */
+export function resolveMaxBytes(options: Readonly<ArchiveContentOptions> = {}): number {
   const requested = options.maxBytes;
   if (typeof requested !== "number" || !Number.isFinite(requested)) {
     return DEFAULT_MAX_CONTENT_BYTES;
@@ -59,7 +64,7 @@ export function resolveMaxBytes(options: ArchiveContentOptions = {}): number {
  * so padding it to `20190101000000` would silently ask for the opposite window.
  *
  * @param value - Wayback-style digits or an ISO 8601 date
- * @returns Validated timestamp digits, or an empty string when unusable
+ * @returns {string} Validated timestamp digits, or an empty string when unusable
  */
 export function toWaybackTimestamp(value: string): string {
   const raw = value.trim();
@@ -86,7 +91,7 @@ function isoToWaybackDigits(value: string): string {
     const parsable = /^[+-]\d{2}$/.test(offset) ? `${trimmed}:00` : trimmed;
     const instant = new Date(parsable);
     if (Number.isNaN(instant.getTime())) return "";
-    return instant.toISOString().replace(/\D/g, "").slice(0, 14);
+    return instant.toISOString().replaceAll(/\D/g, "").slice(0, 14);
   }
 
   const match = ISO_LIKE_TIMESTAMP.exec(trimmed);
@@ -102,8 +107,8 @@ function isoToWaybackDigits(value: string): string {
  *
  * @param timestamp - Requested capture time, or nothing for the newest capture
  * @param name - Which option the value came from, for the error message
- * @returns Validated timestamp digits, empty when none was requested
- * @throws When the value is not a timestamp any archive could act on
+ * @returns {string} Validated timestamp digits, empty when none was requested
+ * @throws {Error} When the value is not a timestamp any archive could act on
  */
 export function resolveRequestedTimestamp(
   timestamp: string | undefined,
@@ -124,6 +129,10 @@ export function resolveRequestedTimestamp(
 /**
  * Pads a possibly partial timestamp to the upper edge of the period it names,
  * so `2019` compares as the last instant of 2019 rather than its first.
+
+ *
+ * @param timestamp - Timestamp.
+ * @returns {string} The resulting string.
  */
 export function timestampUpperBound(timestamp: string): string {
   return timestamp.length >= 14 ? timestamp : timestamp + "9".repeat(14 - timestamp.length);
@@ -132,6 +141,10 @@ export function timestampUpperBound(timestamp: string): string {
 /**
  * Pads a possibly partial timestamp to the lower edge of the period it names.
  * The counterpart of {@link timestampUpperBound}, for the `from` side of a window.
+
+ *
+ * @param timestamp - Timestamp.
+ * @returns {string} The resulting string.
  */
 export function timestampLowerBound(timestamp: string): string {
   return timestamp.length >= 14 ? timestamp : timestamp + "0".repeat(14 - timestamp.length);
@@ -145,7 +158,7 @@ export function timestampLowerBound(timestamp: string): string {
  * itself*, and that query answers with something, which is worse than failing.
  *
  * @param input - Any URL, archived or not
- * @returns The original URL, plus the capture timestamp when the input carried one
+ * @returns {{ url: string; timestamp?: string }} The original URL, plus the capture timestamp when the input carried one
  */
 export function unwrapSnapshotUrl(input: string): { url: string; timestamp?: string } {
   const raw = input.trim();
@@ -167,6 +180,9 @@ export function unwrapSnapshotUrl(input: string): { url: string; timestamp?: str
  * no capture exists.
  *
  * @param url - Target as the caller supplied it
+
+ *
+ * @returns {string | undefined} The operation result.
  */
 export function unreadableTargetReason(url: string): string | undefined {
   if (/^https?:\/\/data\.commoncrawl\.org\//i.test(url.trim())) {
@@ -186,15 +202,18 @@ export function unreadableTargetReason(url: string): string | undefined {
  * @param captures - Candidates from the index
  * @param target - URL the caller asked for
  * @param urlOf - Reads the URL a candidate was recorded under
+
+ *
+ * @returns {T[]} The resulting values.
  */
 export function preferSameUrl<T>(
-  captures: T[],
+  captures: readonly T[],
   target: string,
   urlOf: (capture: T) => string,
 ): T[] {
   const wanted = canonicalUrlKey(target);
   const sameUrl = captures.filter((capture) => canonicalUrlKey(urlOf(capture)) === wanted);
-  if (sameUrl.length === 0) return captures;
+  if (sameUrl.length === 0) return [...captures];
 
   // A CDX key drops the scheme too, so the index answers a request for the HTTPS
   // page with the HTTP captures beside it. Narrow to the scheme the caller wrote,
@@ -211,7 +230,7 @@ function schemeOf(value: string): string {
   return /^(https?):\/\//i.exec(value.trim())?.[1].toLowerCase() ?? "";
 }
 
-/** Reduces a URL to the differences that matter when comparing two spellings of it. */
+/* Reduces a URL to the differences that matter when comparing two spellings of it. */
 function canonicalUrlKey(value: string): string {
   return (
     value
@@ -232,9 +251,12 @@ function canonicalUrlKey(value: string): string {
  *
  * @param captures - Candidates carrying Wayback-style timestamp digits
  * @param timestamp - Validated timestamp digits, possibly partial
+
+ *
+ * @returns {T | undefined} The operation result.
  */
 export function selectCapture<T extends { timestamp: string; status?: number }>(
-  captures: T[],
+  captures: readonly T[],
   timestamp?: string,
 ): T | undefined {
   if (captures.length === 0) return undefined;
@@ -260,7 +282,7 @@ export function selectCapture<T extends { timestamp: string; status?: number }>(
   return atOrBefore.length > 0 ? pickPreferred(atOrBefore) : pickPreferred(ordered);
 }
 
-/**
+/*
  * Takes the first candidate that recorded a successful response, and the most
  * preferred one when none did.
  *
@@ -269,14 +291,14 @@ export function selectCapture<T extends { timestamp: string; status?: number }>(
  *
  * @param preferred - Candidates, most preferred first
  */
-function pickPreferred<T extends { status?: number }>(preferred: T[]): T | undefined {
+function pickPreferred<T extends { status?: number }>(preferred: readonly T[]): T | undefined {
   return (
     preferred.find((capture) => capture.status === undefined || isOkStatus(capture.status)) ??
     preferred[0]
   );
 }
 
-/** Orders timestamp digits chronologically, with a partial stamp before what it prefixes. */
+/* Orders timestamp digits chronologically, with a partial stamp before what it prefixes. */
 function compareTimestamps(left: string, right: string): number {
   if (left === right) return 0;
   return left < right ? -1 : 1;
@@ -305,9 +327,23 @@ export interface FetchBodyPolicy {
   maxRedirects?: number;
 }
 
+type FetchBodyOptions = Readonly<ArchiveContentOptions> & {
+  readonly headers?: Readonly<Record<string, string>>;
+};
+
+type PlaybackCaptureRequest = Readonly<{
+  baseURL: string;
+  prefix: string;
+  original: string;
+  stamp: string;
+  provider: string;
+  options: Readonly<ArchiveContentOptions>;
+  meta?: Readonly<Record<string, unknown>>;
+}>;
+
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
-/** Converts one final raw response into the bounded body contract. */
+/* Converts one final raw response into the bounded body contract. */
 async function decodeFetchedResponse(
   response: FetchResponse<unknown>,
   maxBytes: number,
@@ -327,46 +363,53 @@ async function decodeFetchedResponse(
   };
 }
 
-/**
- * GETs one URL and decodes at most `maxBytes` of its body.
- *
- * The body is streamed rather than buffered so the cap is a real one: an
- * archived 60 MB video must not be pulled into memory to be thrown away.
- * A policy switches redirects to manual handling so every destination can be
- * checked before the network request rather than only after it has happened.
- *
- * @param baseURL - Origin of the archive endpoint
- * @param path - Path to request, already URL-shaped
- * @param options - Byte cap plus the shared timeout and retry options
- * @param policy - Optional validation applied before the initial request and every redirect
- */
-export async function fetchBody(
+async function fetchUncheckedBody(
   baseURL: string,
   path: string,
-  options: ArchiveContentOptions & { headers?: Record<string, string> } = {},
-  policy?: FetchBodyPolicy,
+  options: Readonly<FetchBodyOptions>,
+  maxBytes: number,
 ): Promise<FetchedBody> {
-  const maxBytes = resolveMaxBytes(options);
+  const fetchOptions = await createFetchOptions(
+    baseURL,
+    {},
+    {
+      responseType: "stream",
+      retries: options.retries,
+      signal: options.signal,
+      timeout: options.timeout,
+      ...(options.headers ? { headers: options.headers } : {}),
+    },
+  );
+  const response = await $fetch.raw(path, fetchOptions);
+  return decodeFetchedResponse(response, maxBytes, `${baseURL}${path}`);
+}
 
-  if (!policy) {
-    const fetchOptions = await createFetchOptions(
-      baseURL,
-      {},
-      {
-        responseType: "stream",
-        retries: options.retries,
-        signal: options.signal,
-        timeout: options.timeout,
-        ...(options.headers ? { headers: options.headers } : {}),
-      },
-    );
-    const response = await $fetch.raw(path, fetchOptions);
-    return decodeFetchedResponse(response, maxBytes, `${baseURL}${path}`);
+async function redirectDestination(
+  response: FetchResponse<unknown>,
+  current: URL,
+  redirectCount: number,
+  maxRedirects: number,
+): Promise<URL> {
+  if (isReadableStream(response._data)) {
+    await response._data.cancel().catch(() => undefined);
   }
+  if (redirectCount >= maxRedirects) {
+    throw new Error(`Archive playback exceeded ${maxRedirects} redirects`);
+  }
+  const location = headerValue(response.headers, "location");
+  if (!location) throw new Error("Archive playback redirected without a Location header");
+  return new URL(location, current);
+}
 
+async function fetchPolicyBody(
+  baseURL: string,
+  path: string,
+  options: Readonly<FetchBodyOptions>,
+  policy: Readonly<FetchBodyPolicy>,
+  maxBytes: number,
+): Promise<FetchedBody> {
   const maxRedirects = policy.maxRedirects ?? 5;
   let current = new URL(path, baseURL);
-
   for (let redirectCount = 0; ; redirectCount++) {
     policy.assertURL(current);
     const fetchOptions = await createFetchOptions(
@@ -381,23 +424,40 @@ export async function fetchBody(
         ...(options.headers ? { headers: options.headers } : {}),
       },
     );
-    const requestPath = `${current.pathname}${current.search}`;
-    const response = await $fetch.raw(requestPath, fetchOptions);
-
+    const response = await $fetch.raw(`${current.pathname}${current.search}`, fetchOptions);
     if (!REDIRECT_STATUSES.has(response.status)) {
       return decodeFetchedResponse(response, maxBytes, current.href);
     }
-    if (isReadableStream(response._data)) {
-      await response._data.cancel().catch(() => undefined);
-    }
-    if (redirectCount >= maxRedirects) {
-      throw new Error(`Archive playback exceeded ${maxRedirects} redirects`);
-    }
-
-    const location = headerValue(response.headers, "location");
-    if (!location) throw new Error("Archive playback redirected without a Location header");
-    current = new URL(location, current);
+    current = await redirectDestination(response, current, redirectCount, maxRedirects);
   }
+}
+
+/**
+ * GETs one URL and decodes at most `maxBytes` of its body.
+ *
+ * The body is streamed rather than buffered so the cap is a real one: an
+ * archived 60 MB video must not be pulled into memory to be thrown away.
+ * A policy switches redirects to manual handling so every destination can be
+ * checked before the network request rather than only after it has happened.
+ *
+ * @param baseURL - Origin of the archive endpoint
+ * @param path - Path to request, already URL-shaped
+ * @param options - Byte cap plus the shared timeout and retry options
+ * @param policy - Optional validation applied before the initial request and every redirect
+
+ *
+ * @returns {Promise<FetchedBody>} A promise resolving to the operation result.
+ */
+export async function fetchBody(
+  baseURL: string,
+  path: string,
+  options: FetchBodyOptions = {},
+  policy?: Readonly<FetchBodyPolicy>,
+): Promise<FetchedBody> {
+  const maxBytes = resolveMaxBytes(options);
+  return policy
+    ? fetchPolicyBody(baseURL, path, options, policy, maxBytes)
+    : fetchUncheckedBody(baseURL, path, options, maxBytes);
 }
 
 /**
@@ -408,20 +468,13 @@ export async function fetchBody(
  * caller reads the archive's rendition instead of what the site served.
  *
  * @param params - Playback location, the capture to replay, and the read options
+
+ *
+ * @returns {Promise<ArchivedContent>} A promise resolving to the operation result.
  */
-export async function readPlaybackCapture(params: {
-  /** Origin of the playback host. */
-  baseURL: string;
-  /** Path segment before the timestamp, such as `/web` or `/4399`. */
-  prefix: string;
-  /** Original URL as the archive recorded it. */
-  original: string;
-  /** Capture timestamp digits. */
-  stamp: string;
-  provider: string;
-  options: ArchiveContentOptions;
-  meta?: Record<string, unknown>;
-}): Promise<ArchivedContent> {
+export async function readPlaybackCapture(
+  params: PlaybackCaptureRequest,
+): Promise<ArchivedContent> {
   const { baseURL, prefix, original, stamp, provider, options } = params;
   const body = await fetchBody(baseURL, `${prefix}/${stamp}id_/${original}`, options);
 
@@ -461,7 +514,10 @@ export async function readPlaybackCapture(params: {
  * @param source - Compressed payload, as a stream or as bytes
  * @param maxBytes - Cap on the decompressed size
  * @param format - Compression the payload carries
- * @throws When the runtime has no `DecompressionStream`
+ * @throws {Error} When the runtime has no `DecompressionStream`
+
+ *
+ * @returns {Promise<{ bytes: Uint8Array; truncated: boolean }>} A promise resolving to the operation result.
  */
 export async function decompress(
   source: unknown,
@@ -469,7 +525,9 @@ export async function decompress(
   format: CompressionFormat = "gzip",
 ): Promise<{ bytes: Uint8Array; truncated: boolean }> {
   if (typeof DecompressionStream !== "function") {
-    throw new Error("Reading Common Crawl records requires DecompressionStream in this runtime");
+    throw new TypeError(
+      "Reading Common Crawl records requires DecompressionStream in this runtime",
+    );
   }
 
   return readCappedBytes(
@@ -485,7 +543,13 @@ export async function decompress(
  * stored compressed. Decoding it as text without this produces bytes that look
  * like a broken charset and read like nothing at all.
  *
- * @throws For an encoding this runtime cannot undo, rather than returning noise
+ * @throws {Error} For an encoding this runtime cannot undo, rather than returning noise
+
+ *
+ * @param body - Body.
+ * @param encoding - Encoding.
+ * @param maxBytes - Max Bytes.
+ * @returns {Promise<{ bytes: Uint8Array; truncated: boolean }>} A promise resolving to the operation result.
  */
 export async function decodeContentEncoding(
   body: Uint8Array,
@@ -512,6 +576,10 @@ export async function decodeContentEncoding(
  *
  * The framing travelled with the response, so the size lines sit inside the
  * stored bytes and would otherwise be read as part of the page.
+
+ *
+ * @param body - Body.
+ * @returns {Uint8Array} The operation result.
  */
 export function dechunkHttpBody(body: Uint8Array): Uint8Array {
   const chunks: Uint8Array[] = [];
@@ -541,7 +609,7 @@ function indexOfCrlf(bytes: Uint8Array, from: number): number | undefined {
   return undefined;
 }
 
-function concatBytes(chunks: Uint8Array[]): Uint8Array {
+function concatBytes(chunks: readonly Uint8Array[]): Uint8Array {
   const total = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
   const bytes = new Uint8Array(total);
   let offset = 0;
@@ -552,7 +620,7 @@ function concatBytes(chunks: Uint8Array[]): Uint8Array {
   return bytes;
 }
 
-/**
+/*
  * Presents a fetched payload as a stream, so the cap applies while the bytes
  * arrive rather than after they are all in memory.
  */
@@ -574,6 +642,9 @@ function toByteStream(source: unknown) {
  * another blank line, and then the bytes the server sent.
  *
  * @param record - One decompressed WARC record
+
+ *
+ * @returns {{ httpHeaders: string; body: Uint8Array } | undefined} The operation result.
  */
 export function splitWarcRecord(
   record: Uint8Array,
@@ -598,7 +669,12 @@ export interface HttpHead {
   transferEncoding?: string;
 }
 
-/** Reads the status line and the headers that decide how to read the body. */
+/**
+ * Reads the status line and the headers that decide how to read the body.
+ *
+ * @param headers - Headers.
+ * @returns {HttpHead} The operation result.
+ */
 export function parseHttpHeaders(headers: string): HttpHead {
   const lines = headers.split(/\r?\n/);
   const statusMatch = HTTP_STATUS_LINE.exec(lines[0] ?? "");
@@ -620,32 +696,81 @@ export function parseHttpHeaders(headers: string): HttpHead {
   };
 }
 
-/** Slack to add to a byte cap so a record's headers do not eat the caller's budget. */
+/**
+ * Slack to add to a byte cap so a record's headers do not eat the caller's budget.
+ *
+ * @param maxBytes - Max Bytes.
+ * @returns {number} The resulting number.
+ */
 export function withHeaderSlack(maxBytes: number): number {
   return maxBytes + WARC_HEADER_SLACK;
 }
 
-/** Reduces a content type to its media type, dropping `; charset=…`. */
+/**
+ * Reduces a content type to its media type, dropping `; charset=…`.
+ *
+ * @param contentType - Content Type.
+ * @returns {string | undefined} The operation result.
+ */
 export function baseMime(contentType: string | undefined): string | undefined {
   if (!contentType) return undefined;
   const mime = contentType.split(";")[0]?.trim().toLowerCase();
   return mime || undefined;
 }
 
-/** True for the media types whose bodies are text a caller can read. */
+const TEXTUAL_APPLICATION_MIMES = new Set([
+  "application/json",
+  "application/xml",
+  "application/xhtml+xml",
+  "application/javascript",
+  "application/x-javascript",
+  "application/ecmascript",
+]);
+
+/**
+ * True for the media types whose bodies are text a caller can read.
+ *
+ * @param mime - Mime.
+ * @returns {boolean} Whether the condition is met.
+ */
 export function isTextualMime(mime: string | undefined): boolean {
   if (!mime) return true; // Unknown type: the decoded body is the only evidence either way.
   return (
     mime.startsWith("text/") ||
     mime.endsWith("+xml") ||
     mime.endsWith("+json") ||
-    mime === "application/json" ||
-    mime === "application/xml" ||
-    mime === "application/xhtml+xml" ||
-    mime === "application/javascript" ||
-    mime === "application/x-javascript" ||
-    mime === "application/ecmascript"
+    TEXTUAL_APPLICATION_MIMES.has(mime)
   );
+}
+
+interface HtmlChunk {
+  text: string;
+  cursor: number;
+}
+
+function commentChunk(lower: string, open: number): HtmlChunk | undefined {
+  const end = lower.indexOf("-->", open + 4);
+  return end === -1 ? undefined : { text: " ", cursor: end + 3 };
+}
+
+function opensMarkupAt(lower: string, open: number): boolean {
+  const value = lower.codePointAt(open + 1) ?? Number.NaN;
+  return isNameByte(value) || value === 47 || value === 33 || value === 63;
+}
+
+function noiseTagChunk(lower: string, tag: Readonly<TagName>, open: number): HtmlChunk | undefined {
+  const closeStart = indexOfClosingTag(lower, tag.name, open + tag.name.length + 1);
+  if (closeStart === -1) return undefined;
+  const closeEnd = indexOfTagEnd(lower, closeStart);
+  return closeEnd === -1 ? undefined : { text: " ", cursor: closeEnd + 1 };
+}
+
+function markupChunk(lower: string, open: number): HtmlChunk | undefined {
+  if (!opensMarkupAt(lower, open)) return { text: "<", cursor: open + 1 };
+  const tag = readTagName(lower, open);
+  if (!tag.closing && NOISE_TAGS.has(tag.name)) return noiseTagChunk(lower, tag, open);
+  const tagEnd = indexOfTagEnd(lower, open);
+  return tagEnd === -1 ? undefined : { text: endsLine(tag) ? "\n" : " ", cursor: tagEnd + 1 };
 }
 
 /**
@@ -658,15 +783,19 @@ export function isTextualMime(mime: string | undefined): boolean {
  * unterminated-construct pattern that job needs (`<!--…-->`, `<script>…</script>`,
  * `<[^>]*>`) backtracks quadratically over an input that never terminates them,
  * and an archived page is an input an attacker picks. Measured before the
- * rewrite: 128 KiB of bare `<` took 9.8 seconds of one CPU.
+ * rewrite: 128 KiB of bare `<` took 9.8 seconds of one CPU. An unterminated
+ * construct is treated as markup cut off by truncation, not reader-visible text.
  *
  * @param html - Archived markup
+
+ *
+ * @returns {string} The resulting string.
  */
 export function htmlToText(html: string): string {
   // Searches run against an ASCII-lowered copy so tag names match whatever case
   // the document used; `[A-Z]` preserves length, so the indices still address the
   // original and slices come out unchanged.
-  const lower = html.replace(/[A-Z]/g, (letter) => letter.toLowerCase());
+  const lower = html.replaceAll(/[A-Z]/g, (letter) => letter.toLowerCase());
   const parts: string[] = [];
   let cursor = 0;
 
@@ -678,49 +807,19 @@ export function htmlToText(html: string): string {
     }
     parts.push(html.slice(cursor, open));
 
-    if (lower.startsWith("<!--", open)) {
-      const commentEnd = lower.indexOf("-->", open + 4);
-      // An unterminated construct means truncation cut the document mid-markup,
-      // and what follows is its source rather than anything a reader would see.
-      if (commentEnd === -1) break;
-      parts.push(" ");
-      cursor = commentEnd + 3;
-      continue;
-    }
-
-    // A `<` that opens nothing is text. `Price: 2 < 3 and 5 > 4` would otherwise
-    // lose everything up to the next `>` as if it were a tag.
-    const afterAngle = lower.charCodeAt(open + 1);
-    const opensMarkup =
-      isNameByte(afterAngle) || afterAngle === 47 || afterAngle === 33 || afterAngle === 63;
-    if (!opensMarkup) {
-      parts.push("<");
-      cursor = open + 1;
-      continue;
-    }
-
-    const tag = readTagName(lower, open);
-    if (!tag.closing && NOISE_TAGS.has(tag.name)) {
-      const closeStart = indexOfClosingTag(lower, tag.name, open + tag.name.length + 1);
-      if (closeStart === -1) break;
-      const closeEnd = indexOfTagEnd(lower, closeStart);
-      if (closeEnd === -1) break;
-      parts.push(" ");
-      cursor = closeEnd + 1;
-      continue;
-    }
-
-    const tagEnd = indexOfTagEnd(lower, open);
-    if (tagEnd === -1) break;
-    parts.push(endsLine(tag) ? "\n" : " ");
-    cursor = tagEnd + 1;
+    const chunk = lower.startsWith("<!--", open)
+      ? commentChunk(lower, open)
+      : markupChunk(lower, open);
+    if (!chunk) break;
+    parts.push(chunk.text);
+    cursor = chunk.cursor;
   }
 
   return decodeEntities(parts.join(""))
     .split("\n")
-    .map((line) => line.replace(/[^\S\n]+/g, " ").trim())
+    .map((line) => line.replaceAll(/[^\S\n]+/g, " ").trim())
     .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
+    .replaceAll(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -752,19 +851,19 @@ interface TagName {
   closing: boolean;
 }
 
-/** Reads the element name at a `<` position, lowercased and without its slash. */
+/* Reads the element name at a `<` position, lowercased and without its slash. */
 function readTagName(lower: string, open: number): TagName {
   let index = open + 1;
   const closing = lower[index] === "/";
   if (closing) index++;
 
   const start = index;
-  while (index < lower.length && isNameByte(lower.charCodeAt(index))) index++;
+  while (index < lower.length && isNameByte(lower.codePointAt(index) ?? Number.NaN)) index++;
 
   return { name: lower.slice(start, index), closing };
 }
 
-/**
+/*
  * Finds where a tag ends, ignoring a `>` inside a quoted attribute value.
  *
  * `<div title="1 > 0">` is valid markup, and stopping at the first `>` leaks the
@@ -789,7 +888,7 @@ function indexOfTagEnd(source: string, open: number): number {
   return -1;
 }
 
-/**
+/*
  * Finds the closing tag for one element name.
  *
  * The name has to end where the match ends: `</scripture>` inside a script is
@@ -803,7 +902,7 @@ function indexOfClosingTag(lower: string, name: string, from: number): number {
     const found = lower.indexOf(`</${name}`, cursor);
     if (found === -1) return -1;
 
-    const after = lower.charCodeAt(found + name.length + 2);
+    const after = lower.codePointAt(found + name.length + 2) ?? Number.NaN;
     // End of input, `>`, `/` or whitespace all close the name.
     if (Number.isNaN(after) || after === 62 || after === 47 || after <= 32) return found;
     cursor = found + 1;
@@ -817,7 +916,7 @@ function isNameByte(code: number): boolean {
   return (code >= 97 && code <= 122) || (code >= 48 && code <= 57);
 }
 
-function endsLine(tag: TagName): boolean {
+function endsLine(tag: Readonly<TagName>): boolean {
   return tag.closing ? BLOCK_TAGS.has(tag.name) : BREAK_TAGS.has(tag.name);
 }
 
@@ -840,7 +939,7 @@ const NAMED_ENTITIES: Record<string, string> = {
 };
 
 function decodeEntities(text: string): string {
-  return text.replace(/&(#x?[\da-f]+|[a-z]+);/gi, (match, entity: string) => {
+  return text.replaceAll(/&(#x?[\da-f]+|[a-z]+);/gi, (match, entity: string) => {
     const lowered = entity.toLowerCase();
     if (lowered.startsWith("#")) {
       const codePoint = lowered.startsWith("#x")
@@ -863,12 +962,15 @@ function decodeEntities(text: string): string {
  *
  * @param bytes - Body of the archived response
  * @param contentType - Content type the archive recorded for it
+
+ *
+ * @returns {string} The resulting string.
  */
 export function decodeArchivedBody(bytes: Uint8Array, contentType?: string): string {
   return decodeBytes(bytes, charsetOf(contentType, bytes));
 }
 
-/** Picks the character set to decode with: the declared one, then the document's own. */
+/* Picks the character set to decode with: the declared one, then the document's own. */
 function charsetOf(contentType: string | undefined, bytes: Uint8Array): string | undefined {
   const declared = contentType ? CHARSET_PARAMETER.exec(contentType)?.[1] : undefined;
   if (declared) return declared;
@@ -900,7 +1002,7 @@ function parseMementoDatetime(value: string | undefined): string | undefined {
   return parsed.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-/** Reads a header from either a `Headers` instance or a plain record. */
+/* Reads a header from either a `Headers` instance or a plain record. */
 function headerValue(headers: unknown, name: string): string | undefined {
   if (!headers || typeof headers !== "object") return undefined;
 
@@ -916,7 +1018,7 @@ function headerValue(headers: unknown, name: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-/**
+/*
  * Reads at most `maxBytes` from whatever ofetch produced for the body.
  *
  * A stream is the normal case; the buffer and string branches keep the helper
@@ -962,7 +1064,7 @@ function isReadableStream(value: unknown): value is ReadableStream<Uint8Array> {
 }
 
 async function readStream(
-  stream: ReadableStream<Uint8Array>,
+  stream: Readonly<ReadableStream<Uint8Array>>,
   maxBytes: number,
 ): Promise<{ bytes: Uint8Array; truncated: boolean }> {
   const reader = stream.getReader();
@@ -1001,7 +1103,7 @@ async function readStream(
   return { bytes: concatBytes(chunks), truncated };
 }
 
-/** Locates the blank line separating a header block from what follows it. */
+/* Locates the blank line separating a header block from what follows it. */
 function indexOfBlankLine(
   bytes: Uint8Array,
   from: number,

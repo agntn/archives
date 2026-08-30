@@ -23,7 +23,7 @@ export abstract class BaseProvider<
 > implements ArchiveProvider {
   abstract readonly name: string;
   abstract readonly slug?: string;
-  cacheKey(_options?: ArchiveOptions): string | undefined {
+  cacheKey(_options?: Readonly<ArchiveOptions>): string | undefined {
     return undefined;
   }
 
@@ -43,14 +43,19 @@ export abstract class BaseProvider<
     return mergeOptions<TOptions>(this.options, reqOptions);
   }
 
-  /** Same cascade as {@link resolveOptions}, keeping the content-only options typed. */
+  /**
+   * Same cascade as {@link resolveOptions}, keeping the content-only options typed.
+   *
+   * @param reqOptions - Req Options.
+   * @returns {Promise<TOptions & ArchiveContentOptions>} A promise resolving to the operation result.
+   */
   protected resolveContentOptions(
-    reqOptions: Partial<TOptions> & ArchiveContentOptions = {},
+    reqOptions?: Readonly<Partial<TOptions & ArchiveContentOptions>>,
   ): Promise<TOptions & ArchiveContentOptions> {
-    return mergeOptions<TOptions & ArchiveContentOptions>(this.options, reqOptions);
+    return mergeOptions<TOptions & ArchiveContentOptions>(this.options, reqOptions ?? {});
   }
 
-  abstract snapshots(domain: string, options?: ArchiveOptions): Promise<ArchiveResponse>;
+  abstract snapshots(domain: string, options?: Readonly<ArchiveOptions>): Promise<ArchiveResponse>;
 
-  content?(url: string, options?: ArchiveContentOptions): Promise<ArchiveContentResponse>;
+  content?(url: string, options?: Readonly<ArchiveContentOptions>): Promise<ArchiveContentResponse>;
 }

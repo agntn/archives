@@ -1,3 +1,4 @@
+import { anyValue, objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getConfig, resolveConfig, resetConfig } from "../src/config";
 import { loadConfig } from "c12";
@@ -42,10 +43,10 @@ describe("Config", () => {
     // Assert
     expect(config).toEqual(defaultMockConfig);
     expect(mockedLoadConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
+      objectContaining({
         name: "archives",
-        defaults: expect.any(Object),
-        envName: expect.any(String),
+        defaults: anyValue(Object),
+        envName: anyValue(String),
         rcFile: ".archives",
         packageJson: true,
       }),
@@ -146,9 +147,9 @@ describe("Config", () => {
 
     // Assert
     expect(mockedLoadConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
+      objectContaining({
         name: "archives",
-        defaults: expect.any(Object),
+        defaults: anyValue(Object),
         envName: "production",
         cwd: "/custom/path",
         configFile: "custom.config.ts",
@@ -168,7 +169,7 @@ describe("Config", () => {
 
     // Assert
     expect(mockedLoadConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
+      objectContaining({
         envName: "test",
       }),
     );

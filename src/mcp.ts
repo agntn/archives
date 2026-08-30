@@ -43,8 +43,8 @@ interface ToolDefinition {
   inputSchema: TSchema;
   annotations: Tool["annotations"];
   execute(
-    args: Record<string, unknown>,
-    signal?: AbortSignal,
+    args: Readonly<Record<string, unknown>>,
+    signal?: Readonly<AbortSignal>,
   ): ToolResult<unknown> | Promise<ToolResult<unknown>>;
 }
 
@@ -280,7 +280,7 @@ const tools: ToolDefinition[] = [
   },
 ];
 
-/** Formats the first TypeBox validation failure for an MCP client. */
+/* Formats the first TypeBox validation failure for an MCP client. */
 function validationError(schema: TSchema, value: unknown): string {
   const first = Value.Errors(schema, value)[0];
   if (!first) return "Invalid arguments";
@@ -299,7 +299,7 @@ function validationError(schema: TSchema, value: unknown): string {
   return `Invalid arguments at ${path}: ${detail}`;
 }
 
-/** Names the arguments a closed schema does not declare. */
+/* Names the arguments a closed schema does not declare. */
 function unknownProperties(schema: TSchema, value: unknown): string[] {
   const node = schema as Record<string, unknown>;
   if (node["additionalProperties"] !== false) return [];
@@ -308,7 +308,7 @@ function unknownProperties(schema: TSchema, value: unknown): string[] {
   return Object.keys(value).filter((key) => !declared.has(key));
 }
 
-/** Lists the literals a union at `instancePath` accepts, when that is what failed. */
+/* Lists the literals a union at `instancePath` accepts, when that is what failed. */
 function allowedValues(schema: TSchema, instancePath: string): string | undefined {
   let node = schema as Record<string, unknown>;
   for (const segment of instancePath.split("/").filter(Boolean)) {
@@ -325,7 +325,7 @@ function allowedValues(schema: TSchema, instancePath: string): string | undefine
   return literals.map((literal) => String(literal)).join(", ");
 }
 
-/**
+/*
  * Converts a shared tool result to the MCP text-result contract.
  *
  * `details` is dropped and `structuredContent` is never set: clients that see
@@ -335,7 +335,7 @@ function toCallToolResult(result: ToolResult<unknown>): CallToolResult {
   return { content: result.content, ...(result.isError ? { isError: true } : {}) };
 }
 
-/** Error text is model- or provider-controlled, so it crosses the same boundary. */
+/* Error text is model- or provider-controlled, so it crosses the same boundary. */
 function errorResult(text: string): CallToolResult {
   return { content: [{ type: "text", text: sanitizeTerminalText(text) }], isError: true };
 }
@@ -348,6 +348,9 @@ function errorResult(text: string): CallToolResult {
  * does not implement Standard Schema, and this package's tool schemas are TypeBox,
  * shared in shape with the Pi and OMP extensions. The high-level API would force a
  * second definition of every parameter.
+
+ *
+ * @returns {Server} The operation result.
  */
 export function createMcpServer(): Server {
   const toolsByName = new Map(tools.map((tool) => [tool.name, tool]));

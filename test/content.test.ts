@@ -1,3 +1,4 @@
+import { objectContaining } from "./_matchers";
 import { gzipSync } from "node:zlib";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { $fetch, type FetchResponse } from "ofetch";
@@ -16,15 +17,20 @@ vi.mock("ofetch", () => {
 });
 
 const fetchMock = vi.mocked($fetch);
-const rawMock = vi.mocked($fetch.raw);
+/* oxlint-disable-next-line typescript/unbound-method -- ofetch.raw is a standalone callable and the mock has no receiver state. */
+const rawMock = fetchMock.raw;
 
-function cdxRows(rows: string[][]): string[][] {
+function cdxRows(rows: readonly (readonly string[])[]): string[][] {
   return [["original", "timestamp", "statuscode"], ...rows];
 }
 
 function rawResponse(
   body: string | Uint8Array | ReadableStream<Uint8Array>,
-  init: { url?: string; status?: number; headers?: Record<string, string> } = {},
+  init: Readonly<{
+    url?: string;
+    status?: number;
+    headers?: Readonly<Record<string, string>>;
+  }> = {},
 ) {
   // SAFETY: the helpers under test read only these four fields of a response.
   return {
@@ -35,7 +41,7 @@ function rawResponse(
   } as unknown as FetchResponse<unknown>;
 }
 
-function textStream(chunks: string[]): ReadableStream<Uint8Array> {
+function textStream(chunks: readonly string[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   return new ReadableStream<Uint8Array>({
     start(controller) {
@@ -45,7 +51,7 @@ function textStream(chunks: string[]): ReadableStream<Uint8Array> {
   });
 }
 
-/** A provider stub with only the methods a given test needs. */
+/* A provider stub with only the methods a given test needs. */
 function stubProvider(slug: string, content?: ArchiveProvider["content"]): ArchiveProvider {
   return {
     name: slug,
@@ -102,7 +108,7 @@ describe("wayback content", () => {
     );
     expect(rawMock.mock.calls[0][0]).toBe("/web/20200202000000id_/https://example.com/");
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
-      params: expect.objectContaining({ limit: "-5", url: "example.com" }),
+      params: objectContaining({ limit: "-5", url: "example.com" }),
     });
   });
 
@@ -172,7 +178,7 @@ describe("wayback content", () => {
     });
 
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
-      params: expect.objectContaining({ to: "20190302043000" }),
+      params: objectContaining({ to: "20190302043000" }),
     });
   });
 
@@ -235,7 +241,7 @@ describe("wayback content", () => {
     });
 
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
-      params: expect.objectContaining({ to: "20190301" }),
+      params: objectContaining({ to: "20190301" }),
     });
     expect(response.content?.timestamp).toBe("2019-02-28T12:00:00Z");
   });
@@ -268,7 +274,7 @@ describe("wayback content", () => {
 
     // 23:30 in -05:00 is 04:30 the next day in UTC, which is how archives index it.
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
-      params: expect.objectContaining({ to: "20190302043000" }),
+      params: objectContaining({ to: "20190302043000" }),
     });
   });
 
@@ -281,7 +287,7 @@ describe("wayback content", () => {
     );
 
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
-      params: expect.objectContaining({ url: "example.com/", to: "20190301120000" }),
+      params: objectContaining({ url: "example.com/", to: "20190301120000" }),
     });
     expect(response.success).toBe(true);
   });
@@ -418,7 +424,7 @@ describe("archive-it content", () => {
     await createArchive(createArchiveIt({ collection: 4399 })).content("example.com");
 
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
-      params: expect.objectContaining({ sort: "reverse" }),
+      params: objectContaining({ sort: "reverse" }),
     });
   });
 
@@ -466,7 +472,7 @@ describe("archive-today content", () => {
     expect(response.content?.content).toContain("archived profile");
     expect(rawMock).toHaveBeenCalledWith(
       "/20210326214327/https://example.com",
-      expect.objectContaining({ baseURL: "http://archive.md" }),
+      objectContaining({ baseURL: "http://archive.md" }),
     );
   });
 
@@ -482,7 +488,7 @@ describe("archive-today content", () => {
 
     expect(rawMock).toHaveBeenCalledWith(
       "/20200606060606/https://example.com",
-      expect.objectContaining({ baseURL: "http://archive.md" }),
+      objectContaining({ baseURL: "http://archive.md" }),
     );
   });
 
@@ -502,7 +508,7 @@ describe("archive-today content", () => {
     expect(fetchMock).toHaveBeenCalledWith("/timemap/http://example.com", expect.anything());
     expect(rawMock).toHaveBeenCalledWith(
       "/20200606060606/https://example.com",
-      expect.objectContaining({ baseURL: "http://archive.md" }),
+      objectContaining({ baseURL: "http://archive.md" }),
     );
   });
 
@@ -633,7 +639,7 @@ describe("common crawl content", () => {
     );
 
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
-      params: expect.objectContaining({ closest: "20240199999999", sort: "closest" }),
+      params: objectContaining({ closest: "20240199999999", sort: "closest" }),
     });
   });
 
@@ -849,8 +855,8 @@ describe("multi-provider content", () => {
     );
     await expect(archive.getContent("example.com")).rejects.toMatchObject({
       providers: [
-        expect.objectContaining({ provider: "conifer" }),
-        expect.objectContaining({ provider: "webcite" }),
+        objectContaining({ provider: "conifer" }),
+        objectContaining({ provider: "webcite" }),
       ],
     });
   });

@@ -26,7 +26,10 @@ export class WebCiteProvider extends BaseProvider<WebCiteOptions> {
   readonly name = "WebCite";
   readonly slug = "webcite";
 
-  async snapshots(_domain: string, _options: WebCiteOptions = {}): Promise<ArchiveResponse> {
+  async snapshots(
+    _domain: string,
+    _options: Readonly<WebCiteOptions> = {},
+  ): Promise<ArchiveResponse> {
     return createUnsupportedResponse(UNSUPPORTED_LIST_REASON, "webcite", {
       operation: "snapshots",
     });
@@ -34,7 +37,7 @@ export class WebCiteProvider extends BaseProvider<WebCiteOptions> {
 
   override content(
     _url: string,
-    _options: ArchiveContentOptions = {},
+    _options: Readonly<ArchiveContentOptions> = {},
   ): Promise<ArchiveContentResponse> {
     return Promise.resolve(
       createUnsupportedContentResponse(UNSUPPORTED_CONTENT_REASON, "webcite", {
@@ -47,7 +50,13 @@ export class WebCiteProvider extends BaseProvider<WebCiteOptions> {
 /**
  * Create a WebCite archive provider.
  * Backwards-compatible functional factory; prefer `new WebCiteProvider(...)`.
+
+ *
+ * @param _initOptions - Init Options.
+ * @returns {ArchiveProvider} The operation result.
  */
-export default function webcite(_initOptions: Partial<WebCiteOptions> = {}): ArchiveProvider {
+export default function webcite(
+  _initOptions: Readonly<Partial<WebCiteOptions>> = {},
+): ArchiveProvider {
   return new WebCiteProvider(_initOptions);
 }

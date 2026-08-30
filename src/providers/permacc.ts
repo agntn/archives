@@ -48,41 +48,79 @@ function normalizeExactUrl(input: string): string {
 const ISO_TIMESTAMP_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
+interface TimestampParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}
+
+function timestampParts(match: readonly string[]): TimestampParts {
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    second: Number(match[6]),
+  };
+}
+
+function validClock(parts: Readonly<TimestampParts>): boolean {
+  return !(
+    parts.month < 1 ||
+    parts.month > 12 ||
+    parts.hour > 23 ||
+    parts.minute > 59 ||
+    parts.second > 59
+  );
+}
+
+function monthLength(year: number, month: number): number {
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  if (month === 2) return leap ? 29 : 28;
+  return [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
+
 function parseCreationTimestamp(value: string): string | undefined {
   const match = ISO_TIMESTAMP_PATTERN.exec(value);
   if (!match) return undefined;
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const hour = Number(match[4]);
-  const minute = Number(match[5]);
-  const second = Number(match[6]);
-  if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) {
+  const parts = timestampParts(match);
+  if (!validClock(parts) || parts.day < 1 || parts.day > monthLength(parts.year, parts.month)) {
     return undefined;
   }
-
-  const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const hasThirtyDays = month === 4 || month === 6 || month === 9 || month === 11;
-  const daysInMonth = month === 2 ? (isLeapYear ? 29 : 28) : hasThirtyDays ? 30 : 31;
-  if (day < 1 || day > daysInMonth) return undefined;
 
   const timestamp = new Date(value);
   return Number.isFinite(timestamp.getTime()) ? timestamp.toISOString() : undefined;
 }
 
-function mapArchive(value: unknown): ArchivedPage | undefined {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("guid" in value) ||
-    !("url" in value) ||
-    !("creation_timestamp" in value)
-  ) {
-    return undefined;
-  }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
-  const { guid, url, creation_timestamp: creationTimestamp } = value;
+function archiveMetadata(
+  value: Readonly<Record<string, unknown>>,
+  guid: string,
+  timestamp: string,
+) {
+  const metadata: ArchivedPage["_meta"] = { guid, timestamp };
+  if (typeof value["title"] === "string") metadata.title = value["title"];
+  if (typeof value["status"] === "string") metadata.status = value["status"];
+
+  const createdBy = isRecord(value["created_by"]) ? value["created_by"]["id"] : undefined;
+  if (typeof createdBy === "string" || typeof createdBy === "number") {
+    metadata.created_by = String(createdBy);
+  }
+  return metadata;
+}
+
+function mapArchive(value: unknown): ArchivedPage | undefined {
+  if (!isRecord(value)) return undefined;
+  const guid = value["guid"];
+  const url = value["url"];
+  const creationTimestamp = value["creation_timestamp"];
   if (
     typeof guid !== "string" ||
     guid.length === 0 ||
@@ -102,27 +140,42 @@ function mapArchive(value: unknown): ArchivedPage | undefined {
     return undefined;
   }
 
-  const metadata: ArchivedPage["_meta"] = { guid, timestamp: creationTimestamp };
-  if ("title" in value && typeof value.title === "string") metadata.title = value.title;
-  if ("status" in value && typeof value.status === "string") metadata.status = value.status;
-
-  const createdBy =
-    "created_by" in value &&
-    typeof value.created_by === "object" &&
-    value.created_by !== null &&
-    "id" in value.created_by
-      ? value.created_by.id
-      : undefined;
-  if (typeof createdBy === "string" || typeof createdBy === "number") {
-    metadata.created_by = String(createdBy);
-  }
-
   return {
     url: archivedUrl,
     timestamp,
     snapshot: `https://perma.cc/${encodeURIComponent(guid)}`,
-    _meta: metadata,
+    _meta: archiveMetadata(value, guid, creationTimestamp),
   };
+}
+
+interface PermaccPayload {
+  objects: readonly unknown[];
+  meta?: Readonly<Record<string, unknown>>;
+}
+
+function parsePermaccPayload(value: unknown): PermaccPayload {
+  if (!isRecord(value) || !Array.isArray(value["objects"])) {
+    throw new Error("Invalid Perma.cc API response");
+  }
+  return {
+    objects: value["objects"],
+    ...(isRecord(value["meta"]) ? { meta: value["meta"] } : {}),
+  };
+}
+
+function permaccResponseMetadata(
+  meta?: Readonly<Record<string, unknown>>,
+): Record<string, unknown> {
+  if (!meta) return {};
+  const result: Record<string, unknown> = {};
+  for (const key of ["limit", "offset", "total_count"] as const) {
+    if (typeof meta[key] === "number") result[key] = meta[key];
+  }
+  for (const key of ["next", "previous"] as const) {
+    const value = meta[key];
+    if (typeof value === "string" || value === null) result[key] = value;
+  }
+  return result;
 }
 
 /**
@@ -137,8 +190,12 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
 
   /**
    * Partition responses by account and effective limit without storing the raw API key.
+
+   *
+   * @param options - Options.
+   * @returns {string | undefined} The operation result.
    */
-  override cacheKey(options?: ArchiveOptions): string | undefined {
+  override cacheKey(options?: Readonly<ArchiveOptions>): string | undefined {
     const apiKey = options?.apiKey ?? this.options.apiKey;
     if (!apiKey) return undefined;
 
@@ -149,10 +206,15 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
 
   /**
    * Fetch archives matching one exact URL from the authenticated Perma.cc account.
+
+   *
+   * @param domain - Domain.
+   * @param reqOptions - Req Options.
+   * @returns {Promise<ArchiveResponse>} A promise resolving to the operation result.
    */
   async snapshots(
     domain: string,
-    reqOptions: Partial<PermaccOptions> = {},
+    reqOptions: Readonly<Partial<PermaccOptions>> = {},
   ): Promise<ArchiveResponse> {
     try {
       const options = await this.resolveOptions(reqOptions);
@@ -181,50 +243,14 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
         },
       );
 
-      const response: unknown = await $fetch("/v1/archives/", fetchOptions);
-      if (
-        typeof response !== "object" ||
-        response === null ||
-        !("objects" in response) ||
-        !Array.isArray(response.objects)
-      ) {
-        throw new Error("Invalid Perma.cc API response");
-      }
-
-      const pages: ArchivedPage[] = [];
-      for (const archive of response.objects) {
-        const page = mapArchive(archive);
-        if (page) pages.push(page);
-      }
-
-      const responseMeta: Record<string, unknown> = {};
-      if ("meta" in response && typeof response.meta === "object" && response.meta !== null) {
-        if ("limit" in response.meta && typeof response.meta.limit === "number") {
-          responseMeta.limit = response.meta.limit;
-        }
-        if ("offset" in response.meta && typeof response.meta.offset === "number") {
-          responseMeta.offset = response.meta.offset;
-        }
-        if ("total_count" in response.meta && typeof response.meta.total_count === "number") {
-          responseMeta.total_count = response.meta.total_count;
-        }
-        if (
-          "next" in response.meta &&
-          (typeof response.meta.next === "string" || response.meta.next === null)
-        ) {
-          responseMeta.next = response.meta.next;
-        }
-        if (
-          "previous" in response.meta &&
-          (typeof response.meta.previous === "string" || response.meta.previous === null)
-        ) {
-          responseMeta.previous = response.meta.previous;
-        }
-      }
+      const payload = parsePermaccPayload(await $fetch("/v1/archives/", fetchOptions));
+      const pages = payload.objects
+        .map((archive) => mapArchive(archive))
+        .filter((page): page is ArchivedPage => page !== undefined);
 
       return createSuccessResponse(pages, "permacc", {
         queryParams: fetchOptions.params,
-        meta: responseMeta,
+        meta: permaccResponseMetadata(payload.meta),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -235,7 +261,7 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
 
   override content(
     _url: string,
-    _options: ArchiveContentOptions = {},
+    _options: Readonly<ArchiveContentOptions> = {},
   ): Promise<ArchiveContentResponse> {
     return Promise.resolve(
       createUnsupportedContentResponse(UNSUPPORTED_CONTENT_REASON, "permacc", {
@@ -245,6 +271,8 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
   }
 }
 
-export default function permacc(initOptions: Partial<PermaccOptions> = {}): PermaccProvider {
+export default function permacc(
+  initOptions: Readonly<Partial<PermaccOptions>> = {},
+): PermaccProvider {
   return new PermaccProvider(initOptions);
 }

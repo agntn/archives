@@ -1,3 +1,4 @@
+import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { $fetch } from "ofetch";
 import { createArchive, resetConfig, storage } from "../src";
@@ -46,8 +47,8 @@ describe("Archive-It", () => {
     expect(result.success).toBe(true);
     expect($fetch).toHaveBeenCalledWith(
       "/4399/timemap/cdx",
-      expect.objectContaining({
-        params: expect.objectContaining({ from: "20190301", to: "201906" }),
+      objectContaining({
+        params: objectContaining({ from: "20190301", to: "201906" }),
       }),
     );
   });
@@ -78,10 +79,10 @@ describe("Archive-It", () => {
     expect(result._meta).toMatchObject({ source: "archive-it", collection: "4399" });
     expect($fetch).toHaveBeenCalledWith(
       "/4399/timemap/cdx",
-      expect.objectContaining({
+      objectContaining({
         baseURL: "https://wayback.archive-it.org",
         responseType: "text",
-        params: expect.objectContaining({
+        params: objectContaining({
           url: "example.com/*",
           fl: "original,timestamp,statuscode",
           limit: "2",
@@ -106,8 +107,8 @@ describe("Archive-It", () => {
 
     expect($fetch).toHaveBeenCalledWith(
       "/4399/timemap/cdx",
-      expect.objectContaining({
-        params: expect.objectContaining({
+      objectContaining({
+        params: objectContaining({
           url: "example.com/page",
           collapse: "timestamp:10",
           filter: "statuscode:200",

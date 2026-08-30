@@ -16,6 +16,13 @@ export const storage: Storage = createStorage({
 let storagePrefix = "archives";
 let storageInitialized = false;
 
+type StorageConfigOptions = Readonly<{
+  driver?: Driver;
+  ttl?: number;
+  cache?: boolean;
+  prefix?: string;
+}>;
+
 interface StoredArchiveResponse {
   response: ArchiveResponse;
   expiresAt?: number;
@@ -57,7 +64,7 @@ function isExpired(expiresAt: number | undefined): boolean {
 interface CacheKeyProvider {
   name: string;
   slug?: string;
-  cacheKey?: (options?: ArchiveOptions) => string | undefined;
+  cacheKey?: (options?: Readonly<ArchiveOptions>) => string | undefined;
 }
 
 function getExpiresAt(ttl: ArchiveOptions["ttl"]): number | undefined {
@@ -68,7 +75,7 @@ function getExpiresAt(ttl: ArchiveOptions["ttl"]): number | undefined {
   return Date.now() + Math.max(0, ttl);
 }
 
-/**
+/*
  * Option-derived parts of one listing cache key.
  *
  * The window bounds belong here: a windowed fetch is served with the provider's
@@ -76,7 +83,10 @@ function getExpiresAt(ttl: ArchiveOptions["ttl"]): number | undefined {
  * capped one under the same provider and domain, and the bounds keep the two
  * entries apart.
  */
-function getCacheKeyParts(provider: CacheKeyProvider, options?: ArchiveOptions): string[] {
+function getCacheKeyParts(
+  provider: Readonly<CacheKeyProvider>,
+  options?: Readonly<ArchiveOptions>,
+): string[] {
   const parts: string[] = [];
 
   if (options?.limit !== undefined) parts.push(`limit=${options.limit}`);
@@ -114,11 +124,17 @@ export async function initStorage(): Promise<void> {
 
 /**
  * Generate a storage key for a domain request
+
+ *
+ * @param provider - Provider.
+ * @param domain - Domain.
+ * @param options - Options.
+ * @returns {string} The resulting string.
  */
 export function generateStorageKey(
-  provider: CacheKeyProvider,
+  provider: Readonly<CacheKeyProvider>,
   domain: string,
-  options?: ArchiveOptions,
+  options?: Readonly<ArchiveOptions>,
 ): string {
   const providerKey = provider.slug ?? provider.name;
   const keyParts = [providerKey, domain, ...getCacheKeyParts(provider, options)];
@@ -126,13 +142,33 @@ export function generateStorageKey(
   return `${storagePrefix}:${JSON.stringify(keyParts)}`;
 }
 
+async function restoreStoredResponse(
+  key: string,
+  cachedData: unknown,
+): Promise<ArchiveResponse | undefined> {
+  const parsedData: unknown = typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
+  if (isArchiveResponse(parsedData)) return { ...parsedData, fromCache: true };
+  if (!isStoredArchiveResponse(parsedData)) return undefined;
+  if (isExpired(parsedData.expiresAt)) {
+    await storage.removeItem(key);
+    return undefined;
+  }
+  return { ...parsedData.response, fromCache: true };
+}
+
 /**
  * Get stored response if available
+
+ *
+ * @param provider - Provider.
+ * @param domain - Domain.
+ * @param options - Options.
+ * @returns {Promise<ArchiveResponse | undefined>} A promise resolving to the operation result.
  */
 export async function getStoredResponse(
-  provider: CacheKeyProvider,
+  provider: Readonly<CacheKeyProvider>,
   domain: string,
-  options?: ArchiveOptions,
+  options?: Readonly<ArchiveOptions>,
 ): Promise<ArchiveResponse | undefined> {
   if (options?.cache === false) {
     return undefined;
@@ -145,29 +181,9 @@ export async function getStoredResponse(
   const key = generateStorageKey(provider, domain, options);
 
   try {
-    const cachedData = await storage.getItem(key);
+    const cachedData: unknown = await storage.getItem(key);
     if (!cachedData) return undefined;
-
-    const parsedData = typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
-
-    if (isArchiveResponse(parsedData)) {
-      return {
-        ...parsedData,
-        fromCache: true,
-      };
-    }
-
-    if (!isStoredArchiveResponse(parsedData)) return undefined;
-
-    if (isExpired(parsedData.expiresAt)) {
-      await storage.removeItem(key);
-      return undefined;
-    }
-
-    return {
-      ...parsedData.response,
-      fromCache: true,
-    };
+    return await restoreStoredResponse(key, cachedData);
   } catch (error) {
     consola.error(`Storage read/parse error for ${key}:`, error);
   }
@@ -177,12 +193,18 @@ export async function getStoredResponse(
 
 /**
  * Store response in storage
+
+ *
+ * @param provider - Provider.
+ * @param domain - Domain.
+ * @param response - Response.
+ * @param options - Options.
  */
 export async function storeResponse(
-  provider: CacheKeyProvider,
+  provider: Readonly<CacheKeyProvider>,
   domain: string,
   response: ArchiveResponse,
-  options?: ArchiveOptions,
+  options?: Readonly<ArchiveOptions>,
 ): Promise<void> {
   // Skip caching when caching is opted out or the response is not a success.
   // The success filter naturally excludes both runtime errors and unsupported
@@ -217,11 +239,17 @@ export async function storeResponse(
  * space, and both the requested capture and the byte cap are part of the key:
  * a caller asking for a different capture, or for more of the same one, is
  * asking a different question.
+
+ *
+ * @param provider - Provider.
+ * @param url - Url.
+ * @param options - Options.
+ * @returns {string} The resulting string.
  */
 export function generateContentStorageKey(
-  provider: CacheKeyProvider,
+  provider: Readonly<CacheKeyProvider>,
   url: string,
-  options?: ArchiveContentOptions,
+  options?: Readonly<ArchiveContentOptions>,
 ): string {
   const providerKey = provider.slug ?? provider.name;
   const keyParts = [providerKey, "content", url];
@@ -237,11 +265,17 @@ export function generateContentStorageKey(
 
 /**
  * Get a stored archived body if one is cached and still fresh
+
+ *
+ * @param provider - Provider.
+ * @param url - Url.
+ * @param options - Options.
+ * @returns {Promise<ArchiveContentResponse | undefined>} A promise resolving to the operation result.
  */
 export async function getStoredContent(
-  provider: CacheKeyProvider,
+  provider: Readonly<CacheKeyProvider>,
   url: string,
-  options?: ArchiveContentOptions,
+  options?: Readonly<ArchiveContentOptions>,
 ): Promise<ArchiveContentResponse | undefined> {
   if (options?.cache === false) {
     return undefined;
@@ -254,10 +288,11 @@ export async function getStoredContent(
   const key = generateContentStorageKey(provider, url, options);
 
   try {
-    const cachedData = await storage.getItem(key);
+    const cachedData: unknown = await storage.getItem(key);
     if (!cachedData) return undefined;
 
-    const parsedData = typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
+    const parsedData: unknown =
+      typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
     if (!isStoredArchiveContent(parsedData)) return undefined;
 
     if (isExpired(parsedData.expiresAt)) {
@@ -278,12 +313,18 @@ export async function getStoredContent(
 
 /**
  * Store an archived body in storage
+
+ *
+ * @param provider - Provider.
+ * @param url - Url.
+ * @param response - Response.
+ * @param options - Options.
  */
 export async function storeContent(
-  provider: CacheKeyProvider,
+  provider: Readonly<CacheKeyProvider>,
   url: string,
   response: ArchiveContentResponse,
-  options?: ArchiveContentOptions,
+  options?: Readonly<ArchiveContentOptions>,
 ): Promise<void> {
   if (options?.cache === false || !response.success || !response.content) {
     return;
@@ -310,9 +351,12 @@ export async function storeContent(
 
 /**
  * Clear stored responses for a specific provider
+
+ *
+ * @param provider - Provider.
  */
 export async function clearProviderStorage(
-  provider: string | { name: string; slug?: string },
+  provider: Readonly<string | { name: string; slug?: string }>,
 ): Promise<void> {
   try {
     if (!storageInitialized) {
@@ -337,15 +381,11 @@ export async function clearProviderStorage(
 /**
  * Configure storage options and driver
  * @deprecated Use config file or options passed to createArchive instead
+
+ *
+ * @param options - Options.
  */
-export async function configureStorage(
-  options: {
-    driver?: Driver;
-    ttl?: number;
-    cache?: boolean;
-    prefix?: string;
-  } = {},
-): Promise<void> {
+export async function configureStorage(options: StorageConfigOptions = {}): Promise<void> {
   const config = await getConfig();
 
   if (options.driver) {

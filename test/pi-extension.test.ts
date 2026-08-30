@@ -1,3 +1,4 @@
+import { objectContaining, rangeDescription, stringContaining } from "./_matchers";
 import type {
   AgentToolResult,
   ExtensionAPI,
@@ -75,16 +76,18 @@ vi.mock("../src/providers", () => ({
 
 type CommandDefinition = Parameters<ExtensionAPI["registerCommand"]>[1];
 
+type ToolRegistry = ReadonlyMap<string, ToolDefinition>;
+
 type CapturedRuntime = {
-  tools: Map<string, ToolDefinition>;
-  commands: Map<string, CommandDefinition>;
+  readonly tools: ToolRegistry;
+  readonly commands: ReadonlyMap<string, CommandDefinition>;
 };
 
 type ExecutableTool = {
   parameters: { properties?: Record<string, unknown> };
   execute: (
     toolCallId: string,
-    params: Record<string, unknown>,
+    params: Readonly<Record<string, unknown>>,
     signal: AbortSignal | undefined,
     onUpdate: undefined,
     ctx: ExtensionContext,
@@ -92,16 +95,15 @@ type ExecutableTool = {
 };
 
 function loadExtension(): CapturedRuntime {
-  const runtime: CapturedRuntime = {
-    tools: new Map(),
-    commands: new Map(),
-  };
+  const tools = new Map<string, ToolDefinition>();
+  const commands = new Map<string, CommandDefinition>();
+  const runtime: CapturedRuntime = { tools, commands };
   const pi = {
     registerTool(tool: ToolDefinition) {
-      runtime.tools.set(tool.name, tool);
+      tools.set(tool.name, tool);
     },
     registerCommand(name: string, command: CommandDefinition) {
-      runtime.commands.set(name, command);
+      commands.set(name, command);
     },
   } satisfies Partial<ExtensionAPI>;
 
@@ -109,10 +111,23 @@ function loadExtension(): CapturedRuntime {
   return runtime;
 }
 
-function getExecutableTool(runtime: CapturedRuntime, name: string): ExecutableTool {
-  const tool = runtime.tools.get(name);
+function getExecutableTool(
+  tools: ReadonlyMap<string, ToolDefinition>,
+  name: string,
+): ExecutableTool {
+  const tool = tools.get(name);
   expect(tool).toBeDefined();
   return tool as ExecutableTool;
+}
+
+function expectRangeDescriptions(
+  properties: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+  names: readonly string[],
+): void {
+  for (const name of names) {
+    const parameter = properties[name];
+    expect(parameter?.["description"]).toContain(rangeDescription(parameter));
+  }
 }
 
 const originalPermaccEnv = {
@@ -170,7 +185,7 @@ describe("Pi extension", () => {
   });
 
   it("declares the content schema the shared executors enforce", () => {
-    const tool = getExecutableTool(loadExtension(), "archives_content");
+    const tool = getExecutableTool(loadExtension().tools, "archives_content");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
 
     expect(properties["provider"]?.["description"]).toBe(CONTENT_PROVIDER_HINT);
@@ -181,12 +196,7 @@ describe("Pi extension", () => {
       maximum: MAX_CONTENT_CHARS,
     });
     expect(properties["maxChars"]?.["description"]).toContain(`Defaults to ${DEFAULT_MAX_CHARS}`);
-    for (const parameterName of ["maxChars", "ttl", "timeout", "retries"]) {
-      const parameter = properties[parameterName];
-      expect(parameter?.["description"]).toContain(
-        `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
-      );
-    }
+    expectRangeDescriptions(properties, ["maxChars", "ttl", "timeout", "retries"]);
 
     const offeredFormats = (
       (properties["format"]?.["anyOf"] ?? []) as Array<{ const: string }>
@@ -209,7 +219,7 @@ describe("Pi extension", () => {
       },
       _meta: { source: "wayback", provider: "wayback" },
     } satisfies ArchiveContentResponse);
-    const tool = getExecutableTool(loadExtension(), "archives_content");
+    const tool = getExecutableTool(loadExtension().tools, "archives_content");
 
     const result = await tool.execute(
       "test",
@@ -229,12 +239,12 @@ describe("Pi extension", () => {
     expect(text).not.toContain("<h1>");
     expect(archivesMock.content).toHaveBeenCalledWith(
       "https://example.com/",
-      expect.objectContaining({ timestamp: "20190301" }),
+      objectContaining({ timestamp: "20190301" }),
     );
   });
 
   it("rejects a timestamp no archive could act on, before any network work", async () => {
-    const tool = getExecutableTool(loadExtension(), "archives_content");
+    const tool = getExecutableTool(loadExtension().tools, "archives_content");
 
     await expect(
       tool.execute(
@@ -250,7 +260,7 @@ describe("Pi extension", () => {
 
   it("stops an in-flight archive request when the tool is cancelled", async () => {
     archivesMock.snapshots.mockImplementation(
-      (_target: string, options: { signal?: AbortSignal }) =>
+      (_target: string, options: Readonly<{ signal?: AbortSignal }>) =>
         new Promise<ArchiveResponse>((_resolve, reject) => {
           const signal = options.signal;
           if (!signal) {
@@ -265,7 +275,7 @@ describe("Pi extension", () => {
           signal.addEventListener("abort", abort, { once: true });
         }),
     );
-    const tool = getExecutableTool(loadExtension(), "archives");
+    const tool = getExecutableTool(loadExtension().tools, "archives");
     const controller = new AbortController();
 
     const execution = tool.execute(
@@ -279,7 +289,7 @@ describe("Pi extension", () => {
       () =>
         expect(archivesMock.snapshots).toHaveBeenCalledWith(
           "example.com",
-          expect.objectContaining({ signal: controller.signal }),
+          objectContaining({ signal: controller.signal }),
         ),
       { timeout: 100 },
     );
@@ -288,33 +298,28 @@ describe("Pi extension", () => {
     const result = await execution;
     expect(result.isError).toBe(true);
     expect(result.content[0]).toEqual(
-      expect.objectContaining({ type: "text", text: expect.stringContaining("cancelled by test") }),
+      objectContaining({ type: "text", text: stringContaining("cancelled by test") }),
     );
     expect((result.details as { options: Record<string, unknown> }).options).not.toHaveProperty(
       "signal",
     );
   });
   it("declares the schema bounds the shared executors enforce", () => {
-    const tool = getExecutableTool(loadExtension(), "archives");
+    const tool = getExecutableTool(loadExtension().tools, "archives");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
 
     // The parameters are declared before the executors can be loaded, so the
     // restated metadata has to match what src/tool-operations actually applies.
     expect(properties["limit"]).toMatchObject({ minimum: 1, maximum: MAX_LIMIT });
     expect(properties["limit"]?.["description"]).toContain(`Defaults to ${DEFAULT_LIMIT}`);
-    for (const parameterName of [
+    expectRangeDescriptions(properties, [
       "limit",
       "ttl",
       "concurrency",
       "batchSize",
       "timeout",
       "retries",
-    ]) {
-      const parameter = properties[parameterName];
-      expect(parameter?.["description"]).toContain(
-        `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
-      );
-    }
+    ]);
     expect(properties["provider"]?.["description"]).toBe(PROVIDER_HINT);
     expect(properties["from"]?.["description"]).toBe(SNAPSHOT_FROM_HINT);
     expect(properties["to"]?.["description"]).toBe(SNAPSHOT_TO_HINT);
@@ -331,7 +336,7 @@ describe("Pi extension", () => {
       pages: [],
       _meta: { source: "wayback", provider: "wayback" },
     } satisfies ArchiveResponse);
-    const tool = getExecutableTool(loadExtension(), "archives");
+    const tool = getExecutableTool(loadExtension().tools, "archives");
 
     await tool.execute(
       "test",
@@ -343,13 +348,13 @@ describe("Pi extension", () => {
 
     expect(archivesMock.snapshots).toHaveBeenCalledWith(
       "example.com",
-      expect.objectContaining({ from: "20190301", to: "201906" }),
+      objectContaining({ from: "20190301", to: "201906" }),
     );
   });
 
   it("does not expose arbitrary API-key or environment-variable parameters", () => {
     const runtime = loadExtension();
-    const tool = getExecutableTool(runtime, "archives");
+    const tool = getExecutableTool(runtime.tools, "archives");
 
     expect(Object.keys(tool.parameters.properties ?? {})).not.toContain("apiKey");
     expect(Object.keys(tool.parameters.properties ?? {})).not.toContain("apiKeyEnv");
@@ -358,7 +363,7 @@ describe("Pi extension", () => {
   it("reports Perma.cc key presence without returning the secret value", async () => {
     process.env["PERMA_CC_API_KEY"] = "super-secret-test-key";
     const runtime = loadExtension();
-    const tool = getExecutableTool(runtime, "archives_providers");
+    const tool = getExecutableTool(runtime.tools, "archives_providers");
 
     const result = await tool.execute("test", {}, undefined, undefined, {} as ExtensionContext);
     const text = result.content.map((item) => (item.type === "text" ? item.text : "")).join("\n");
@@ -375,7 +380,7 @@ describe("Pi extension", () => {
       pages: [],
       _meta: { source: "permacc", provider: "permacc" },
     } satisfies ArchiveResponse);
-    const tool = getExecutableTool(loadExtension(), "archives");
+    const tool = getExecutableTool(loadExtension().tools, "archives");
 
     const result = await tool.execute(
       "test",
@@ -393,7 +398,7 @@ describe("Pi extension", () => {
   });
 
   it("rejects a fractional limit that would reach the CDX query verbatim", async () => {
-    const tool = getExecutableTool(loadExtension(), "archives");
+    const tool = getExecutableTool(loadExtension().tools, "archives");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
     expect(properties["limit"]?.["type"]).toBe("integer");
     expect(properties["target"]).toMatchObject({ minLength: 1 });
@@ -416,7 +421,7 @@ describe("Pi extension", () => {
     delete process.env["PERMA_CC_API_KEY"];
     delete process.env["PERMACC_API_KEY"];
     const runtime = loadExtension();
-    const tool = getExecutableTool(runtime, "archives");
+    const tool = getExecutableTool(runtime.tools, "archives");
 
     await expect(
       tool.execute(
@@ -442,7 +447,7 @@ describe("Pi extension", () => {
       pages: [],
       _meta: { source: "archive-it", provider: "archive-it" },
     } satisfies ArchiveResponse);
-    const tool = getExecutableTool(loadExtension(), "archives");
+    const tool = getExecutableTool(loadExtension().tools, "archives");
 
     await tool.execute(
       "test",
@@ -452,13 +457,11 @@ describe("Pi extension", () => {
       {} as ExtensionContext,
     );
 
-    expect(archivesMock.archiveIt).toHaveBeenCalledWith(
-      expect.objectContaining({ collection: "4399" }),
-    );
+    expect(archivesMock.archiveIt).toHaveBeenCalledWith(objectContaining({ collection: "4399" }));
   });
 
   it("rejects Archive-It requests without a collection", async () => {
-    const tool = getExecutableTool(loadExtension(), "archives");
+    const tool = getExecutableTool(loadExtension().tools, "archives");
 
     await expect(
       tool.execute(
@@ -483,7 +486,7 @@ describe("Pi extension", () => {
       pages: [],
       _meta: { source: "conifer", provider: "conifer" },
     } satisfies ArchiveResponse);
-    const tool = getExecutableTool(loadExtension(), "archives");
+    const tool = getExecutableTool(loadExtension().tools, "archives");
 
     await tool.execute(
       "test",
@@ -499,12 +502,12 @@ describe("Pi extension", () => {
     );
 
     expect(archivesMock.conifer).toHaveBeenCalledWith(
-      expect.objectContaining({ user: "user", collection: "collection" }),
+      objectContaining({ user: "user", collection: "collection" }),
     );
   });
 
   it("rejects Conifer requests without a user", async () => {
-    const tool = getExecutableTool(loadExtension(), "archives");
+    const tool = getExecutableTool(loadExtension().tools, "archives");
 
     await expect(
       tool.execute(

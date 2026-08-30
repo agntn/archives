@@ -8,13 +8,22 @@ import type * as ArchivesTools from "@agntn/archives/tool-operations";
 type ContentDetails = ArchivesTools.ContentDetails;
 type ProvidersDetails = ArchivesTools.ProvidersDetails;
 type SnapshotDetails = ArchivesTools.SnapshotDetails;
+interface WaybackResponseSummary {
+  readonly success: boolean;
+  readonly pages: readonly unknown[];
+}
+
+interface CommandNotice {
+  message: string;
+  level: "error" | "warning";
+}
 
 const sourceModuleUrl = new URL("../../../src/tool-operations.ts", import.meta.url);
 const distributionModuleUrl = new URL("../../../dist/tool-operations.mjs", import.meta.url);
 
 let toolOperationsPromise: Promise<typeof ArchivesTools> | undefined;
 
-/**
+/*
  * Loads the tool executors shared with the MCP server and the OMP extension.
  *
  * Source comes first because a working tree is the only place it exists; an
@@ -69,14 +78,14 @@ const MAX_TTL = 30 * 24 * 60 * 60 * 1000;
 const MAX_RETRIES = 10;
 const MAX_TIMEOUT = 5 * 60 * 1000;
 // oxlint-disable-next-line no-control-regex -- Terminal control bytes are precisely what this boundary removes.
-const UNSAFE_TERMINAL_CONTROLS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/gu;
+const UNSAFE_TERMINAL_CONTROLS = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/gu;
 
-/** Local copy: the TUI renders call previews before the executors can be loaded. */
+/* Local copy: the TUI renders call previews before the executors can be loaded. */
 function sanitizeTerminalText(text: string): string {
   return text.replace(UNSAFE_TERMINAL_CONTROLS, "");
 }
 
-/**
+/*
  * One-line form for anything the UI prints.
  *
  * Stripping control bytes is not enough: a bare newline in a provider value or a
@@ -84,7 +93,24 @@ function sanitizeTerminalText(text: string): string {
  * look like a real one.
  */
 function sanitizeLine(text: string): string {
-  return sanitizeTerminalText(text).replace(/[\n\r\t]+/g, " ");
+  return sanitizeTerminalText(text).replaceAll(/[\n\r\t]+/g, " ");
+}
+
+function archiveCommandNotice(
+  response: WaybackResponseSummary,
+  target: string,
+  failureMessage: string,
+): CommandNotice | undefined {
+  if (!response.success) {
+    return { message: `archives failed: ${failureMessage}`, level: "error" };
+  }
+  if (response.pages.length === 0) {
+    return {
+      message: `No archived snapshots for "${sanitizeLine(target)}" via Wayback.`,
+      level: "warning",
+    };
+  }
+  return undefined;
 }
 
 // Integers, not plain numbers: a fractional limit clears validation and reaches
@@ -365,16 +391,9 @@ export default function archivesExtension(pi: ExtensionAPI) {
       }
       const { formatPage, responseFailureMessage } = tools;
 
-      if (!response.success) {
-        ctx.ui.notify(`archives failed: ${responseFailureMessage(response)}`, "error");
-        return;
-      }
-
-      if (response.pages.length === 0) {
-        ctx.ui.notify(
-          `No archived snapshots for "${sanitizeLine(trimmed)}" via Wayback.`,
-          "warning",
-        );
+      const notice = archiveCommandNotice(response, trimmed, responseFailureMessage(response));
+      if (notice) {
+        ctx.ui.notify(notice.message, notice.level);
         return;
       }
 
@@ -405,9 +424,11 @@ export default function archivesExtension(pi: ExtensionAPI) {
   });
 }
 
-function renderSnapshotCall(params: SnapshotParams, theme: RenderTheme): string {
-  const parts = [theme.fg("toolTitle", theme.bold("archives"))];
-  parts.push(theme.fg("dim", truncateSingleLine(sanitizeTerminalText(params.target), 120)));
+function renderSnapshotCall(params: SnapshotParams, theme: Readonly<RenderTheme>): string {
+  const parts = [
+    theme.fg("toolTitle", theme.bold("archives")),
+    theme.fg("dim", truncateSingleLine(sanitizeTerminalText(params.target), 120)),
+  ];
   if (params.provider) parts.push(theme.fg("muted", `provider=${sanitizeLine(params.provider)}`));
   if (params.limit !== undefined) parts.push(theme.fg("muted", `limit=${params.limit}`));
   if (params.from) parts.push(theme.fg("muted", `from=${sanitizeLine(params.from)}`));
@@ -418,9 +439,11 @@ function renderSnapshotCall(params: SnapshotParams, theme: RenderTheme): string 
   return parts.join(" ");
 }
 
-function renderContentCall(params: ContentParams, theme: RenderTheme): string {
-  const parts = [theme.fg("toolTitle", theme.bold("archives_content"))];
-  parts.push(theme.fg("dim", truncateSingleLine(sanitizeTerminalText(params.target), 120)));
+function renderContentCall(params: ContentParams, theme: Readonly<RenderTheme>): string {
+  const parts = [
+    theme.fg("toolTitle", theme.bold("archives_content")),
+    theme.fg("dim", truncateSingleLine(sanitizeTerminalText(params.target), 120)),
+  ];
   if (params.timestamp) parts.push(theme.fg("muted", `at=${sanitizeLine(params.timestamp)}`));
   if (params.provider) parts.push(theme.fg("muted", `provider=${sanitizeLine(params.provider)}`));
   if (params.format) parts.push(theme.fg("muted", `format=${sanitizeLine(params.format)}`));
@@ -428,14 +451,14 @@ function renderContentCall(params: ContentParams, theme: RenderTheme): string {
   return parts.join(" ");
 }
 
-/** Usable when the executors themselves failed to load, so it cannot come from them. */
+/* Usable when the executors themselves failed to load, so it cannot come from them. */
 function plainErrorMessage(error: unknown): string {
   return sanitizeTerminalText(error instanceof Error ? error.message : String(error));
 }
 
-/** Local copy: the call preview renders before the executors can be loaded. */
+/* Local copy: the call preview renders before the executors can be loaded. */
 function truncateSingleLine(text: string, maxLength: number): string {
-  const singleLine = text.replace(/\s+/g, " ").trim();
+  const singleLine = text.replaceAll(/\s+/g, " ").trim();
   return singleLine.length <= maxLength ? singleLine : `${singleLine.slice(0, maxLength - 1)}…`;
 }
 

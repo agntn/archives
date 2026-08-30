@@ -16,9 +16,9 @@ const ALLOWED_WAYBACK_TIMESTAMP_LENGTHS = new Set([4, 6, 8, 10, 12, 14]);
 
 // Utility for parallel processing with concurrency control
 export async function processInParallel<T, R>(
-  items: T[],
+  items: readonly T[],
   processFunction: (item: T) => Promise<R>,
-  options: { concurrency?: number; batchSize?: number } = {},
+  options: Readonly<{ concurrency?: number; batchSize?: number }> = {},
 ): Promise<R[]> {
   const config = await getConfig();
   const concurrency = options.concurrency ?? config.performance.concurrency ?? 3;
@@ -42,7 +42,7 @@ export async function processInParallel<T, R>(
   return results;
 
   // Helper function to process a batch with concurrency limit
-  async function processBatch(batch: T[], limit: number): Promise<R[]> {
+  async function processBatch(batch: readonly T[], limit: number): Promise<R[]> {
     const FAILED = Symbol("failed");
     const batchResults: Array<R | typeof FAILED> = Array.from(
       { length: batch.length },
@@ -76,12 +76,58 @@ export async function processInParallel<T, R>(
   }
 }
 
+interface WaybackDateParts {
+  year: string;
+  month: string;
+  day: string;
+  hour: string;
+  minute: string;
+  second: string;
+}
+
+function waybackDateParts(value: string): WaybackDateParts {
+  return {
+    year: value.slice(0, 4),
+    month: value.length >= 6 ? value.slice(4, 6) : "01",
+    day: value.length >= 8 ? value.slice(6, 8) : "01",
+    hour: value.length >= 10 ? value.slice(8, 10) : "00",
+    minute: value.length >= 12 ? value.slice(10, 12) : "00",
+    second: value.length >= 14 ? value.slice(12, 14) : "00",
+  };
+}
+
+function validWaybackDateParts(parts: Readonly<Record<keyof WaybackDateParts, number>>): boolean {
+  return !(
+    parts.month < 1 ||
+    parts.month > 12 ||
+    parts.day < 1 ||
+    parts.day > 31 ||
+    parts.hour > 23 ||
+    parts.minute > 59 ||
+    parts.second > 59
+  );
+}
+
+function sameUtcDate(
+  parsed: Readonly<Date>,
+  parts: Readonly<Record<keyof WaybackDateParts, number>>,
+): boolean {
+  return (
+    parsed.getUTCFullYear() === parts.year &&
+    parsed.getUTCMonth() + 1 === parts.month &&
+    parsed.getUTCDate() === parts.day &&
+    parsed.getUTCHours() === parts.hour &&
+    parsed.getUTCMinutes() === parts.minute &&
+    parsed.getUTCSeconds() === parts.second
+  );
+}
+
 /**
  * Converts a Wayback Machine timestamp to ISO8601 format
  * Supports CDX precisions: YYYY, YYYYMM, YYYYMMDD, YYYYMMDDhh,
  * YYYYMMDDhhmm, YYYYMMDDhhmmss.
  * @param timestamp Wayback timestamp
- * @returns ISO8601 formatted timestamp, or empty string if invalid
+ * @returns {string} ISO8601 formatted timestamp, or empty string if invalid
  */
 export function waybackTimestampToISO(timestamp: string): string {
   const value = timestamp.trim();
@@ -94,49 +140,36 @@ export function waybackTimestampToISO(timestamp: string): string {
     return "";
   }
 
-  const month = value.length >= 6 ? value.slice(4, 6) : "01";
-  const day = value.length >= 8 ? value.slice(6, 8) : "01";
-  const hour = value.length >= 10 ? value.slice(8, 10) : "00";
-  const minute = value.length >= 12 ? value.slice(10, 12) : "00";
-  const second = value.length >= 14 ? value.slice(12, 14) : "00";
+  const parts = waybackDateParts(value);
+  const numbers = {
+    year: Number.parseInt(parts.year, 10),
+    month: Number.parseInt(parts.month, 10),
+    day: Number.parseInt(parts.day, 10),
+    hour: Number.parseInt(parts.hour, 10),
+    minute: Number.parseInt(parts.minute, 10),
+    second: Number.parseInt(parts.second, 10),
+  };
+  if (!validWaybackDateParts(numbers)) return "";
 
-  const yearNum = Number.parseInt(value.slice(0, 4), 10);
-  const monthNum = Number.parseInt(month, 10);
-  const dayNum = Number.parseInt(day, 10);
-  const hourNum = Number.parseInt(hour, 10);
-  const minuteNum = Number.parseInt(minute, 10);
-  const secondNum = Number.parseInt(second, 10);
-
-  if (
-    monthNum < 1 ||
-    monthNum > 12 ||
-    dayNum < 1 ||
-    dayNum > 31 ||
-    hourNum > 23 ||
-    minuteNum > 59 ||
-    secondNum > 59
-  ) {
-    return "";
-  }
-
-  const iso = `${value.slice(0, 4)}-${month}-${day}T${hour}:${minute}:${second}Z`;
-  const parsed = new Date(Date.UTC(yearNum, monthNum - 1, dayNum, hourNum, minuteNum, secondNum));
-  const isSameDateParts =
-    parsed.getUTCFullYear() === yearNum &&
-    parsed.getUTCMonth() + 1 === monthNum &&
-    parsed.getUTCDate() === dayNum &&
-    parsed.getUTCHours() === hourNum &&
-    parsed.getUTCMinutes() === minuteNum &&
-    parsed.getUTCSeconds() === secondNum;
-
-  return isSameDateParts ? iso : "";
+  const iso = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`;
+  const parsed = new Date(
+    Date.UTC(
+      numbers.year,
+      numbers.month - 1,
+      numbers.day,
+      numbers.hour,
+      numbers.minute,
+      numbers.second,
+    ),
+  );
+  return sameUtcDate(parsed, numbers) ? iso : "";
 }
 
 /**
  * Normalizes a domain string for search queries
  * @param domain The domain or URL to normalize
  * @param appendWildcard Whether a bare host should use prefix matching
- * @returns Normalized domain string
+ * @returns {string} Normalized domain string
  */
 export function normalizeDomain(domain: string, appendWildcard = true): string {
   // Normalize domain input using ufo
@@ -158,16 +191,16 @@ export function normalizeDomain(domain: string, appendWildcard = true): string {
  * @param pages Array of archived pages
  * @param source Source identifier for the provider
  * @param metadata Additional metadata to include
- * @returns Standardized ArchiveResponse object
+ * @returns {ArchiveResponse} Standardized ArchiveResponse object
  */
 export function createSuccessResponse(
-  pages: ArchivedPage[],
+  pages: readonly ArchivedPage[],
   source: string,
-  metadata: Record<string, unknown> = {},
+  metadata: Readonly<Record<string, unknown>> = {},
 ): ArchiveResponse {
   return {
     success: true,
-    pages,
+    pages: [...pages],
     _meta: {
       source,
       provider: source,
@@ -185,11 +218,14 @@ export function createSuccessResponse(
  * @param reason - Human-readable explanation of why the operation is unsupported.
  * @param source - Provider slug (mirrored to `_meta.source` and `_meta.provider`).
  * @param metadata - Extra fields merged into `_meta`.
+
+ *
+ * @returns {ArchiveResponse} The operation result.
  */
 export function createUnsupportedResponse(
   reason: string,
   source: string,
-  metadata: Record<string, unknown> = {},
+  metadata: Readonly<Record<string, unknown>> = {},
 ): ArchiveResponse {
   return {
     success: false,
@@ -209,12 +245,12 @@ export function createUnsupportedResponse(
  * @param error Error object, message, or unknown value
  * @param source Source identifier for the provider
  * @param metadata Additional metadata to include
- * @returns Standardized ArchiveResponse error object
+ * @returns {ArchiveResponse} Standardized ArchiveResponse error object
  */
 export function createErrorResponse(
   error: unknown,
   source: string,
-  metadata: Record<string, unknown> = {},
+  metadata: Readonly<Record<string, unknown>> = {},
 ): ArchiveResponse {
   return {
     success: false,
@@ -232,6 +268,10 @@ export function createErrorResponse(
 
 /**
  * Reduces a thrown value of unknown shape to one message.
+
+ *
+ * @param error - Error.
+ * @returns {string} The resulting string.
  */
 export function toErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -245,11 +285,14 @@ export function toErrorMessage(error: unknown): string {
  * @param content - The capture that was read
  * @param source - Provider slug (mirrored to `_meta.source` and `_meta.provider`)
  * @param metadata - Extra fields merged into `_meta`
+
+ *
+ * @returns {ArchiveContentResponse} The operation result.
  */
 export function createContentResponse(
   content: ArchivedContent,
   source: string,
-  metadata: Record<string, unknown> = {},
+  metadata: Readonly<Record<string, unknown>> = {},
 ): ArchiveContentResponse {
   return {
     success: true,
@@ -270,11 +313,14 @@ export function createContentResponse(
  * @param reason - Human-readable explanation of why the operation is unsupported
  * @param source - Provider slug
  * @param metadata - Extra fields merged into `_meta`
+
+ *
+ * @returns {ArchiveContentResponse} The operation result.
  */
 export function createUnsupportedContentResponse(
   reason: string,
   source: string,
-  metadata: Record<string, unknown> = {},
+  metadata: Readonly<Record<string, unknown>> = {},
 ): ArchiveContentResponse {
   return {
     success: false,
@@ -294,11 +340,14 @@ export function createUnsupportedContentResponse(
  * @param error - Error object, message, or unknown value
  * @param source - Provider slug
  * @param metadata - Extra fields merged into `_meta`
+
+ *
+ * @returns {ArchiveContentResponse} The operation result.
  */
 export function createContentErrorResponse(
   error: unknown,
   source: string,
-  metadata: Record<string, unknown> = {},
+  metadata: Readonly<Record<string, unknown>> = {},
 ): ArchiveContentResponse {
   return {
     success: false,
@@ -313,17 +362,25 @@ export function createContentErrorResponse(
   };
 }
 
+function requestLabel(request: unknown): string {
+  if (typeof request === "string") return request;
+  if (typeof request === "object" && request !== null && "url" in request) {
+    return typeof request.url === "string" ? request.url : "<request>";
+  }
+  return "<request>";
+}
+
 /**
  * Creates common fetch options with standard defaults
  * @param baseURL Base URL for the API
  * @param params Query parameters
  * @param options Additional options
- * @returns FetchOptions object
+ * @returns {Promise<FetchOptions>} FetchOptions object
  */
 export async function createFetchOptions(
   baseURL: string,
-  params: Record<string, any> = {},
-  options: Partial<FetchOptions & ArchiveOptions> = {},
+  params: Readonly<Record<string, unknown>> = {},
+  options: FetchOptions & ArchiveOptions = {},
 ): Promise<FetchOptions> {
   const config = await getConfig();
 
@@ -338,7 +395,7 @@ export async function createFetchOptions(
     retryStatusCodes: [408, 409, 425, 429, 500, 502, 503, 504], // Standard retry status codes
     onResponseError: ({ request, response, options }) => {
       consola.error(
-        `[fetch error] ${options.method} ${request} failed with status ${response.status}`,
+        `[fetch error] ${options.method} ${requestLabel(request)} failed with status ${response.status}`,
       );
     },
     ...options,
@@ -349,7 +406,7 @@ export async function createFetchOptions(
  * Merges initial options with request options, preferring request options
  * @param initOptions Initial options provided during provider creation
  * @param reqOptions Request-specific options
- * @returns Merged options object
+ * @returns {Promise<T>} Merged options object
  */
 export async function mergeOptions<T extends ArchiveOptions>(
   initOptions: Partial<T> = {},
@@ -379,13 +436,13 @@ export async function mergeOptions<T extends ArchiveOptions>(
  * @param snapshotBaseUrl Base URL for snapshot (including path segment).
  * @param providerSlug Provider identifier used for metadata typing.
  * @param options Performance options for processing.
- * @returns Array of ArchivedPage objects.
+ * @returns {Promise<ArchivedPage[]>} Array of ArchivedPage objects.
  */
 export async function mapCdxRows(
-  dataRows: string[][],
+  dataRows: readonly (readonly string[])[],
   snapshotBaseUrl: string,
   providerSlug = "wayback",
-  options: ArchiveOptions = {},
+  options: Readonly<ArchiveOptions> = {},
 ): Promise<ArchivedPage[]> {
   const config = await getConfig();
 
@@ -413,7 +470,7 @@ export async function mapCdxRows(
   return results;
 
   // Helper function to convert a row to an ArchivedPage
-  function rowToArchivedPage([rawUrl, rawTimestamp, rawStatus]: string[]):
+  function rowToArchivedPage([rawUrl, rawTimestamp, rawStatus]: readonly string[]):
     | ArchivedPage
     | undefined {
     const originalUrl = cleanDoubleSlashes(rawUrl ?? "");

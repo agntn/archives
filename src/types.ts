@@ -195,9 +195,12 @@ export interface ArchiveProvider {
   content?: (url: string, options?: ArchiveContentOptions) => Promise<ArchiveContentResponse>;
 }
 
+/** A provider instance or the lazy provider promise accepted by an archive. */
+export type ProviderReference = ArchiveProvider | Promise<ArchiveProvider>;
+
 /**
- * Interface for Archive instances
- * Defines the public API that all archive implementations must provide
+ * Interface for Archive instances.
+ * Defines the public API that all archive implementations must provide.
  */
 export interface ArchiveInterface {
   // Configuration options
@@ -210,6 +213,6 @@ export interface ArchiveInterface {
   getContent(url: string, options?: ArchiveContentOptions): Promise<ArchivedContent>;
 
   // Provider management
-  use(provider: ArchiveProvider | Promise<ArchiveProvider>): Promise<ArchiveInterface>;
-  useAll(providers: (ArchiveProvider | Promise<ArchiveProvider>)[]): Promise<ArchiveInterface>;
+  use(provider: ProviderReference): Promise<ArchiveInterface>;
+  useAll(providers: readonly ProviderReference[]): Promise<ArchiveInterface>;
 }

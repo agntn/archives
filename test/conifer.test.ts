@@ -1,3 +1,4 @@
+import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { $fetch } from "ofetch";
 import { createArchive, resetConfig, storage } from "../src";
@@ -60,7 +61,7 @@ describe("Conifer", () => {
     });
     expect($fetch).toHaveBeenCalledWith(
       "/api/v1/url_search",
-      expect.objectContaining({
+      objectContaining({
         baseURL: "https://conifer.rhizome.org",
         params: {
           user: "imamuseum",
@@ -82,7 +83,7 @@ describe("Conifer", () => {
 
     expect($fetch).toHaveBeenCalledWith(
       "/api/v1/url_search",
-      expect.objectContaining({ signal: controller.signal }),
+      objectContaining({ signal: controller.signal }),
     );
   });
 

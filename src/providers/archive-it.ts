@@ -35,6 +35,34 @@ const BASE_URL = "https://wayback.archive-it.org";
  */
 const CONTENT_CAPTURE_LIMIT = 200;
 
+interface ArchiveItCacheOptions {
+  collection: string;
+  collapse?: string;
+  filter?: string;
+  limit?: number;
+}
+
+function effectiveCacheOptions(
+  request: Readonly<Partial<ArchiveItOptions>> | undefined,
+  defaults: Readonly<Partial<ArchiveItOptions>>,
+): ArchiveItCacheOptions {
+  return {
+    collection: String(request?.collection ?? defaults.collection).trim(),
+    collapse: request?.collapse ?? defaults.collapse,
+    filter: request?.filter ?? defaults.filter,
+    limit: request?.limit === undefined ? defaults.limit : undefined,
+  };
+}
+
+function archiveItCacheKey(options: Readonly<ArchiveItCacheOptions>): string {
+  const parts = [`collection=${encodeURIComponent(options.collection)}`];
+  if (options.collapse !== undefined)
+    parts.push(`collapse=${encodeURIComponent(options.collapse)}`);
+  if (options.filter !== undefined) parts.push(`filter=${encodeURIComponent(options.filter)}`);
+  if (options.limit !== undefined) parts.push(`limit=${options.limit}`);
+  return parts.join(":");
+}
+
 /**
  * Archive-It collection archive provider.
  */
@@ -42,26 +70,20 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
   readonly name = "Archive-It";
   readonly slug = "archive-it";
 
-  constructor(options: ArchiveItOptions) {
+  constructor(options: Readonly<ArchiveItOptions>) {
     super(options);
   }
 
   /**
    * Cache key extension for the collection and filters that change the CDX result set.
+
+   *
+   * @param options - Options.
+   * @returns {string} The resulting string.
    */
-  override cacheKey(options?: ArchiveOptions): string {
+  override cacheKey(options?: Readonly<ArchiveOptions>): string {
     const requestOptions = options as Partial<ArchiveItOptions> | undefined;
-    const collection = String(requestOptions?.collection ?? this.options.collection).trim();
-    const collapse = requestOptions?.collapse ?? this.options.collapse;
-    const filter = requestOptions?.filter ?? this.options.filter;
-    const limit = requestOptions?.limit === undefined ? this.options.limit : undefined;
-    const parts = [`collection=${encodeURIComponent(collection)}`];
-
-    if (collapse !== undefined) parts.push(`collapse=${encodeURIComponent(collapse)}`);
-    if (filter !== undefined) parts.push(`filter=${encodeURIComponent(filter)}`);
-    if (limit !== undefined) parts.push(`limit=${limit}`);
-
-    return parts.join(":");
+    return archiveItCacheKey(effectiveCacheOptions(requestOptions, this.options));
   }
 
   /**
@@ -70,10 +92,15 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
    * The window bounds are normalized here too, not only in `Archive.snapshots`:
    * the provider is a public export, and the CDX index does not read a raw ISO
    * date as an instant.
+
+   *
+   * @param domain - Domain.
+   * @param reqOptions - Req Options.
+   * @returns {Promise<ArchiveResponse>} A promise resolving to the operation result.
    */
   async snapshots(
     domain: string,
-    reqOptions: Partial<ArchiveItOptions> = {},
+    reqOptions: Readonly<Partial<ArchiveItOptions>> = {},
   ): Promise<ArchiveResponse> {
     try {
       const options = await this.resolveOptions(reqOptions);
@@ -111,7 +138,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
 
       return createSuccessResponse(pages, "archive-it", {
         collection,
-        queryParams: fetchOptions.params || {},
+        queryParams: fetchOptions.params ?? {},
       });
     } catch (error) {
       return createErrorResponse(error, "archive-it");
@@ -124,10 +151,15 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
    * Archive-It replays captures through the same Wayback machinery as the
    * Internet Archive, so the `id_` modifier returns the original response here
    * too. Only the host and the collection segment differ.
+
+   *
+   * @param url - Url.
+   * @param reqOptions - Req Options.
+   * @returns {Promise<ArchiveContentResponse>} A promise resolving to the operation result.
    */
   override async content(
     url: string,
-    reqOptions: Partial<ArchiveItOptions> & ArchiveContentOptions = {},
+    reqOptions: Readonly<Partial<ArchiveItOptions> & ArchiveContentOptions> = {},
   ): Promise<ArchiveContentResponse> {
     try {
       const options = await this.resolveContentOptions(reqOptions);
@@ -174,7 +206,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
     collection: string,
     target: string,
     wanted: string,
-    options: ArchiveContentOptions,
+    options: Readonly<ArchiveContentOptions>,
   ): Promise<Array<{ original: string; timestamp: string; status?: number }>> {
     const params: Record<string, string> = {
       url: target,
@@ -222,7 +254,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
   }
 }
 
-/** Archive-It queries are collection-scoped; a missing or non-numeric id has no endpoint. */
+/* Archive-It queries are collection-scoped; a missing or non-numeric id has no endpoint. */
 function requireCollection(collection: ArchiveItOptions["collection"] | undefined): string {
   const value = String(collection ?? "").trim();
   if (!/^\d+$/.test(value)) {
@@ -231,6 +263,6 @@ function requireCollection(collection: ArchiveItOptions["collection"] | undefine
   return value;
 }
 
-export default function archiveIt(options: ArchiveItOptions): ArchiveItProvider {
+export default function archiveIt(options: Readonly<ArchiveItOptions>): ArchiveItProvider {
   return new ArchiveItProvider(options);
 }

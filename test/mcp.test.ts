@@ -1,3 +1,4 @@
+import { objectContaining, rangeDescription } from "./_matchers";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +10,14 @@ import type {
   ArchivedContent,
   ArchivedPage,
 } from "../src/types";
+
+type PageOverrides = Readonly<Omit<Partial<ArchivedPage>, "_meta">> & {
+  readonly _meta?: Readonly<ArchivedPage["_meta"]>;
+};
+
+type ContentOverrides = Readonly<Omit<Partial<ArchivedContent>, "_meta">> & {
+  readonly _meta?: Readonly<ArchivedContent["_meta"]>;
+};
 
 const providersMock = vi.hoisted(() => ({
   all: vi.fn(),
@@ -40,7 +49,7 @@ function text(content: unknown): string {
     .join("");
 }
 
-function page(overrides: Partial<ArchivedPage> = {}): ArchivedPage {
+function page(overrides: PageOverrides = {}): ArchivedPage {
   return {
     url: "https://example.com/",
     timestamp: "2024-01-02T03:04:05.000Z",
@@ -50,11 +59,11 @@ function page(overrides: Partial<ArchivedPage> = {}): ArchivedPage {
   };
 }
 
-function success(pages: ArchivedPage[], provider = "wayback"): ArchiveResponse {
-  return { success: true, pages, _meta: { source: provider, provider } };
+function success(pages: readonly ArchivedPage[], provider = "wayback"): ArchiveResponse {
+  return { success: true, pages: [...pages], _meta: { source: provider, provider } };
 }
 
-function capture(overrides: Partial<ArchivedContent> = {}): ArchiveContentResponse {
+function capture(overrides: ContentOverrides = {}): ArchiveContentResponse {
   return {
     success: true,
     content: {
@@ -72,9 +81,9 @@ function capture(overrides: Partial<ArchivedContent> = {}): ArchiveContentRespon
   };
 }
 
-/** Registers a fake provider whose `content()` resolves to `response`. */
+/* Registers a fake provider whose `content()` resolves to `response`. */
 function stubContentProvider(
-  factory: { mockResolvedValue(value: unknown): void },
+  factory: Readonly<{ mockResolvedValue(value: unknown): void }>,
   response: ArchiveContentResponse,
   slug = "wayback",
 ): void {
@@ -86,9 +95,9 @@ function stubContentProvider(
   });
 }
 
-/** Registers a fake provider whose `snapshots()` resolves to `response`. */
+/* Registers a fake provider whose `snapshots()` resolves to `response`. */
 function stubProvider(
-  factory: { mockResolvedValue(value: unknown): void },
+  factory: Readonly<{ mockResolvedValue(value: unknown): void }>,
   response: ArchiveResponse,
   slug = "wayback",
 ): void {
@@ -168,9 +177,7 @@ describe("archives MCP server", () => {
 
       for (const parameterName of parameterNames) {
         const parameter = properties[parameterName];
-        expect(parameter?.["description"]).toContain(
-          `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
-        );
+        expect(parameter?.["description"]).toContain(rangeDescription(parameter));
       }
     }
   });
@@ -267,7 +274,7 @@ describe("archives MCP server", () => {
   it("strips terminal control bytes a provider put in its snapshot data", async () => {
     stubProvider(
       providersMock.wayback,
-      success([page({ url: "https://example.com/\u001b[31mred\u0007" })]),
+      success([page({ url: "https://example.com/\u001B[31mred\u0007" })]),
     );
     const client = await connectTestClient();
 
@@ -278,7 +285,7 @@ describe("archives MCP server", () => {
 
     expect(text(response.content)).toContain("original: https://example.com/[31mred");
     // oxlint-disable-next-line no-control-regex -- The assertion is that no control byte survived.
-    expect(text(response.content)).not.toMatch(/[\u0000-\u0008\u001b]/u);
+    expect(text(response.content)).not.toMatch(/[\u0000-\u0008\u001B]/u);
   });
 
   it("reports providers that failed instead of counting only the survivors", async () => {
@@ -454,7 +461,7 @@ describe("archives MCP server", () => {
     });
 
     expect(providersMock.permacc).toHaveBeenCalledWith(
-      expect.objectContaining({ apiKey: "secret-key-value" }),
+      objectContaining({ apiKey: "secret-key-value" }),
     );
     expect(text(response.content)).not.toContain("secret-key-value");
   });

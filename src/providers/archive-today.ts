@@ -23,6 +23,69 @@ import {
 } from "../utils";
 import { BaseProvider } from "./base-provider";
 
+interface ArchiveTodayCapture {
+  url: string;
+  snapshot: string;
+  timestamp: string;
+}
+
+function selectArchiveTodayCapture(
+  pages: readonly ArchivedPage[],
+  requestedUrl: string,
+  wanted: string,
+): ArchiveTodayCapture | undefined {
+  const captures = pages.map((page) => ({
+    url: page.url,
+    snapshot: page.snapshot,
+    timestamp: (page._meta as ArchiveTodayMetadata).hash,
+  }));
+  return selectCapture(
+    preferSameUrl(captures, requestedUrl, (candidate) => candidate.url),
+    wanted,
+  );
+}
+
+function missingCaptureResponse(target: string, wanted: string): ArchiveContentResponse {
+  const near = wanted ? ` near ${wanted}` : "";
+  return createContentErrorResponse(
+    `No Archive.today capture for ${target}${near}`,
+    "archive-today",
+    { requestedTimestamp: wanted || undefined },
+  );
+}
+
+function archiveTodayPage(
+  match: readonly string[],
+  target: string,
+  position: number,
+): ArchivedPage | undefined {
+  const [, snapshotUrl, timestamp, origUrl, datetime] = match;
+  if (!origUrl.includes(target)) return undefined;
+  try {
+    const parsedDate = new Date(datetime);
+    const isoTimestamp = Number.isNaN(parsedDate.getTime())
+      ? waybackTimestampToISO(timestamp)
+      : parsedDate.toISOString();
+    if (!isoTimestamp) {
+      consola.debug("[archive-today] Dropping memento with unreadable capture time", {
+        datetime,
+        snapshot: snapshotUrl,
+      });
+      return undefined;
+    }
+    const normalizedOriginal = origUrl.includes("://") ? origUrl : `https://${origUrl}`;
+    return {
+      url: withoutTrailingSlash(cleanDoubleSlashes(normalizedOriginal)),
+      timestamp: isoTimestamp,
+      snapshot: withoutTrailingSlash(snapshotUrl),
+      _meta: { hash: timestamp, raw_date: datetime, position } as ArchiveTodayMetadata,
+    };
+  } catch (error) {
+    consola.error("Error parsing archive.today snapshot:", error);
+    return undefined;
+  }
+}
+
 /**
  * Archive.today archive provider. Uses the Memento timemap endpoint.
  */
@@ -32,8 +95,16 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
 
   /**
    * Fetch archived snapshots from Archive.today.
+
+   *
+   * @param domain - Domain.
+   * @param reqOptions - Req Options.
+   * @returns {Promise<ArchiveResponse>} A promise resolving to the operation result.
    */
-  async snapshots(domain: string, reqOptions: ArchiveTodayOptions = {}): Promise<ArchiveResponse> {
+  async snapshots(
+    domain: string,
+    reqOptions: Readonly<ArchiveTodayOptions> = {},
+  ): Promise<ArchiveResponse> {
     const cleanDomain = normalizeDomain(domain, false);
 
     try {
@@ -72,10 +143,15 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
    * on this side would make every returned capture fail the match and read as
    * never archived. The same fragment-free form feeds the same-url narrowing,
    * which still wants the caller's scheme, so it is not the timemap target.
+
+   *
+   * @param url - Url.
+   * @param reqOptions - Req Options.
+   * @returns {Promise<ArchiveContentResponse>} A promise resolving to the operation result.
    */
   override async content(
     url: string,
-    reqOptions: Partial<ArchiveTodayOptions> & ArchiveContentOptions = {},
+    reqOptions: Readonly<Partial<ArchiveTodayOptions> & ArchiveContentOptions> = {},
   ): Promise<ArchiveContentResponse> {
     try {
       const options = await this.resolveContentOptions(reqOptions);
@@ -87,22 +163,8 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
 
       const wanted = resolveRequestedTimestamp(options.timestamp);
       const mementos = await this.fetchMementos(target, options);
-      const captures = mementos.map((page) => ({
-        url: page.url,
-        snapshot: page.snapshot,
-        timestamp: (page._meta as ArchiveTodayMetadata).hash,
-      }));
-      const capture = selectCapture(
-        preferSameUrl(captures, page, (candidate) => candidate.url),
-        wanted,
-      );
-      if (!capture) {
-        return createContentErrorResponse(
-          `No Archive.today capture for ${target}${wanted ? ` near ${wanted}` : ""}`,
-          "archive-today",
-          { requestedTimestamp: wanted || undefined },
-        );
-      }
+      const capture = selectArchiveTodayCapture(mementos, page, wanted);
+      if (!capture) return missingCaptureResponse(target, wanted);
 
       const snapshotUrl = new URL(capture.snapshot);
       const body = await fetchBody(
@@ -152,10 +214,15 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
    * `first last memento`, so the match takes any first/last qualifiers;
    * requiring a bare `memento` would drop the newest capture from every
    * listing.
+
+   *
+   * @param target - Target.
+   * @param options - Options.
+   * @returns {Promise<ArchivedPage[]>} A promise resolving to the operation result.
    */
   private async fetchMementos(
     target: string,
-    options: ArchiveTodayOptions & ArchiveContentOptions,
+    options: Readonly<ArchiveTodayOptions & ArchiveContentOptions>,
   ): Promise<ArchivedPage[]> {
     const baseURL = "https://archive.is";
     // Memento timemap: https://archive.is/timemap/http://example.com
@@ -180,46 +247,10 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
     let index = 0;
 
     while ((mementoMatch = mementoRegex.exec(timemapResponse)) !== null) {
-      const [, snapshotUrl, timestamp, origUrl, datetime] = mementoMatch;
-
-      if (origUrl.includes(target)) {
-        try {
-          // The snapshot URL carries the capture stamp too, so a datetime the
-          // regex matched but `Date` cannot read falls back to those digits.
-          // Fabricating the current time instead would sort the capture above
-          // every real one in a merged, newest-first response, and the cache
-          // would then repeat that answer for days.
-          const parsedDate = new Date(datetime);
-          const isoTimestamp = Number.isNaN(parsedDate.getTime())
-            ? waybackTimestampToISO(timestamp)
-            : parsedDate.toISOString();
-          if (!isoTimestamp) {
-            consola.debug("[archive-today] Dropping memento with unreadable capture time", {
-              datetime,
-              snapshot: snapshotUrl,
-            });
-            continue;
-          }
-          const cleanedUrl = withoutTrailingSlash(
-            cleanDoubleSlashes(origUrl.includes("://") ? origUrl : `https://${origUrl}`),
-          );
-          const cleanedSnapshotUrl = withoutTrailingSlash(snapshotUrl);
-
-          pages.push({
-            url: cleanedUrl,
-            timestamp: isoTimestamp,
-            snapshot: cleanedSnapshotUrl,
-            _meta: {
-              hash: timestamp,
-              raw_date: datetime,
-              position: index,
-            } as ArchiveTodayMetadata,
-          });
-
-          index++;
-        } catch (error) {
-          consola.error("Error parsing archive.today snapshot:", error);
-        }
+      const page = archiveTodayPage(mementoMatch, target, index);
+      if (page) {
+        pages.push(page);
+        index++;
       }
     }
 
@@ -227,6 +258,8 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
   }
 }
 
-export default function archiveToday(initOptions: ArchiveTodayOptions = {}): ArchiveTodayProvider {
+export default function archiveToday(
+  initOptions: Readonly<ArchiveTodayOptions> = {},
+): ArchiveTodayProvider {
   return new ArchiveTodayProvider(initOptions);
 }

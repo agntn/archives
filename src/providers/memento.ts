@@ -27,13 +27,47 @@ const DEFAULT_BASE_URL = "https://memgator.cs.odu.edu";
 const MAX_CAPTURE_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
 
 interface JsonTimeMapMemento {
-  datetime: string;
-  uri: string;
+  readonly datetime: string;
+  readonly uri: string;
 }
 
 interface ParsedTimeMap {
-  originalUri: string;
-  mementos: JsonTimeMapMemento[];
+  readonly originalUri: string;
+  readonly mementos: readonly JsonTimeMapMemento[];
+}
+
+interface MementoCapturePage {
+  readonly url: string;
+  readonly timestamp: string;
+  readonly snapshot: string;
+}
+
+interface MementoCapture {
+  readonly page: MementoCapturePage;
+  readonly original: string;
+  readonly timestamp: string;
+}
+
+interface MementoPlayback {
+  readonly body: Readonly<FetchedBody> & { readonly capturedAt: string };
+  readonly baseURL: string;
+  readonly proxyFallback: boolean;
+}
+
+function selectMementoCapture(
+  pages: readonly ArchivedPage[],
+  target: string,
+  wanted: string | undefined,
+): MementoCapture | undefined {
+  const captures = pages.map((page) => ({
+    page,
+    original: page.url,
+    timestamp: toWaybackTimestamp(page.timestamp),
+  }));
+  return selectCapture(
+    preferSameUrl(captures, target, (candidate) => candidate.original),
+    wanted,
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -48,8 +82,15 @@ function isNotFound(error: unknown): boolean {
 function normalizedHostname(value: string): string {
   return value
     .toLowerCase()
-    .replace(/^\[|\]$/g, "")
+    .replaceAll(/^\[|\]$/g, "")
     .replace(/\.$/, "");
+}
+
+function ipv4Octets(hostname: string): readonly [number, number, number, number] | undefined {
+  const octets = hostname.split(".").map((part) => Number(part));
+  if (octets.length !== 4) return undefined;
+  if (octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return undefined;
+  return [octets[0], octets[1], octets[2], octets[3]];
 }
 
 function isLocalDevelopmentHostname(value: string): boolean {
@@ -57,50 +98,44 @@ function isLocalDevelopmentHostname(value: string): boolean {
   if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "::1") {
     return true;
   }
-  const octets = hostname.split(".").map((part) => Number(part));
-  return (
-    octets.length === 4 &&
-    octets.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) &&
-    octets[0] === 127
-  );
+  return ipv4Octets(hostname)?.[0] === 127;
+}
+
+const UNSAFE_FIRST_IPV4_OCTETS = new Set([0, 10, 127]);
+const UNSAFE_SECOND_IPV4_OCTETS: Readonly<Record<number, readonly number[]>> = {
+  169: [254],
+  192: [0, 168],
+  198: [18, 19],
+};
+
+function isUnsafeIpv6(hostname: string): boolean {
+  if (hostname === "::" || hostname === "::1" || hostname.startsWith("::ffff:")) return true;
+  return !/^[23][\da-f]{3}$/i.test(hostname.split(":", 1)[0]);
+}
+
+function inRange(value: number, minimum: number, maximum: number): boolean {
+  return value >= minimum && value <= maximum;
+}
+
+function isUnsafeIpv4(hostname: string): boolean {
+  const octets = ipv4Octets(hostname);
+  if (!octets) return false;
+  const [first, second] = octets;
+  if (UNSAFE_FIRST_IPV4_OCTETS.has(first) || first >= 224) return true;
+  if (first === 100) return inRange(second, 64, 127);
+  if (first === 172) return inRange(second, 16, 31);
+  return UNSAFE_SECOND_IPV4_OCTETS[first]?.includes(second) ?? false;
 }
 
 function isUnsafeHostname(value: string): boolean {
   const hostname = normalizedHostname(value);
-  if (
+  const reservedName =
     hostname === "localhost" ||
     hostname.endsWith(".localhost") ||
     hostname.endsWith(".local") ||
-    hostname.endsWith(".internal")
-  ) {
-    return true;
-  }
-
-  if (hostname.includes(":")) {
-    if (hostname === "::" || hostname === "::1" || hostname.startsWith("::ffff:")) return true;
-    const firstHextet = hostname.split(":", 1)[0];
-    return !/^[23][\da-f]{3}$/i.test(firstHextet);
-  }
-
-  const octets = hostname.split(".").map((part) => Number(part));
-  if (
-    octets.length !== 4 ||
-    octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
-  ) {
-    return false;
-  }
-  const [first, second] = octets;
-  return (
-    first === 0 ||
-    first === 10 ||
-    first === 127 ||
-    (first === 100 && second >= 64 && second <= 127) ||
-    (first === 169 && second === 254) ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && (second === 0 || second === 168)) ||
-    (first === 198 && (second === 18 || second === 19)) ||
-    first >= 224
-  );
+    hostname.endsWith(".internal");
+  if (reservedName) return true;
+  return hostname.includes(":") ? isUnsafeIpv6(hostname) : isUnsafeIpv4(hostname);
 }
 
 function isSafeMementoURL(url: URL): boolean {
@@ -123,13 +158,153 @@ function assertSafePlaybackURL(url: URL, localOrigin?: string): void {
   }
 }
 
+function parseOriginalUri(value: unknown): URL {
+  if (typeof value !== "string") {
+    throw new TypeError("Memento aggregator returned a JSON TimeMap without original_uri");
+  }
+  let original: URL;
+  try {
+    original = new URL(value);
+  } catch {
+    throw new Error("Memento aggregator returned an invalid original_uri");
+  }
+  if (original.protocol !== "http:" && original.protocol !== "https:") {
+    throw new Error("Memento aggregator returned original_uri without HTTP or HTTPS");
+  }
+  if (original.username || original.password) {
+    throw new Error("Memento aggregator returned an original_uri containing credentials");
+  }
+  return original;
+}
+
+function parseMementoList(value: unknown): JsonTimeMapMemento[] {
+  if (!Array.isArray(value)) {
+    throw new TypeError("Memento aggregator returned a JSON TimeMap without a valid mementos.list");
+  }
+  const list: JsonTimeMapMemento[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    const datetime = item["datetime"];
+    const uri = item["uri"];
+    if (typeof datetime === "string" && typeof uri === "string") list.push({ datetime, uri });
+  }
+  return list;
+}
+
+function pageFromMemento(
+  memento: Readonly<JsonTimeMapMemento>,
+  originalUri: string,
+  latestPossibleCapture: number,
+): ArchivedPage | undefined {
+  const stamp = toWaybackTimestamp(memento.datetime);
+  if (stamp.length !== 14) return undefined;
+  const timestamp = waybackTimestampToISO(stamp);
+  if (!timestamp || Date.parse(timestamp) > latestPossibleCapture) return undefined;
+
+  let snapshot: URL;
+  try {
+    snapshot = new URL(memento.uri);
+  } catch {
+    return undefined;
+  }
+  if (!isSafeMementoURL(snapshot)) return undefined;
+  return {
+    url: originalUri,
+    timestamp,
+    snapshot: snapshot.href,
+    _meta: {
+      provider: "memento",
+      archive: snapshot.hostname,
+      datetime: memento.datetime,
+    },
+  };
+}
+
+function playbackMetadata(playback: MementoPlayback): Record<string, unknown> {
+  const { baseURL, body, proxyFallback } = playback;
+  const metadata: Record<string, unknown> = {
+    provider: "memento",
+    status: body.status,
+    aggregator: baseURL,
+    rawSnapshot: body.url,
+  };
+  if (proxyFallback) metadata["proxyFallback"] = true;
+  else {
+    metadata["archive"] = new URL(body.url).hostname;
+    metadata["datetime"] = body.capturedAt;
+  }
+  return metadata;
+}
+
+function mementoContentResponse(
+  capture: Readonly<MementoCapture>,
+  playback: MementoPlayback,
+  wanted: string | undefined,
+): ArchiveContentResponse {
+  const { baseURL, body, proxyFallback } = playback;
+  const servedDifferent = body.capturedAt !== capture.page.timestamp;
+  return createContentResponse(
+    {
+      url: capture.page.url,
+      timestamp: body.capturedAt,
+      snapshot: proxyFallback || servedDifferent ? body.url : capture.page.snapshot,
+      content: body.text,
+      ...(body.mime ? { mime: body.mime } : {}),
+      bytes: body.bytes,
+      truncated: body.truncated,
+      _meta: playbackMetadata(playback),
+    },
+    "memento",
+    { requestedTimestamp: wanted || undefined, aggregator: baseURL },
+  );
+}
+
+function isAllowedAggregatorProtocol(parsed: URL, localDevelopment: boolean): boolean {
+  return parsed.protocol === "https:" || (parsed.protocol === "http:" && localDevelopment);
+}
+
+function hasAggregatorUrlExtras(parsed: URL): boolean {
+  return Boolean(parsed.username || parsed.password || parsed.search || parsed.hash);
+}
+
+function validateAggregatorUrl(parsed: URL): void {
+  const localDevelopment = isLocalDevelopmentHostname(parsed.hostname);
+  if (isUnsafeHostname(parsed.hostname) && !localDevelopment) {
+    throw new Error("Memento aggregator base URL must use a public host");
+  }
+  if (!isAllowedAggregatorProtocol(parsed, localDevelopment)) {
+    throw new Error("Memento aggregator base URL must use HTTPS (HTTP is allowed only locally)");
+  }
+  if (hasAggregatorUrlExtras(parsed)) {
+    throw new Error(
+      "Memento aggregator base URL cannot contain credentials, a query, or a fragment",
+    );
+  }
+}
+
+function parseAggregatorBaseUrl(raw: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error("Invalid Memento aggregator base URL");
+  }
+  validateAggregatorUrl(parsed);
+  return parsed.href.replace(/\/$/, "");
+}
+
 /** Memento JSON TimeMaps through ODU MemGator, replacing the discontinued Time Travel aggregator. */
 export class MementoProvider extends BaseProvider<MementoOptions> {
   readonly name = "Memento (MemGator)";
   readonly slug = "memento";
 
-  /** Separates aggregators and caps while redacting invalid URLs before cache lookup. */
-  override cacheKey(options?: MementoOptions): string {
+  /**
+   * Separates aggregators and caps while redacting invalid URLs before cache lookup.
+   *
+   * @param options - Options.
+   * @returns {string} The resulting string.
+   */
+  override cacheKey(options?: Readonly<MementoOptions>): string {
     const rawBaseURL = options?.baseUrl ?? this.options.baseUrl ?? DEFAULT_BASE_URL;
     let baseURL = rawBaseURL;
     try {
@@ -143,8 +318,17 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
     return parts.join(":");
   }
 
-  /** Fetches the aggregated JSON TimeMap for one exact original URL. */
-  async snapshots(domain: string, reqOptions: MementoOptions = {}): Promise<ArchiveResponse> {
+  /**
+   * Fetches the aggregated JSON TimeMap for one exact original URL.
+   *
+   * @param domain - Domain.
+   * @param reqOptions - Req Options.
+   * @returns {Promise<ArchiveResponse>} A promise resolving to the operation result.
+   */
+  async snapshots(
+    domain: string,
+    reqOptions: Readonly<MementoOptions> = {},
+  ): Promise<ArchiveResponse> {
     let target: string | undefined;
     try {
       const options = await this.resolveOptions(reqOptions);
@@ -163,10 +347,16 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
     }
   }
 
-  /** Reads the selected Memento URI directly, with negotiation through MemGator only as fallback. */
+  /**
+   * Reads the selected Memento URI directly, with negotiation through MemGator only as fallback.
+   *
+   * @param url - Url.
+   * @param reqOptions - Req Options.
+   * @returns {Promise<ArchiveContentResponse>} A promise resolving to the operation result.
+   */
   override async content(
     url: string,
-    reqOptions: Partial<MementoOptions> & ArchiveContentOptions = {},
+    reqOptions: Readonly<Partial<MementoOptions> & ArchiveContentOptions> = {},
   ): Promise<ArchiveContentResponse> {
     try {
       const options = await this.resolveContentOptions(reqOptions);
@@ -174,15 +364,7 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
       const target = this.originalURL(unwrapped.url);
       const wanted = resolveRequestedTimestamp(options.timestamp ?? unwrapped.timestamp);
       const { pages } = await this.fetchTimeMap(target, options);
-      const captures = pages.map((page) => ({
-        page,
-        original: page.url,
-        timestamp: toWaybackTimestamp(page.timestamp),
-      }));
-      const capture = selectCapture(
-        preferSameUrl(captures, target, (candidate) => candidate.original),
-        wanted,
-      );
+      const capture = selectMementoCapture(pages, target, wanted);
       if (!capture) {
         return createContentErrorResponse(
           `No Memento capture for ${target}${wanted ? ` near ${wanted}` : ""}`,
@@ -191,69 +373,48 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
         );
       }
 
-      const baseURL = this.baseURL(options);
-      const aggregator = new URL(baseURL);
-      const localAggregatorOrigin = isLocalDevelopmentHostname(aggregator.hostname)
-        ? aggregator.origin
-        : undefined;
-      let proxyFallback = false;
-      let body: FetchedBody;
-      try {
-        const snapshot = this.rawSnapshotURL(capture.page.snapshot);
-        body = await fetchBody(snapshot.origin, `${snapshot.pathname}${snapshot.search}`, options, {
-          assertURL: (candidate) => assertSafePlaybackURL(candidate),
-        });
-        if (!body.capturedAt) {
-          throw new Error("Direct Memento playback did not identify its capture time");
-        }
-      } catch {
-        proxyFallback = true;
-        body = await fetchBody(
-          baseURL,
-          `/memento/proxy/${capture.timestamp}/${encodeURIComponent(capture.page.url)}`,
-          options,
-          {
-            assertURL: (candidate) => assertSafePlaybackURL(candidate, localAggregatorOrigin),
-          },
-        );
-      }
-      if (!body.capturedAt) {
-        throw new Error("Memento playback response did not identify its capture time");
-      }
-      const servedDifferent = body.capturedAt !== capture.page.timestamp;
-      const archive = proxyFallback ? undefined : new URL(body.url).hostname;
-      const datetime = proxyFallback ? undefined : body.capturedAt;
-
-      return createContentResponse(
-        {
-          url: capture.page.url,
-          timestamp: body.capturedAt,
-          snapshot: proxyFallback || servedDifferent ? body.url : capture.page.snapshot,
-          content: body.text,
-          ...(body.mime ? { mime: body.mime } : {}),
-          bytes: body.bytes,
-          truncated: body.truncated,
-          _meta: {
-            provider: "memento",
-            ...(typeof archive === "string" ? { archive } : {}),
-            ...(typeof datetime === "string" ? { datetime } : {}),
-            status: body.status,
-            aggregator: baseURL,
-            rawSnapshot: body.url,
-            ...(proxyFallback ? { proxyFallback: true } : {}),
-          },
-        },
-        "memento",
-        { requestedTimestamp: wanted || undefined, aggregator: baseURL },
-      );
+      const playback = await this.readCapture(capture, options);
+      return mementoContentResponse(capture, playback, wanted);
     } catch (error) {
       return createContentErrorResponse(error, "memento");
     }
   }
 
+  private async readCapture(
+    capture: Readonly<MementoCapture>,
+    options: Readonly<MementoOptions & ArchiveContentOptions>,
+  ): Promise<MementoPlayback> {
+    const baseURL = this.baseURL(options);
+    const aggregator = new URL(baseURL);
+    const localOrigin = isLocalDevelopmentHostname(aggregator.hostname)
+      ? aggregator.origin
+      : undefined;
+
+    try {
+      const snapshot = this.rawSnapshotURL(capture.page.snapshot);
+      const body = await fetchBody(
+        snapshot.origin,
+        `${snapshot.pathname}${snapshot.search}`,
+        options,
+        { assertURL: (candidate) => assertSafePlaybackURL(candidate) },
+      );
+      if (!body.capturedAt) throw new Error("Direct playback did not identify its capture time");
+      return { body: { ...body, capturedAt: body.capturedAt }, baseURL, proxyFallback: false };
+    } catch {
+      const body = await fetchBody(
+        baseURL,
+        `/memento/proxy/${capture.timestamp}/${encodeURIComponent(capture.page.url)}`,
+        options,
+        { assertURL: (candidate) => assertSafePlaybackURL(candidate, localOrigin) },
+      );
+      if (!body.capturedAt) throw new Error("Memento playback did not identify its capture time");
+      return { body: { ...body, capturedAt: body.capturedAt }, baseURL, proxyFallback: true };
+    }
+  }
+
   private async fetchTimeMap(
     target: string,
-    options: MementoOptions & ArchiveContentOptions,
+    options: Readonly<MementoOptions & ArchiveContentOptions>,
   ): Promise<{ pages: ArchivedPage[] }> {
     const baseURL = this.baseURL(options);
     let response: unknown;
@@ -274,74 +435,35 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
     const latestPossibleCapture = Date.now() + MAX_CAPTURE_CLOCK_SKEW_MS;
 
     for (const memento of timeMap.mementos) {
-      const stamp = toWaybackTimestamp(memento.datetime);
-      if (stamp.length !== 14) continue;
-      const timestamp = waybackTimestampToISO(stamp);
-      if (!timestamp || Date.parse(timestamp) > latestPossibleCapture) continue;
-
-      let snapshot: URL;
-      try {
-        snapshot = new URL(memento.uri);
-      } catch {
-        continue;
-      }
-      if (!isSafeMementoURL(snapshot)) continue;
-
-      const key = `${timestamp}\u0000${snapshot.href}`;
+      const page = pageFromMemento(memento, timeMap.originalUri, latestPossibleCapture);
+      if (!page) continue;
+      const key = `${page.timestamp}\u0000${page.snapshot}`;
       if (seen.has(key)) continue;
       seen.add(key);
-
-      pages.push({
-        url: timeMap.originalUri,
-        timestamp,
-        snapshot: snapshot.href,
-        _meta: {
-          provider: "memento",
-          archive: snapshot.hostname,
-          datetime: memento.datetime,
-        },
-      });
+      pages.push(page);
     }
 
     return { pages };
   }
 
   private parseTimeMap(response: unknown): ParsedTimeMap {
-    if (!isRecord(response) || typeof response["original_uri"] !== "string") {
+    if (!isRecord(response)) {
       throw new Error("Memento aggregator returned a JSON TimeMap without original_uri");
     }
     const mementos = response["mementos"];
-    if (!isRecord(mementos) || !Array.isArray(mementos["list"])) {
+    if (!isRecord(mementos)) {
       throw new Error("Memento aggregator returned a JSON TimeMap without a valid mementos.list");
     }
-
-    let original: URL;
-    try {
-      original = new URL(response["original_uri"]);
-    } catch {
-      throw new Error("Memento aggregator returned an invalid original_uri");
-    }
-    if (original.protocol !== "http:" && original.protocol !== "https:") {
-      throw new Error("Memento aggregator returned original_uri without HTTP or HTTPS");
-    }
-    if (original.username || original.password) {
-      throw new Error("Memento aggregator returned an original_uri containing credentials");
-    }
-
-    const list: JsonTimeMapMemento[] = [];
-    for (const item of mementos["list"]) {
-      if (!isRecord(item)) continue;
-      const datetime = item["datetime"];
-      const uri = item["uri"];
-      if (typeof datetime === "string" && typeof uri === "string") {
-        list.push({ datetime, uri });
-      }
-    }
-
-    return { originalUri: original.href, mementos: list };
+    const original = parseOriginalUri(response["original_uri"]);
+    return { originalUri: original.href, mementos: parseMementoList(mementos["list"]) };
   }
 
-  /** Requests raw replay used by PyWB without the archive toolbar or rewritten links. */
+  /**
+   * Requests raw replay used by PyWB without the archive toolbar or rewritten links.
+   *
+   * @param value - Value.
+   * @returns {URL} The operation result.
+   */
   private rawSnapshotURL(value: string): URL {
     const snapshot = new URL(value);
     const path = snapshot.pathname;
@@ -382,30 +504,11 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
     return target;
   }
 
-  private baseURL(options: Partial<MementoOptions>): string {
-    const raw = options.baseUrl ?? DEFAULT_BASE_URL;
-    let parsed: URL;
-    try {
-      parsed = new URL(raw);
-    } catch {
-      throw new Error("Invalid Memento aggregator base URL");
-    }
-    const localDevelopment = isLocalDevelopmentHostname(parsed.hostname);
-    if (isUnsafeHostname(parsed.hostname) && !localDevelopment) {
-      throw new Error("Memento aggregator base URL must use a public host");
-    }
-    if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && localDevelopment)) {
-      throw new Error("Memento aggregator base URL must use HTTPS (HTTP is allowed only locally)");
-    }
-    if (parsed.username || parsed.password || parsed.search || parsed.hash) {
-      throw new Error(
-        "Memento aggregator base URL cannot contain credentials, a query, or a fragment",
-      );
-    }
-    return parsed.href.replace(/\/$/, "");
+  private baseURL(options: Readonly<Partial<MementoOptions>>): string {
+    return parseAggregatorBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
   }
 }
 
-export default function memento(initOptions: MementoOptions = {}): MementoProvider {
+export default function memento(initOptions: Readonly<MementoOptions> = {}): MementoProvider {
   return new MementoProvider(initOptions);
 }
