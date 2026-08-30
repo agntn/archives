@@ -108,7 +108,7 @@ describe("Archive-It", () => {
       "/4399/timemap/cdx",
       expect.objectContaining({
         params: expect.objectContaining({
-          url: "example.com/page/*",
+          url: "example.com/page",
           collapse: "timestamp:10",
           filter: "statuscode:200",
           from: "2020",
