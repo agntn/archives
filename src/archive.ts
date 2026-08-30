@@ -8,6 +8,7 @@ import type {
   ArchivedContent,
   ArchivedPage,
   ArchiveInterface,
+  ProviderReference,
   UnsupportedProviderRecord,
 } from "./types";
 import { getStoredContent, getStoredResponse, storeContent, storeResponse } from "./storage";
@@ -31,18 +32,103 @@ import {
 export class UnsupportedOperationError extends Error {
   readonly providers: UnsupportedProviderRecord[];
 
-  constructor(reason: string, providers: UnsupportedProviderRecord[] = []) {
+  constructor(reason: string, providers: readonly Readonly<UnsupportedProviderRecord>[] = []) {
     super(reason);
     this.name = "UnsupportedOperationError";
-    this.providers = providers;
+    this.providers = [...providers];
   }
 }
 
 type ProviderInput =
-  | ArchiveProvider
-  | ArchiveProvider[]
-  | Promise<ArchiveProvider>
-  | Promise<ArchiveProvider[]>;
+  | ProviderReference
+  | readonly ArchiveProvider[]
+  | Promise<readonly ArchiveProvider[]>;
+
+function isProviderArray(providers: ProviderInput): providers is readonly ArchiveProvider[] {
+  return Array.isArray(providers);
+}
+
+interface ListingMergeState {
+  pages: ArchivedPage[];
+  priorPageKeys: Set<string>;
+  failures: Array<{ provider: string; message: string }>;
+  unsupportedProviders: UnsupportedProviderRecord[];
+  anySuccess: boolean;
+}
+
+function mergeResponsePages(response: ArchiveResponse, state: ListingMergeState): void {
+  const responsePageKeys = new Set<string>();
+  const responseCaptureKeys = new Set<string>();
+  for (const page of response.pages) {
+    const pageKey = JSON.stringify([page.url, page.timestamp]);
+    const digest = page._meta.digest;
+    const captureIdentity =
+      typeof digest === "string" && digest.length > 0 ? digest : page.snapshot;
+    const captureKey = JSON.stringify([page.url, page.timestamp, captureIdentity]);
+    if (state.priorPageKeys.has(pageKey) || responseCaptureKeys.has(captureKey)) continue;
+    responsePageKeys.add(pageKey);
+    responseCaptureKeys.add(captureKey);
+    state.pages.push(page);
+  }
+  for (const pageKey of responsePageKeys) state.priorPageKeys.add(pageKey);
+}
+
+function collectListingResponse(response: ArchiveResponse, state: ListingMergeState): void {
+  const provider = response._meta?.provider ?? "unknown";
+  if (response.success) {
+    state.anySuccess = true;
+    mergeResponsePages(response, state);
+  } else if (response.unsupported) {
+    state.unsupportedProviders.push({
+      provider,
+      reason: response.unsupportedReason ?? "operation not supported",
+    });
+  } else if (response.error) {
+    state.failures.push({ provider, message: response.error });
+  }
+}
+
+function prefixedFailures(
+  failures: readonly Readonly<{ provider: string; message: string }>[],
+): string[] {
+  return failures.map((failure) => `${failure.provider}: ${failure.message}`);
+}
+
+function unsupportedReason(records: readonly Readonly<UnsupportedProviderRecord>[]): string {
+  return records.map((record) => `${record.provider}: ${record.reason}`).join("; ");
+}
+
+function buildCombinedListingResponse(
+  responses: readonly ArchiveResponse[],
+  state: ListingMergeState,
+  pages: readonly ArchivedPage[],
+): ArchiveResponse {
+  const providers = responses.map((response) => response._meta?.provider || "unknown");
+  const allUnsupported =
+    responses.length > 0 &&
+    state.unsupportedProviders.length === responses.length &&
+    !state.anySuccess &&
+    state.failures.length === 0;
+  const result: ArchiveResponse = {
+    success: state.anySuccess,
+    pages: [...pages],
+    _meta: {
+      source: "multiple",
+      provider: providers.join(","),
+      providerCount: providers.length,
+      errors: state.failures.length > 0 ? prefixedFailures(state.failures) : undefined,
+      unsupportedProviders:
+        state.unsupportedProviders.length > 0 ? state.unsupportedProviders : undefined,
+    },
+  };
+  if (allUnsupported) {
+    result.unsupported = true;
+    result.unsupportedReason = unsupportedReason(state.unsupportedProviders);
+  } else if (!state.anySuccess) {
+    result.error = state.failures.map((failure) => failure.message).join("; ") || undefined;
+  }
+  return result;
+}
 
 /**
  * Combine per-provider responses into a single merged ArchiveResponse.
@@ -55,90 +141,87 @@ type ProviderInput =
  *
  * @param responses - Array of per-provider responses (possibly mixed success/failure).
  * @param limit - Optional cap on the number of pages in the merged result.
+
+ *
+ * @returns {ArchiveResponse} The operation result.
  */
-export function combineResults(responses: ArchiveResponse[], limit?: number): ArchiveResponse {
-  const allPages: ArchivedPage[] = [];
-  const priorResponsePageKeys = new Set<string>();
-  const failures: Array<{ provider: string; message: string }> = [];
-  const unsupportedProviders: UnsupportedProviderRecord[] = [];
-  let anySuccess = false;
+export function combineResults(
+  responses: readonly ArchiveResponse[],
+  limit?: number,
+): ArchiveResponse {
+  const state: ListingMergeState = {
+    pages: [],
+    priorPageKeys: new Set<string>(),
+    failures: [],
+    unsupportedProviders: [],
+    anySuccess: false,
+  };
+  for (const response of responses) collectListingResponse(response, state);
+  state.pages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  return buildCombinedListingResponse(responses, state, limitPages(state.pages, limit));
+}
 
-  for (const response of responses) {
-    const providerSlug = response._meta?.provider ?? "unknown";
-    if (response.success) {
-      anySuccess = true;
-      const responsePageKeys = new Set<string>();
-      const responseCaptureKeys = new Set<string>();
+interface ContentMergeState {
+  failures: Array<{ provider: string; message: string }>;
+  unsupportedProviders: UnsupportedProviderRecord[];
+}
 
-      for (const page of response.pages) {
-        const pageKey = JSON.stringify([page.url, page.timestamp]);
-        const digest = page._meta.digest;
-        const captureIdentity =
-          typeof digest === "string" && digest.length > 0 ? digest : page.snapshot;
-        const captureKey = JSON.stringify([page.url, page.timestamp, captureIdentity]);
-
-        if (priorResponsePageKeys.has(pageKey) || responseCaptureKeys.has(captureKey)) {
-          continue;
-        }
-
-        responsePageKeys.add(pageKey);
-        responseCaptureKeys.add(captureKey);
-        allPages.push(page);
-      }
-
-      for (const pageKey of responsePageKeys) {
-        priorResponsePageKeys.add(pageKey);
-      }
-    } else if (response.unsupported) {
-      unsupportedProviders.push({
-        provider: providerSlug,
-        reason: response.unsupportedReason ?? "operation not supported",
-      });
-    } else if (response.error) {
-      failures.push({ provider: providerSlug, message: response.error });
-    }
+function collectContentResponse(
+  response: ArchiveContentResponse,
+  state: ContentMergeState,
+): ArchiveContentResponse | undefined {
+  const provider = response._meta?.provider ?? "unknown";
+  if (response.success && response.content) return response;
+  if (response.unsupported) {
+    state.unsupportedProviders.push({
+      provider,
+      reason: response.unsupportedReason ?? "operation not supported",
+    });
+  } else if (response.error) {
+    state.failures.push({ provider, message: response.error });
   }
+  return undefined;
+}
 
-  // newest first
-  allPages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-  const limitedPages = limitPages(allPages, limit);
-
-  const providersList = responses.map((r) => r._meta?.provider || "unknown").filter(Boolean);
-
-  // Combined response is unsupported only when every queried provider was
-  // unsupported and none produced pages or errors.
-  const allUnsupported =
-    responses.length > 0 &&
-    unsupportedProviders.length === responses.length &&
-    !anySuccess &&
-    failures.length === 0;
-
+function combineContentWinner(
+  winner: ArchiveContentResponse,
+  state: ContentMergeState,
+): ArchiveContentResponse {
   return {
-    success: anySuccess,
-    pages: limitedPages,
-    error:
-      anySuccess || allUnsupported
-        ? undefined
-        : failures.map((failure) => failure.message).join("; ") || undefined,
-    unsupported: allUnsupported || undefined,
-    unsupportedReason: allUnsupported
-      ? unsupportedProviders.map((u) => `${u.provider}: ${u.reason}`).join("; ")
-      : undefined,
+    ...winner,
     _meta: {
-      source: "multiple",
-      provider: providersList.join(","),
-      providerCount: providersList.length,
-      // Slug-prefixed, like `unsupportedProviders`: a partially successful
-      // fan-out clears `error`, so this is the only place left that says which
-      // backend failed.
-      errors:
-        failures.length > 0
-          ? failures.map((failure) => `${failure.provider}: ${failure.message}`)
-          : undefined,
-      unsupportedProviders: unsupportedProviders.length > 0 ? unsupportedProviders : undefined,
+      ...(winner._meta ?? { source: "multiple", provider: "unknown" }),
+      errors: state.failures.length > 0 ? prefixedFailures(state.failures) : undefined,
+      unsupportedProviders:
+        state.unsupportedProviders.length > 0 ? state.unsupportedProviders : undefined,
     },
   };
+}
+
+function combinedContentFailure(
+  responses: readonly ArchiveContentResponse[],
+  state: ContentMergeState,
+): ArchiveContentResponse {
+  const allUnsupported =
+    responses.length > 0 && state.unsupportedProviders.length === responses.length;
+  const result: ArchiveContentResponse = {
+    success: false,
+    _meta: {
+      source: "multiple",
+      provider: responses.map((response) => response._meta?.provider || "unknown").join(","),
+      providerCount: responses.length,
+      errors: state.failures.length > 0 ? prefixedFailures(state.failures) : undefined,
+      unsupportedProviders:
+        state.unsupportedProviders.length > 0 ? state.unsupportedProviders : undefined,
+    },
+  };
+  if (allUnsupported) {
+    result.unsupported = true;
+    result.unsupportedReason = unsupportedReason(state.unsupportedProviders);
+  } else {
+    result.error = state.failures.map((failure) => failure.message).join("; ") || undefined;
+  }
+  return result;
 }
 
 /**
@@ -150,71 +233,27 @@ export function combineResults(responses: ArchiveResponse[], limit?: number): Ar
  * body would never learn that its preferred archive was the one that failed.
  *
  * @param responses - Per-provider responses, in the order they were tried
+
+ *
+ * @returns {ArchiveContentResponse} The operation result.
  */
-export function combineContentResults(responses: ArchiveContentResponse[]): ArchiveContentResponse {
-  const failures: Array<{ provider: string; message: string }> = [];
-  const unsupportedProviders: UnsupportedProviderRecord[] = [];
-  let winner: ArchiveContentResponse | undefined;
-
-  for (const response of responses) {
-    const providerSlug = response._meta?.provider ?? "unknown";
-    if (response.success && response.content) {
-      winner ??= response;
-    } else if (response.unsupported) {
-      unsupportedProviders.push({
-        provider: providerSlug,
-        reason: response.unsupportedReason ?? "operation not supported",
-      });
-    } else if (response.error) {
-      failures.push({ provider: providerSlug, message: response.error });
-    }
-  }
-
-  // A single provider's answer is already the whole answer; rewrapping it would
-  // only lose `fromCache` and the provider's own metadata.
+export function combineContentResults(
+  responses: readonly ArchiveContentResponse[],
+): ArchiveContentResponse {
   if (responses.length <= 1) {
     return responses[0] ?? { success: false, error: "No providers were queried" };
   }
 
-  const errors =
-    failures.length > 0
-      ? failures.map((failure) => `${failure.provider}: ${failure.message}`)
-      : undefined;
-  const unsupported = unsupportedProviders.length > 0 ? unsupportedProviders : undefined;
-
-  if (winner) {
-    return {
-      ...winner,
-      _meta: {
-        ...(winner._meta ?? { source: "multiple", provider: "unknown" }),
-        errors,
-        unsupportedProviders: unsupported,
-      },
-    };
+  const state: ContentMergeState = { failures: [], unsupportedProviders: [] };
+  let winner: ArchiveContentResponse | undefined;
+  for (const response of responses) {
+    const candidate = collectContentResponse(response, state);
+    winner ??= candidate;
   }
-
-  const allUnsupported = responses.length > 0 && unsupportedProviders.length === responses.length;
-
-  return {
-    success: false,
-    error: allUnsupported
-      ? undefined
-      : failures.map((failure) => failure.message).join("; ") || undefined,
-    unsupported: allUnsupported || undefined,
-    unsupportedReason: allUnsupported
-      ? unsupportedProviders.map((record) => `${record.provider}: ${record.reason}`).join("; ")
-      : undefined,
-    _meta: {
-      source: "multiple",
-      provider: responses.map((response) => response._meta?.provider || "unknown").join(","),
-      providerCount: responses.length,
-      errors,
-      unsupportedProviders: unsupported,
-    },
-  };
+  return winner ? combineContentWinner(winner, state) : combinedContentFailure(responses, state);
 }
 
-/**
+/*
  * Drops the pages outside the requested window.
  *
  * Providers that can narrow their own index query already have; this is the
@@ -236,16 +275,53 @@ function windowPages(response: ArchiveResponse, from: string, to: string): Archi
   return pages.length === response.pages.length ? response : { ...response, pages };
 }
 
-/** One shared clamp, so the merge and the windowed paths cannot drift on limit semantics. */
-function limitPages(pages: ArchivedPage[], limit: number | undefined): ArchivedPage[] {
-  if (typeof limit !== "number" || !Number.isFinite(limit)) return pages;
-  return pages.length <= limit ? pages : pages.slice(0, Math.max(0, limit));
+/* One shared clamp, so the merge and the windowed paths cannot drift on limit semantics. */
+function limitPages(pages: readonly ArchivedPage[], limit: number | undefined): ArchivedPage[] {
+  if (typeof limit !== "number" || !Number.isFinite(limit)) return [...pages];
+  return pages.length <= limit ? [...pages] : pages.slice(0, Math.max(0, limit));
 }
 
-/** Caps the pages of one filtered response, the way the lifted provider limit would have. */
+/* Caps the pages of one filtered response, the way the lifted provider limit would have. */
 function capPages(response: ArchiveResponse, limit: number | undefined): ArchiveResponse {
   const pages = limitPages(response.pages, limit);
   return pages === response.pages ? response : { ...response, pages };
+}
+
+type FailedArchiveResponse = ArchiveResponse | ArchiveContentResponse;
+
+function responseUnsupportedProviders(
+  response: FailedArchiveResponse,
+): UnsupportedProviderRecord[] {
+  if (response._meta?.unsupportedProviders) return [...response._meta.unsupportedProviders];
+  if (!response._meta?.provider) return [];
+  return [
+    {
+      provider: response._meta.provider,
+      reason: response.unsupportedReason ?? "operation not supported",
+    },
+  ];
+}
+
+function archiveFailureMessage(response: FailedArchiveResponse, fallback: string): string {
+  const parts: string[] = [];
+  if (response.error) parts.push(response.error);
+  const unsupported = response._meta?.unsupportedProviders;
+  if (unsupported?.length) {
+    parts.push(
+      `unsupported: ${unsupported.map((record) => `${record.provider} (${record.reason})`).join(", ")}`,
+    );
+  }
+  return parts.length > 0 ? parts.join("; ") : fallback;
+}
+
+function throwArchiveFailure(response: FailedArchiveResponse, fallback: string): never {
+  if (response.unsupported) {
+    throw new UnsupportedOperationError(
+      response.unsupportedReason ?? "operation not supported by any queried provider",
+      responseUnsupportedProviders(response),
+    );
+  }
+  throw new Error(archiveFailureMessage(response, fallback));
 }
 
 /**
@@ -264,8 +340,8 @@ export class Archive implements ArchiveInterface {
   private readonly providersInput: ProviderInput;
   private resolvedProviders: ArchiveProvider[] | undefined;
 
-  constructor(providers: ProviderInput, options?: ArchiveOptions) {
-    this.providersInput = Array.isArray(providers) ? [...providers] : providers;
+  constructor(providers: ProviderInput, options?: Readonly<ArchiveOptions>) {
+    this.providersInput = isProviderArray(providers) ? [...providers] : providers;
     this.options = options;
     this.resolveProviders = this.resolveProviders.bind(this);
     this.snapshots = this.snapshots.bind(this);
@@ -280,6 +356,9 @@ export class Archive implements ArchiveInterface {
    * Force-resolve providers immediately. Normally resolution is deferred
    * until the first query so `createArchive(providers.all())` stays cheap
    * even when never called. Public for consumers that want eager init.
+
+   *
+   * @returns {Promise<ArchiveProvider[]>} A promise resolving to the operation result.
    */
   async resolveProviders(): Promise<ArchiveProvider[]> {
     if (this.resolvedProviders) {
@@ -287,17 +366,23 @@ export class Archive implements ArchiveInterface {
     }
 
     const result = await Promise.resolve(this.providersInput);
-    this.resolvedProviders = Array.isArray(result) ? [...result] : [result];
+    this.resolvedProviders = isProviderArray(result) ? [...result] : [result];
     return [...this.resolvedProviders];
   }
 
   /**
    * Fetch from a single provider, honoring cache and error-normalization.
+
+   *
+   * @param provider - Provider.
+   * @param domain - Domain.
+   * @param requestOptions - Request Options.
+   * @returns {Promise<ArchiveResponse>} A promise resolving to the operation result.
    */
   private async fetchFromProvider(
-    provider: ArchiveProvider,
+    provider: Readonly<ArchiveProvider>,
     domain: string,
-    requestOptions: ArchiveOptions,
+    requestOptions: Readonly<ArchiveOptions>,
   ): Promise<ArchiveResponse> {
     // Try cache first
     if (requestOptions.cache !== false) {
@@ -344,7 +429,7 @@ export class Archive implements ArchiveInterface {
    *
    * @param domain - The domain to search for in archive services (e.g., "example.com")
    * @param listOptions - Request-specific options that override the default options
-   * @returns Promise resolving to ArchiveResponse with pages, metadata and status
+   * @returns {Promise<ArchiveResponse>} Promise resolving to ArchiveResponse with pages, metadata and status
    *
    * @example
    * ```js
@@ -364,7 +449,10 @@ export class Archive implements ArchiveInterface {
    * })
    * ```
    */
-  async snapshots(domain: string, listOptions?: ArchiveOptions): Promise<ArchiveResponse> {
+  async snapshots(
+    domain: string,
+    listOptions?: Readonly<ArchiveOptions>,
+  ): Promise<ArchiveResponse> {
     const {
       from: rawFrom,
       to: rawTo,
@@ -390,7 +478,7 @@ export class Archive implements ArchiveInterface {
       return { provider, windowFrom, windowTo };
     });
 
-    /**
+    /*
      * One provider's windowed listing. The fetch runs with every limit lifted,
      * as an explicit undefined so the provider's own cascade cannot restore an
      * init-level value, and with the validated digits in the request options,
@@ -405,7 +493,7 @@ export class Archive implements ArchiveInterface {
       provider,
       windowFrom,
       windowTo,
-    }: (typeof windowed)[number]): Promise<ArchiveResponse> => {
+    }: Readonly<(typeof windowed)[number]>): Promise<ArchiveResponse> => {
       if (!windowFrom && !windowTo) {
         return this.fetchFromProvider(provider, domain, restOptions);
       }
@@ -447,8 +535,8 @@ export class Archive implements ArchiveInterface {
    *
    * @param domain - The domain to search for in archive services
    * @param listOptions - Request-specific options that override the defaults
-   * @returns Promise resolving to array of ArchivedPage objects
-   * @throws Error if the request fails
+   * @returns {Promise<ArchivedPage[]>} Promise resolving to array of ArchivedPage objects
+   * @throws {Error} Error if the request fails
    *
    * @example
    * ```js
@@ -463,56 +551,28 @@ export class Archive implements ArchiveInterface {
    * }
    * ```
    */
-  async getPages(domain: string, listOptions?: ArchiveOptions): Promise<ArchivedPage[]> {
+  async getPages(domain: string, listOptions?: Readonly<ArchiveOptions>): Promise<ArchivedPage[]> {
     const res = await this.snapshots(domain, listOptions);
     if (res.success) {
       return res.pages;
     }
 
-    // Whole call was structurally unsupported: throw the dedicated subclass.
-    // Synthesize `.providers` from the raw single-provider response when
-    // `combineResults` was bypassed (`_meta.unsupportedProviders` only exists
-    // for multi-provider runs).
-    if (res.unsupported) {
-      const providers =
-        res._meta?.unsupportedProviders ??
-        (res._meta?.provider
-          ? [
-              {
-                provider: res._meta.provider,
-                reason: res.unsupportedReason ?? "operation not supported",
-              },
-            ]
-          : []);
-      throw new UnsupportedOperationError(
-        res.unsupportedReason ?? "operation not supported by any queried provider",
-        providers,
-      );
-    }
-
-    // Mixed runtime error + partial unsupported, or pure runtime error.
-    // Surface both layers in the message so callers see the full picture
-    // even though the throw type is generic Error.
-    const messageParts: string[] = [];
-    if (res.error) messageParts.push(res.error);
-    if (res._meta?.unsupportedProviders?.length) {
-      messageParts.push(
-        "unsupported: " +
-          res._meta.unsupportedProviders.map((u) => `${u.provider} (${u.reason})`).join(", "),
-      );
-    }
-    throw new Error(
-      messageParts.length > 0 ? messageParts.join("; ") : "Failed to fetch archive snapshots",
-    );
+    throwArchiveFailure(res, "Failed to fetch archive snapshots");
   }
 
   /**
    * Read one archived capture's body from a single provider, honoring the cache.
+
+   *
+   * @param provider - Provider.
+   * @param url - Url.
+   * @param requestOptions - Request Options.
+   * @returns {Promise<ArchiveContentResponse>} A promise resolving to the operation result.
    */
   private async readContentFromProvider(
-    provider: ArchiveProvider,
+    provider: Readonly<ArchiveProvider>,
     url: string,
-    requestOptions: ArchiveContentOptions,
+    requestOptions: Readonly<ArchiveContentOptions>,
   ): Promise<ArchiveContentResponse> {
     const providerSlug = provider.slug ?? provider.name;
 
@@ -562,7 +622,7 @@ export class Archive implements ArchiveInterface {
    *
    * @param url - Original URL, or a playback URL printed by `snapshots()`
    * @param contentOptions - Request options; `timestamp` selects the capture
-   * @returns Promise resolving to the capture, or to the reasons nobody had it
+   * @returns {Promise<ArchiveContentResponse>} Promise resolving to the capture, or to the reasons nobody had it
    *
    * @example
    * ```js
@@ -577,7 +637,7 @@ export class Archive implements ArchiveInterface {
    */
   async content(
     url: string,
-    contentOptions?: ArchiveContentOptions,
+    contentOptions?: Readonly<ArchiveContentOptions>,
   ): Promise<ArchiveContentResponse> {
     const mergedOptions = await mergeOptions<ArchiveContentOptions>(this.options, contentOptions);
     const providerArray = await this.resolveProviders();
@@ -616,44 +676,20 @@ export class Archive implements ArchiveInterface {
    *
    * @param url - Original URL, or a playback URL printed by `snapshots()`
    * @param contentOptions - Request options; `timestamp` selects the capture
-   * @returns Promise resolving to the archived capture
-   * @throws `UnsupportedOperationError` when every queried provider lacks the
+   * @returns {Promise<ArchivedContent>} Promise resolving to the archived capture
+   * @throws {Error} `UnsupportedOperationError` when every queried provider lacks the
    * operation, and a generic `Error` when the read failed for any other reason
    */
-  async getContent(url: string, contentOptions?: ArchiveContentOptions): Promise<ArchivedContent> {
+  async getContent(
+    url: string,
+    contentOptions?: Readonly<ArchiveContentOptions>,
+  ): Promise<ArchivedContent> {
     const res = await this.content(url, contentOptions);
     if (res.success && res.content) {
       return res.content;
     }
 
-    if (res.unsupported) {
-      const providers =
-        res._meta?.unsupportedProviders ??
-        (res._meta?.provider
-          ? [
-              {
-                provider: res._meta.provider,
-                reason: res.unsupportedReason ?? "operation not supported",
-              },
-            ]
-          : []);
-      throw new UnsupportedOperationError(
-        res.unsupportedReason ?? "operation not supported by any queried provider",
-        providers,
-      );
-    }
-
-    const messageParts: string[] = [];
-    if (res.error) messageParts.push(res.error);
-    if (res._meta?.unsupportedProviders?.length) {
-      messageParts.push(
-        "unsupported: " +
-          res._meta.unsupportedProviders.map((u) => `${u.provider} (${u.reason})`).join(", "),
-      );
-    }
-    throw new Error(
-      messageParts.length > 0 ? messageParts.join("; ") : "Failed to read archived content",
-    );
+    throwArchiveFailure(res, "Failed to read archived content");
   }
 
   /**
@@ -661,7 +697,7 @@ export class Archive implements ArchiveInterface {
    * Allows for dynamically extending the archive with additional providers.
    *
    * @param provider - The provider or Promise resolving to a provider to add
-   * @returns The archive instance for method chaining
+   * @returns {Promise<ArchiveInterface>} The archive instance for method chaining
    *
    * @example
    * ```js
@@ -676,7 +712,7 @@ export class Archive implements ArchiveInterface {
    * await archive.use(providers.commoncrawl())
    * ```
    */
-  async use(provider: ArchiveProvider | Promise<ArchiveProvider>): Promise<ArchiveInterface> {
+  async use(provider: ProviderReference): Promise<ArchiveInterface> {
     const resolvedProvider = await Promise.resolve(provider);
     const currentProviders = await this.resolveProviders();
     this.resolvedProviders = [...currentProviders, resolvedProvider];
@@ -688,7 +724,7 @@ export class Archive implements ArchiveInterface {
    * More efficient than calling use() multiple times.
    *
    * @param newProviders - Array of providers or Promises resolving to providers
-   * @returns The archive instance for method chaining
+   * @returns {Promise<ArchiveInterface>} The archive instance for method chaining
    *
    * @example
    * ```js
@@ -703,9 +739,7 @@ export class Archive implements ArchiveInterface {
    * ])
    * ```
    */
-  async useAll(
-    newProviders: (ArchiveProvider | Promise<ArchiveProvider>)[],
-  ): Promise<ArchiveInterface> {
+  async useAll(newProviders: readonly ProviderReference[]): Promise<ArchiveInterface> {
     const resolvedNewProviders = await Promise.all(newProviders.map((p) => Promise.resolve(p)));
     const currentProviders = await this.resolveProviders();
     this.resolvedProviders = [...currentProviders, ...resolvedNewProviders];
@@ -721,7 +755,7 @@ export class Archive implements ArchiveInterface {
  *
  * @param providers - Single provider, array of providers, or Promise(s) resolving to provider(s)
  * @param options - Default options applied to all queries (limit, cache, ttl, concurrency, etc.)
- * @returns Archive client with methods for fetching and managing archive data
+ * @returns {ArchiveInterface} Archive client with methods for fetching and managing archive data
  *
  * @example
  * ```js
@@ -744,12 +778,8 @@ export class Archive implements ArchiveInterface {
  * ```
  */
 export function createArchive(
-  providers:
-    | ArchiveProvider
-    | ArchiveProvider[]
-    | Promise<ArchiveProvider>
-    | Promise<ArchiveProvider[]>,
-  options?: ArchiveOptions,
+  providers: ProviderInput,
+  options?: Readonly<ArchiveOptions>,
 ): ArchiveInterface {
   return new Archive(providers, options);
 }

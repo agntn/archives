@@ -173,17 +173,17 @@ response._meta?.unsupportedProviders; // [{ provider: "webcite", reason: "..." }
 
 ## Providers
 
-| Provider        | Factory                    | `content()` | Notes                                                                                              |
-| --------------- | -------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
-| Wayback Machine | `providers.wayback()`      | yes         | web.archive.org CDX API; captures replayed under `id_`                                             |
-| Archive-It      | `providers.archiveIt()`    | yes         | Requires a numeric `collection`; collection-specific CDX/C API                                     |
-| Conifer         | `providers.conifer()`      | no          | Requires `user` and `collection`; searches an existing public collection                           |
-| Archive.today   | `providers.archiveToday()` | yes         | archive.ph via Memento timemap; bodies are the rendered wrapper page, not the original bytes       |
+| Provider        | Factory                    | `content()` | Notes                                                                                                       |
+| --------------- | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| Wayback Machine | `providers.wayback()`      | yes         | web.archive.org CDX API; captures replayed under `id_`                                                      |
+| Archive-It      | `providers.archiveIt()`    | yes         | Requires a numeric `collection`; collection-specific CDX/C API                                              |
+| Conifer         | `providers.conifer()`      | no          | Requires `user` and `collection`; searches an existing public collection                                    |
+| Archive.today   | `providers.archiveToday()` | yes         | archive.ph via Memento timemap; bodies are the rendered wrapper page, not the original bytes                |
 | Memento         | `providers.memento()`      | yes         | Public ODU MemGator JSON TimeMap; queries several archives; excluded from `all` to avoid duplicate requests |
-| Common Crawl    | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                |
-| Perma.cc        | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                |
-| WebCite         | `providers.webcite()`      | no          | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019). |
-| All             | `providers.all()`          | n/a         | Wayback, Archive.today, Common Crawl, and WebCite                                                  |
+| Common Crawl    | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                         |
+| Perma.cc        | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                         |
+| WebCite         | `providers.webcite()`      | no          | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019).          |
+| All             | `providers.all()`          | n/a         | Wayback, Archive.today, Common Crawl, and WebCite                                                           |
 
 A provider that cannot serve bodies answers `content()` as unsupported with the reason, exactly as it does for a listing it has no endpoint for.
 

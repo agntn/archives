@@ -28,13 +28,13 @@ export const providers = {
   /**
    * Creates a Wayback Machine provider.
    * @param options - Configuration options for the Wayback Machine provider
-   * @returns The Wayback Machine provider
+   * @returns {Promise<ArchiveProvider>} The Wayback Machine provider
    * @example
    * ```js
    * const waybackProvider = providers.wayback({ limit: 100 })
    * ```
    */
-  async wayback(options?: WaybackOptions): Promise<ArchiveProvider> {
+  async wayback(options?: Readonly<WaybackOptions>): Promise<ArchiveProvider> {
     const { WaybackProvider } = await loadWaybackModule();
     return new WaybackProvider(options);
   },
@@ -42,13 +42,13 @@ export const providers = {
   /**
    * Creates an Archive-It provider for one collection.
    * @param options - Configuration including the required Archive-It collection ID
-   * @returns The Archive-It provider
+   * @returns {Promise<ArchiveProvider>} The Archive-It provider
    * @example
    * ```js
    * const archiveItProvider = providers.archiveIt({ collection: 4399 })
    * ```
    */
-  async archiveIt(options: ArchiveItOptions): Promise<ArchiveProvider> {
+  async archiveIt(options: Readonly<ArchiveItOptions>): Promise<ArchiveProvider> {
     const { ArchiveItProvider } = await loadArchiveItModule();
     return new ArchiveItProvider(options);
   },
@@ -56,13 +56,13 @@ export const providers = {
   /**
    * Creates a Conifer provider for one existing public collection.
    * @param options - Configuration including the required user and collection slugs
-   * @returns The Conifer provider
+   * @returns {Promise<ArchiveProvider>} The Conifer provider
    * @example
    * ```js
    * const coniferProvider = providers.conifer({ user: 'imamuseum', collection: 'imamuseumorg' })
    * ```
    */
-  async conifer(options: ConiferOptions): Promise<ArchiveProvider> {
+  async conifer(options: Readonly<ConiferOptions>): Promise<ArchiveProvider> {
     const { ConiferProvider } = await loadConiferModule();
     return new ConiferProvider(options);
   },
@@ -70,19 +70,24 @@ export const providers = {
   /**
    * Creates an Archive.today provider.
    * @param options - Configuration options for the Archive.today provider
-   * @returns The Archive.today provider
+   * @returns {Promise<ArchiveProvider>} The Archive.today provider
    * @example
    * ```js
    * const archiveTodayProvider = providers.archiveToday({ timeout: 15000 })
    * ```
    */
-  async archiveToday(options?: ArchiveTodayOptions): Promise<ArchiveProvider> {
+  async archiveToday(options?: Readonly<ArchiveTodayOptions>): Promise<ArchiveProvider> {
     const { ArchiveTodayProvider } = await loadArchiveTodayModule();
     return new ArchiveTodayProvider(options);
   },
 
-  /** Creates a lazily loaded Memento provider that uses MemGator. */
-  async memento(options?: MementoOptions): Promise<ArchiveProvider> {
+  /**
+   * Creates a lazily loaded Memento provider that uses MemGator.
+   *
+   * @param options - Options.
+   * @returns {Promise<ArchiveProvider>} A promise resolving to the operation result.
+   */
+  async memento(options?: Readonly<MementoOptions>): Promise<ArchiveProvider> {
     const { MementoProvider } = await loadMementoModule();
     return new MementoProvider(options);
   },
@@ -90,13 +95,13 @@ export const providers = {
   /**
    * Creates a Perma.cc provider.
    * @param options - Configuration options for the Perma.cc provider (requires apiKey)
-   * @returns The Perma.cc provider
+   * @returns {Promise<ArchiveProvider>} The Perma.cc provider
    * @example
    * ```js
    * const permaccProvider = providers.permacc({ apiKey: 'your-api-key' })
    * ```
    */
-  async permacc(options?: Partial<PermaccOptions>): Promise<ArchiveProvider> {
+  async permacc(options?: Readonly<Partial<PermaccOptions>>): Promise<ArchiveProvider> {
     const { PermaccProvider } = await loadPermaccModule();
     return new PermaccProvider(options);
   },
@@ -104,13 +109,13 @@ export const providers = {
   /**
    * Creates a Common Crawl provider.
    * @param options - Configuration options for the Common Crawl provider
-   * @returns The Common Crawl provider
+   * @returns {Promise<ArchiveProvider>} The Common Crawl provider
    * @example
    * ```js
    * const commoncrawlProvider = providers.commoncrawl({ collection: 'CC-MAIN-2023-50' })
    * ```
    */
-  async commoncrawl(options?: CommonCrawlOptions): Promise<ArchiveProvider> {
+  async commoncrawl(options?: Readonly<CommonCrawlOptions>): Promise<ArchiveProvider> {
     const { CommonCrawlProvider } = await loadCommonCrawlModule();
     return new CommonCrawlProvider(options);
   },
@@ -118,13 +123,13 @@ export const providers = {
   /**
    * Creates a WebCite provider.
    * @param options - Configuration options for the WebCite provider
-   * @returns The WebCite provider
+   * @returns {Promise<ArchiveProvider>} The WebCite provider
    * @example
    * ```js
    * const webciteProvider = providers.webcite({ timeout: 10000 })
    * ```
    */
-  async webcite(options?: WebCiteOptions): Promise<ArchiveProvider> {
+  async webcite(options?: Readonly<WebCiteOptions>): Promise<ArchiveProvider> {
     const { WebCiteProvider } = await loadWebCiteModule();
     return new WebCiteProvider(options);
   },
@@ -134,14 +139,14 @@ export const providers = {
    * Note: Archive-It is excluded because it requires a collection ID; Perma.cc requires an API key.
    * Memento is excluded because it already aggregates many of the same archives.
    * @param options - Common configuration options for all providers
-   * @returns An array of all common providers
+   * @returns {Promise<ArchiveProvider[]>} An array of all common providers
    * @example
    * ```js
    * const allProviders = providers.all({ timeout: 15000 })
    * const archive = createArchive(allProviders)
    * ```
    */
-  async all(options?: ArchiveOptions): Promise<ArchiveProvider[]> {
+  async all(options?: Readonly<ArchiveOptions>): Promise<ArchiveProvider[]> {
     return Promise.all([
       this.wayback(options),
       this.archiveToday(options),

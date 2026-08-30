@@ -32,6 +32,27 @@ interface CdxCapture {
 
 const BASE_URL = "https://web.archive.org";
 
+function requestedWindow(options: Readonly<WaybackOptions>): Record<string, string> {
+  const result: Record<string, string> = {};
+  const from = resolveRequestedTimestamp(options.from, "from");
+  const to = resolveRequestedTimestamp(options.to, "to");
+  if (from) result.from = from;
+  if (to) result.to = to;
+  return result;
+}
+
+function waybackQuery(domain: string, options: Readonly<WaybackOptions>): Record<string, string> {
+  const params: Record<string, string> = {
+    url: normalizeDomain(domain),
+    output: "json",
+    fl: "original,timestamp,statuscode",
+    collapse: options.collapse ?? "timestamp:4",
+    limit: String(options.limit ?? 1000),
+  };
+  if (options.filter !== undefined) params.filter = options.filter;
+  return { ...params, ...requestedWindow(options) };
+}
+
 /**
  * Wayback Machine archive provider.
  */
@@ -41,8 +62,12 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
 
   /**
    * Cache key extension for options that change the CDX result set.
+
+   *
+   * @param options - Options.
+   * @returns {string} The resulting string.
    */
-  override cacheKey(options?: ArchiveOptions): string {
+  override cacheKey(options?: Readonly<ArchiveOptions>): string {
     const waybackOptions = options as Partial<WaybackOptions> | undefined;
     const collapse = waybackOptions?.collapse ?? this.options.collapse ?? "timestamp:4";
     const filter = waybackOptions?.filter ?? this.options.filter;
@@ -59,28 +84,20 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
    * The window bounds are normalized here too, not only in `Archive.snapshots`:
    * the provider is a public export, and CDX does not read a raw ISO date as an
    * instant.
+
+   *
+   * @param domain - Domain.
+   * @param reqOptions - Req Options.
+   * @returns {Promise<ArchiveResponse>} A promise resolving to the operation result.
    */
-  async snapshots(domain: string, reqOptions: WaybackOptions = {}): Promise<ArchiveResponse> {
+  async snapshots(
+    domain: string,
+    reqOptions: Readonly<WaybackOptions> = {},
+  ): Promise<ArchiveResponse> {
     try {
       const options = await this.resolveOptions(reqOptions);
-      const baseUrl = BASE_URL;
-      const snapshotUrl = `${BASE_URL}/web`;
-      const urlPattern = normalizeDomain(domain);
-      const params: Record<string, string> = {
-        url: urlPattern,
-        output: "json",
-        fl: "original,timestamp,statuscode",
-        collapse: options.collapse ?? "timestamp:4",
-        limit: String(options.limit ?? 1000),
-      };
-
-      if (options.filter !== undefined) params.filter = options.filter;
-      const from = resolveRequestedTimestamp(options.from, "from");
-      const to = resolveRequestedTimestamp(options.to, "to");
-      if (from) params.from = from;
-      if (to) params.to = to;
-
-      const fetchOptions = await createFetchOptions(baseUrl, params, {
+      const params = waybackQuery(domain, options);
+      const fetchOptions = await createFetchOptions(BASE_URL, params, {
         retries: options.retries,
         signal: options.signal,
         timeout: options.timeout,
@@ -90,13 +107,18 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
       const response = (await $fetch("/cdx/search/cdx", fetchOptions)) as WaybackResponse;
 
       if (!Array.isArray(response) || response.length <= 1) {
-        return createSuccessResponse([], "wayback", { queryParams: fetchOptions.params || {} });
+        return createSuccessResponse([], "wayback", { queryParams: fetchOptions.params ?? {} });
       }
 
       const dataRows = response.slice(1);
-      const pages: ArchivedPage[] = await mapCdxRows(dataRows, snapshotUrl, "wayback", options);
+      const pages: ArchivedPage[] = await mapCdxRows(
+        dataRows,
+        `${BASE_URL}/web`,
+        "wayback",
+        options,
+      );
 
-      return createSuccessResponse(pages, "wayback", { queryParams: fetchOptions.params || {} });
+      return createSuccessResponse(pages, "wayback", { queryParams: fetchOptions.params ?? {} });
     } catch (error) {
       return createErrorResponse(error, "wayback");
     }
@@ -108,10 +130,15 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
    * Two steps, because the archive answers them at different endpoints: CDX says
    * which capture exists at the requested instant, and the playback endpoint
    * replays that capture's original bytes.
+
+   *
+   * @param url - Url.
+   * @param reqOptions - Req Options.
+   * @returns {Promise<ArchiveContentResponse>} A promise resolving to the operation result.
    */
   override async content(
     url: string,
-    reqOptions: Partial<WaybackOptions> & ArchiveContentOptions = {},
+    reqOptions: Readonly<Partial<WaybackOptions> & ArchiveContentOptions> = {},
   ): Promise<ArchiveContentResponse> {
     try {
       const options = await this.resolveContentOptions(reqOptions);
@@ -158,11 +185,17 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
    * an unqualified request means; the second query runs only when the archive
    * holds nothing at or before the requested instant, and finds the closest
    * capture after it.
+
+   *
+   * @param target - Target.
+   * @param wanted - Wanted.
+   * @param options - Options.
+   * @returns {Promise<CdxCapture[]>} A promise resolving to the operation result.
    */
   private async findCaptures(
     target: string,
     wanted: string,
-    options: ArchiveContentOptions,
+    options: Readonly<ArchiveContentOptions>,
   ): Promise<CdxCapture[]> {
     const params: Record<string, string> = {
       url: target,
@@ -182,8 +215,8 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
   }
 
   private async queryCaptures(
-    params: Record<string, string>,
-    options: ArchiveContentOptions,
+    params: Readonly<Record<string, string>>,
+    options: Readonly<ArchiveContentOptions>,
   ): Promise<CdxCapture[]> {
     const fetchOptions = await createFetchOptions(BASE_URL, params, {
       retries: options.retries,
@@ -212,6 +245,6 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
   }
 }
 
-export default function wayback(initOptions: WaybackOptions = {}): WaybackProvider {
+export default function wayback(initOptions: Readonly<WaybackOptions> = {}): WaybackProvider {
   return new WaybackProvider(initOptions);
 }

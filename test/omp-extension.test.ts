@@ -1,3 +1,4 @@
+import { objectContaining, rangeDescription } from "./_matchers";
 import * as TypeBox from "@oh-my-pi/omptype/typebox";
 import { $fetch } from "ofetch";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
@@ -46,7 +47,7 @@ function registerExtension(): RegisteredExtension {
   return { label, tools, commands };
 }
 
-function requireTool(tools: Map<string, ToolDefinition>, name: string): ToolDefinition {
+function requireTool(tools: Readonly<Map<string, ToolDefinition>>, name: string): ToolDefinition {
   const tool = tools.get(name);
   if (!tool) throw new Error(`Tool not registered: ${name}`);
   return tool;
@@ -94,9 +95,7 @@ describe("archives OMP extension", () => {
 
     for (const parameterName of ["maxChars", "ttl", "timeout", "retries"]) {
       const parameter = properties[parameterName];
-      expect(parameter?.["description"]).toContain(
-        `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
-      );
+      expect(parameter?.["description"]).toContain(rangeDescription(parameter));
     }
     expect(accepts(tool, { target: "example.com" })).toBe(true);
     expect(accepts(tool, { target: "example.com", format: "text" })).toBe(true);
@@ -139,9 +138,7 @@ describe("archives OMP extension", () => {
       "retries",
     ]) {
       const parameter = properties[parameterName];
-      expect(parameter?.["description"]).toContain(
-        `accepted range: ${parameter?.["minimum"]}-${parameter?.["maximum"]}`,
-      );
+      expect(parameter?.["description"]).toContain(rangeDescription(parameter));
     }
     expect(accepts(tool, { target: "example.com", limit: MAX_LIMIT })).toBe(true);
     expect(accepts(tool, { target: "example.com", limit: MAX_LIMIT + 1 })).toBe(false);
@@ -173,8 +170,8 @@ describe("archives OMP extension", () => {
 
     expect($fetch).toHaveBeenCalledWith(
       "/cdx/search/cdx",
-      expect.objectContaining({
-        params: expect.objectContaining({ from: "20190301", to: "201906" }),
+      objectContaining({
+        params: objectContaining({ from: "20190301", to: "201906" }),
       }),
     );
   });
@@ -193,7 +190,7 @@ describe("archives OMP extension", () => {
 
     expect($fetch).toHaveBeenCalledWith(
       "/4399/timemap/cdx",
-      expect.objectContaining({ baseURL: "https://wayback.archive-it.org" }),
+      objectContaining({ baseURL: "https://wayback.archive-it.org" }),
     );
     expect(result.details).toMatchObject({
       provider: "archiveIt",
@@ -236,7 +233,7 @@ describe("archives OMP extension", () => {
 
     expect($fetch).toHaveBeenCalledWith(
       "/api/v1/url_search",
-      expect.objectContaining({
+      objectContaining({
         baseURL: "https://conifer.rhizome.org",
         params: { user: "user", coll: "collection", url: "example.com" },
       }),
@@ -274,7 +271,7 @@ describe("archives OMP extension", () => {
       fg: (_color: string, text: string) => text,
     } as unknown as RenderTheme;
     const component = renderCall(
-      { target: "safe\u001b]52;c;SGVsbG8=\u0007.example" },
+      { target: "safe\u001B]52;c;SGVsbG8=\u0007.example" },
       { expanded: false, isPartial: false },
       theme,
     );
@@ -283,7 +280,7 @@ describe("archives OMP extension", () => {
     expect(rendered).toContain("safe]52;c;SGVsbG8=.example");
     expect(rendered.split("\n")).toHaveLength(1);
     // oxlint-disable-next-line no-control-regex -- This assertion proves the terminal boundary.
-    expect(rendered).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/u);
+    expect(rendered).not.toMatch(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/u);
   });
 
   /** A windowed call must not preview like a full-archive scan. */

@@ -1,3 +1,4 @@
+import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { $fetch } from "ofetch";
 import { createArchive, resetConfig, storage } from "../src";
@@ -46,7 +47,7 @@ describe("wayback machine", () => {
     expect(result.pages[1]._meta.status).toBe(200);
     expect($fetch).toHaveBeenCalledWith(
       "/cdx/search/cdx",
-      expect.objectContaining({
+      objectContaining({
         baseURL: "https://web.archive.org",
         signal: controller.signal,
         method: "GET",
@@ -56,6 +57,7 @@ describe("wayback machine", () => {
 
   it("keeps snapshots callable when passed as a callback", async () => {
     vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    /* oxlint-disable-next-line typescript/unbound-method -- extraction is the behavior under test; BaseProvider binds this method. */
     const snapshots = createWayback().snapshots;
 
     const result = await snapshots("example.com");
@@ -91,8 +93,8 @@ describe("wayback machine", () => {
     expect(result.success).toBe(true);
     expect($fetch).toHaveBeenCalledWith(
       "/cdx/search/cdx",
-      expect.objectContaining({
-        params: expect.objectContaining({
+      objectContaining({
+        params: objectContaining({
           collapse: "digest",
           filter: "statuscode:200",
           limit: "25",
@@ -110,8 +112,8 @@ describe("wayback machine", () => {
     expect(result.success).toBe(true);
     expect($fetch).toHaveBeenCalledWith(
       "/cdx/search/cdx",
-      expect.objectContaining({
-        params: expect.objectContaining({ from: "20190301", to: "201906" }),
+      objectContaining({
+        params: objectContaining({ from: "20190301", to: "201906" }),
       }),
     );
   });
@@ -132,8 +134,8 @@ describe("wayback machine", () => {
     expect(result.success).toBe(true);
     expect($fetch).toHaveBeenCalledWith(
       "/cdx/search/cdx",
-      expect.objectContaining({
-        params: expect.objectContaining({ from: "20190301", to: "201906" }),
+      objectContaining({
+        params: objectContaining({ from: "20190301", to: "201906" }),
       }),
     );
   });
@@ -151,8 +153,8 @@ describe("wayback machine", () => {
     expect(result.success).toBe(true);
     expect($fetch).toHaveBeenCalledWith(
       "/cdx/search/cdx",
-      expect.objectContaining({
-        params: expect.objectContaining({ from: "20190301" }),
+      objectContaining({
+        params: objectContaining({ from: "20190301" }),
       }),
     );
   });

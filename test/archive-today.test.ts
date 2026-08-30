@@ -1,3 +1,4 @@
+import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { $fetch } from "ofetch";
 import { createArchive as createArchiveClient, resetConfig, storage } from "../src";
@@ -43,7 +44,7 @@ describe("archive.today", () => {
     // Verify API call
     expect($fetch).toHaveBeenCalledWith(
       "/timemap/http://example.com",
-      expect.objectContaining({
+      objectContaining({
         baseURL: "https://archive.is",
         signal: controller.signal,
         responseType: "text",

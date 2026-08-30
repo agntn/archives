@@ -1,3 +1,4 @@
+import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { $fetch } from "ofetch";
 import { createArchive, resetConfig, storage } from "../src";
@@ -69,19 +70,39 @@ describe("Common Crawl", () => {
     expect($fetch).toHaveBeenNthCalledWith(
       1,
       "/collinfo.json",
-      expect.objectContaining({ baseURL: "https://index.commoncrawl.org" }),
+      objectContaining({ baseURL: "https://index.commoncrawl.org" }),
     );
     expect($fetch).toHaveBeenNthCalledWith(
       2,
       "/CC-MAIN-2023-50-index",
-      expect.objectContaining({
+      objectContaining({
         baseURL: "https://index.commoncrawl.org",
         method: "GET",
-        params: expect.objectContaining({
+        params: objectContaining({
           url: "example.com/*",
           output: "json",
         }),
       }),
+    );
+  });
+
+  it("uses the alternate CDX field when the primary field is empty", async () => {
+    vi.mocked($fetch)
+      .mockResolvedValueOnce([
+        {
+          "cdx-api": "",
+          cdxApi: "https://index.commoncrawl.org/CC-MAIN-2024-10-index",
+        },
+      ])
+      .mockResolvedValueOnce("");
+
+    const result = await createArchive(createCommonCrawl()).snapshots("example.com");
+
+    expect(result.success).toBe(true);
+    expect($fetch).toHaveBeenNthCalledWith(
+      2,
+      "/CC-MAIN-2024-10-index",
+      objectContaining({ baseURL: "https://index.commoncrawl.org" }),
     );
   });
 

@@ -70,7 +70,7 @@
 - **types:** Replace as any/as unknown as with proper types ([02c19af](https://github.com/agntn/archives/commit/02c19af))
 - Surface unsupported provider operations end-to-end ([968f191](https://github.com/agntn/archives/commit/968f191))
 - Use classes ([#18](https://github.com/agntn/archives/pull/18))
-- ⚠️  Rename package to @agntn/archives ([#24](https://github.com/agntn/archives/pull/24))
+- ⚠️ Rename package to @agntn/archives ([#24](https://github.com/agntn/archives/pull/24))
 
 ### 🏡 Chore
 
@@ -95,7 +95,7 @@
 
 #### ⚠️ Breaking Changes
 
-- ⚠️  Rename package to @agntn/archives ([#24](https://github.com/agntn/archives/pull/24))
+- ⚠️ Rename package to @agntn/archives ([#24](https://github.com/agntn/archives/pull/24))
 
 ### ❤️ Contributors
 

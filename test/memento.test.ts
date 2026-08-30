@@ -1,6 +1,14 @@
+import { anyValue, objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { $fetch, type FetchResponse } from "ofetch";
-import { createArchive, MementoProvider, providers, resetConfig, storage } from "../src";
+import {
+  createArchive,
+  MementoProvider,
+  providers,
+  resetConfig,
+  storage,
+  type ArchiveContentResponse,
+} from "../src";
 import createMemento from "../src/providers/memento";
 
 vi.mock("ofetch", () => {
@@ -9,12 +17,17 @@ vi.mock("ofetch", () => {
 });
 
 const fetchMock = vi.mocked($fetch);
-const rawMock = vi.mocked($fetch.raw);
+/* oxlint-disable-next-line typescript/unbound-method -- ofetch.raw is a standalone callable and the mock has no receiver state. */
+const rawMock = fetchMock.raw;
 
-/** Builds only the response fields consumed by the provider's body reader. */
+/* Builds only the response fields consumed by the provider's body reader. */
 function rawResponse(
   body: string,
-  init: { url?: string; status?: number; headers?: Record<string, string> } = {},
+  init: Readonly<{
+    url?: string;
+    status?: number;
+    headers?: Readonly<Record<string, string>>;
+  }> = {},
 ) {
   return {
     status: init.status ?? 200,
@@ -22,6 +35,16 @@ function rawResponse(
     headers: new Headers(init.headers ?? {}),
     _data: body,
   } as unknown as FetchResponse<unknown>;
+}
+
+function expectProxiedCapture(response: ArchiveContentResponse): void {
+  expect(response.success).toBe(true);
+  expect(response.content?.content).toBe("proxied capture");
+  expect(response.content?.timestamp).toBe("2020-04-02T20:09:40Z");
+  expect(response.content?.snapshot).toContain("memgator.cs.odu.edu/memento/proxy/");
+  expect(response.content?._meta).not.toHaveProperty("archive");
+  expect(response.content?._meta).not.toHaveProperty("datetime");
+  expect(response.content?._meta.proxyFallback).toBe(true);
 }
 
 beforeEach(async () => {
@@ -100,7 +123,7 @@ describe("Memento aggregator", () => {
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
       "/timemap/json/https%3A%2F%2Fexample.com%2F",
-      expect.objectContaining({
+      objectContaining({
         baseURL: "https://memgator.cs.odu.edu",
         signal: controller.signal,
         retry: 1,
@@ -129,7 +152,7 @@ describe("Memento aggregator", () => {
     expect(response.pages[0]?.url).toBe("http://www.example.com/");
     expect(fetchMock).toHaveBeenCalledWith(
       "/timemap/json/http%3A%2F%2Fexample.com",
-      expect.any(Object),
+      anyValue(Object),
     );
   });
 
@@ -253,13 +276,7 @@ describe("Memento aggregator", () => {
       cache: false,
     });
 
-    expect(response.success).toBe(true);
-    expect(response.content?.content).toBe("proxied capture");
-    expect(response.content?.timestamp).toBe("2020-04-02T20:09:40Z");
-    expect(response.content?.snapshot).toContain("memgator.cs.odu.edu/memento/proxy/");
-    expect(response.content?._meta).not.toHaveProperty("archive");
-    expect(response.content?._meta).not.toHaveProperty("datetime");
-    expect(response.content?._meta.proxyFallback).toBe(true);
+    expectProxiedCapture(response);
     expect(rawMock.mock.calls[0]?.[0]).toBe("/20200402195411id_/https://www.example.com/");
     expect(rawMock.mock.calls[0]?.[1]).toMatchObject({ baseURL: "https://vefsafn.is" });
     expect(rawMock.mock.calls[1]?.[0]).toBe(
@@ -380,7 +397,7 @@ describe("Memento aggregator", () => {
     expect(response.success).toBe(true);
     expect(fetchMock).toHaveBeenCalledWith(
       "/timemap/json/https%3A%2F%2Fexample.com%2F",
-      expect.any(Object),
+      anyValue(Object),
     );
     expect(rawMock.mock.calls[0]?.[0]).toBe("/wayback/20200402133000id_/https://example.com/");
   });

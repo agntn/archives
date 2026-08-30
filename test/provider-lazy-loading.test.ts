@@ -1,13 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { createRetryableLazyImport } from "../src/providers/_lazy-import";
 
+function deferred<T>() {
+  let resolve = (_value: T): void => {
+    throw new Error("Deferred promise was not initialized");
+  };
+  const promise = new Promise<T>((fulfill) => {
+    resolve = fulfill;
+  });
+  return { promise, resolve };
+}
+
 describe("provider lazy loading", () => {
   it("shares one in-flight module load across concurrent calls", async () => {
-    const deferred = Promise.withResolvers<{ readonly value: string }>();
+    const pending = deferred<{ readonly value: string }>();
     let attempts = 0;
     const load = createRetryableLazyImport(() => {
       attempts += 1;
-      return deferred.promise;
+      return pending.promise;
     });
 
     const first = load();
@@ -16,7 +26,7 @@ describe("provider lazy loading", () => {
     expect(attempts).toBe(1);
     expect(first).toBe(second);
 
-    deferred.resolve({ value: "loaded" });
+    pending.resolve({ value: "loaded" });
     await expect(Promise.all([first, second])).resolves.toEqual([
       { value: "loaded" },
       { value: "loaded" },

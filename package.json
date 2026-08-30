@@ -39,9 +39,6 @@
   ],
   "type": "module",
   "sideEffects": false,
-  "publishConfig": {
-    "access": "public"
-  },
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -62,11 +59,15 @@
       "default": "./dist/tool-operations.mjs"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vitest dev",
-    "lint": "oxlint .",
-    "lint:fix": "oxlint . --fix",
-    "fmt": "oxlint . --fix && oxfmt .",
+    "quality:prepare": "pnpm build && pnpm --dir playground exec nuxt prepare",
+    "lint": "pnpm quality:prepare && oxlint . && oxfmt --check .",
+    "lint:fix": "pnpm quality:prepare && oxlint . --fix && oxfmt .",
+    "fmt": "pnpm quality:prepare && oxlint . --fix && oxfmt .",
     "fmt:check": "oxfmt --check .",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
     "test:types": "pnpm build && tsc --noEmit --skipLibCheck && tsc --noEmit --skipLibCheck -p tsconfig.extensions.json",
@@ -85,6 +86,7 @@
     "unstorage": "1.17.5"
   },
   "devDependencies": {
+    "@agntn/ox": "^0.1.0",
     "@earendil-works/pi-coding-agent": "0.84.1",
     "@earendil-works/pi-tui": "0.84.1",
     "@oh-my-pi/omptype": "17.3.0",
@@ -93,8 +95,9 @@
     "@vitest/coverage-v8": "4.1.10",
     "changelogen": "0.6.2",
     "obuild": "0.4.38",
-    "oxfmt": "0.62.0",
-    "oxlint": "1.77.0",
+    "oxfmt": "0.65.0",
+    "oxlint": "1.80.0",
+    "oxlint-tsgolint": "7.0.2001",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
   },

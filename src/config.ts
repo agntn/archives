@@ -54,6 +54,24 @@ const getDefaultConfig = () =>
     },
   }) as ArchivesConfig;
 
+type ConfigLayer = Readonly<{
+  storage?: Readonly<ArchivesConfig["storage"]>;
+  performance?: Readonly<ArchivesConfig["performance"]>;
+  $env?: Readonly<Record<string, ConfigLayer>>;
+  $development?: ConfigLayer;
+  $production?: ConfigLayer;
+  $test?: ConfigLayer;
+}>;
+
+type ResolveConfigOptions = Readonly<{
+  cwd?: string;
+  defaults?: ConfigLayer;
+  overrides?: ConfigLayer;
+  envName?: string | false;
+  configFile?: string;
+  rcFile?: string;
+}>;
+
 // Cache for resolved config
 let cachedConfig: ArchivesConfig | undefined;
 
@@ -78,17 +96,12 @@ export function setConfigCwd(cwd: string): void {
 
 /**
  * Load Archives configuration from all available sources
+
+ *
+ * @param options - Options.
+ * @returns {Promise<ArchivesConfig>} A promise resolving to the operation result.
  */
-export async function resolveConfig(
-  options: {
-    cwd?: string;
-    defaults?: Partial<ArchivesConfig>;
-    overrides?: Partial<ArchivesConfig>;
-    envName?: string | false;
-    configFile?: string;
-    rcFile?: string;
-  } = {},
-): Promise<ArchivesConfig> {
+export async function resolveConfig(options: ResolveConfigOptions = {}): Promise<ArchivesConfig> {
   const shouldCache = Object.values(options).every((value) => value === undefined);
   if (shouldCache && cachedConfig) {
     return cachedConfig;
@@ -97,17 +110,7 @@ export async function resolveConfig(
   const defaults = getDefaultConfig();
 
   // Load config using c12
-  const { config } = await loadConfig({
-    name: "archives",
-    defaults,
-    defaultConfig: options.defaults || undefined,
-    overrides: options.overrides || undefined,
-    envName: options.envName ?? process.env.NODE_ENV,
-    cwd: options.cwd ?? configCwd,
-    configFile: options.configFile,
-    rcFile: options.rcFile === undefined ? ".archives" : options.rcFile,
-    packageJson: true,
-  });
+  const { config } = await loadArchivesConfig(options, defaults);
 
   // Apply post-processing
   const resolvedConfig = await postProcessConfig(config as ArchivesConfig, defaults);
@@ -119,33 +122,39 @@ export async function resolveConfig(
   return resolvedConfig;
 }
 
-/**
+async function loadArchivesConfig(options: ResolveConfigOptions, defaults: ArchivesConfig) {
+  return loadConfig({
+    name: "archives",
+    defaults,
+    defaultConfig: options.defaults ?? undefined,
+    overrides: options.overrides ?? undefined,
+    envName: options.envName ?? process.env.NODE_ENV,
+    cwd: options.cwd ?? configCwd,
+    configFile: options.configFile,
+    rcFile: options.rcFile ?? ".archives",
+    packageJson: true,
+  });
+}
+
+/*
  * Apply additional configuration processing and validation
  */
 async function postProcessConfig(
   config: ArchivesConfig,
   defaults: ArchivesConfig,
 ): Promise<ArchivesConfig> {
-  // Ensure required properties exist
-  if (!config.storage) {
-    config.storage = { ...defaults.storage };
-  }
+  const storage = {
+    ...defaults.storage,
+    ...config.storage,
+    driver: config.storage?.driver ?? defaults.storage.driver ?? memoryDriver(),
+    prefix: config.storage?.prefix || defaults.storage.prefix,
+  };
 
-  if (!config.performance) {
-    config.performance = { ...defaults.performance };
-  }
-
-  // Default storage prefix
-  if (!config.storage.prefix) {
-    config.storage.prefix = defaults.storage.prefix;
-  }
-
-  // Default storage driver
-  if (!config.storage.driver) {
-    config.storage.driver = memoryDriver();
-  }
-
-  return config;
+  return {
+    ...config,
+    storage,
+    performance: { ...defaults.performance, ...config.performance },
+  };
 }
 
 /**
@@ -157,9 +166,11 @@ export function resetConfig(): void {
 
 /**
  * Get the current configuration or resolve it if not already loaded
+
+ *
+ * @param options - Options.
+ * @returns {Promise<ArchivesConfig>} A promise resolving to the operation result.
  */
-export async function getConfig(
-  options?: Parameters<typeof resolveConfig>[0],
-): Promise<ArchivesConfig> {
+export async function getConfig(options?: ResolveConfigOptions): Promise<ArchivesConfig> {
   return resolveConfig(options);
 }

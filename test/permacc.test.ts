@@ -1,3 +1,4 @@
+import { objectContaining } from "./_matchers";
 import { $fetch } from "ofetch";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createArchive, resetConfig, storage } from "../src";
@@ -12,11 +13,11 @@ function permaResponse({
   guid = "ABC123",
   url = "https://example.com/",
   creationTimestamp = "2023-01-01T12:00:00Z",
-}: {
+}: Readonly<{
   guid?: string;
   url?: string;
   creationTimestamp?: string | null;
-} = {}) {
+}> = {}) {
   return {
     objects: [
       {
@@ -82,7 +83,7 @@ describe("Perma.cc Platform", () => {
     });
     expect($fetch).toHaveBeenCalledWith(
       "/v1/archives/",
-      expect.objectContaining({
+      objectContaining({
         baseURL: "https://api.perma.cc",
         headers: {
           Authorization: "ApiKey test_key",
@@ -105,8 +106,8 @@ describe("Perma.cc Platform", () => {
 
     expect($fetch).toHaveBeenCalledWith(
       "/v1/archives/",
-      expect.objectContaining({
-        params: expect.objectContaining({
+      objectContaining({
+        params: objectContaining({
           url: "http://example.com/Page?version=1",
         }),
       }),
@@ -120,8 +121,8 @@ describe("Perma.cc Platform", () => {
 
     expect($fetch).toHaveBeenCalledWith(
       "/v1/archives/",
-      expect.objectContaining({
-        params: expect.objectContaining({
+      objectContaining({
+        params: objectContaining({
           url: "https://localhost:8080/page",
         }),
       }),
@@ -139,8 +140,8 @@ describe("Perma.cc Platform", () => {
     expect(result.success).toBe(true);
     expect($fetch).toHaveBeenCalledWith(
       "/v1/archives/",
-      expect.objectContaining({
-        params: expect.objectContaining({ limit: 50 }),
+      objectContaining({
+        params: objectContaining({ limit: 50 }),
       }),
     );
   });
@@ -262,12 +263,8 @@ describe("Perma.cc Platform", () => {
     expect(first.pages[0].snapshot).toBe("https://perma.cc/FIRST");
     expect(second.pages[0].snapshot).toBe("https://perma.cc/SECOND");
     expect($fetch).toHaveBeenCalledTimes(2);
-    expect(vi.mocked($fetch).mock.calls[0][1]?.params).toEqual(
-      expect.objectContaining({ limit: 5 }),
-    );
-    expect(vi.mocked($fetch).mock.calls[1][1]?.params).toEqual(
-      expect.objectContaining({ limit: 10 }),
-    );
+    expect(vi.mocked($fetch).mock.calls[0][1]?.params).toEqual(objectContaining({ limit: 5 }));
+    expect(vi.mocked($fetch).mock.calls[1][1]?.params).toEqual(objectContaining({ limit: 10 }));
   });
 
   it("does not let URL text collide with an account cache partition", async () => {

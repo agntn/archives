@@ -8,7 +8,7 @@ class ArrowProvider extends BaseProvider {
 
   snapshots = async (
     _domain: string,
-    _options?: ArchiveOptions,
+    _options?: Readonly<ArchiveOptions>,
   ): Promise<ArchiveResponse> => ({
     success: true,
     pages: [],

@@ -4,7 +4,7 @@
  *
  * @template T - Module namespace returned by the import.
  * @param load - Dynamic import operation.
- * @returns A retryable lazy loader.
+ * @returns {() => Promise<T>} A retryable lazy loader.
  */
 export function createRetryableLazyImport<T>(load: () => Promise<T>): () => Promise<T> {
   let pending: Promise<T> | undefined;

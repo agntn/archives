@@ -17,6 +17,7 @@ import type {
   ArchiveContentResponse,
   ArchiveOptions,
   ArchiveResponse,
+  ArchivedContent,
   ArchivedPage,
 } from "./types";
 import { htmlToText, isTextualMime, resolveRequestedTimestamp } from "./utils";
@@ -91,7 +92,7 @@ export const MAX_TIMEOUT = 5 * 60 * 1000;
 export const PERMACC_API_KEY_ENVS = ["PERMA_CC_API_KEY", "PERMACC_API_KEY"] as const;
 
 // oxlint-disable-next-line no-control-regex -- Terminal control bytes are precisely what this boundary removes.
-const UNSAFE_TERMINAL_CONTROLS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/gu;
+const UNSAFE_TERMINAL_CONTROLS = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/gu;
 
 /** Options passed to a provider factory, including the provider-specific extras. */
 export type SnapshotOptions = ArchiveOptions & {
@@ -201,12 +202,15 @@ interface PermaccApiKeyState {
  * Queries one provider (or every provider in `all`) for archived snapshots.
  *
  * @param params - Tool arguments; `target` is a domain or URL
- * @returns Rendered snapshot list plus the raw response
- * @throws When the target is empty, the provider is unknown, or its prerequisites are missing
+ * @returns {Promise<ToolResult<SnapshotDetails>>} Rendered snapshot list plus the raw response
+ * @throws {Error} When the target is empty, the provider is unknown, or its prerequisites are missing
+
+ *
+ * @param signal - Signal.
  */
 export async function snapshotArchives(
-  params: SnapshotParams,
-  signal?: AbortSignal,
+  params: Readonly<SnapshotParams>,
+  signal?: Readonly<AbortSignal>,
 ): Promise<ToolResult<SnapshotDetails>> {
   const target = params.target.trim();
   if (!target) {
@@ -256,13 +260,16 @@ export async function snapshotArchives(
  * the capture.
  *
  * @param params - Tool arguments; `target` is a URL, archived or original
- * @returns The rendered body plus the capture it came from
- * @throws When the target is empty, an argument is out of range, the provider is
+ * @returns {Promise<ToolResult<ContentDetails>>} The rendered body plus the capture it came from
+ * @throws {Error} When the target is empty, an argument is out of range, the provider is
  * unknown, or its prerequisites are missing
+
+ *
+ * @param signal - Signal.
  */
 export async function contentArchives(
-  params: ContentParams,
-  signal?: AbortSignal,
+  params: Readonly<ContentParams>,
+  signal?: Readonly<AbortSignal>,
 ): Promise<ToolResult<ContentDetails>> {
   const target = params.target.trim();
   if (!target) {
@@ -275,7 +282,7 @@ export async function contentArchives(
   const provider = normalizeProvider(params.provider);
   const format = normalizeFormat(params.format);
   const maxChars = params.maxChars ?? DEFAULT_MAX_CHARS;
-  const options = { ...(await buildContentOptions(params, provider, format, maxChars)), signal };
+  const options = { ...(await buildContentOptions(params, format, maxChars)), signal };
   const archiveProvider = await createProvider(provider, options);
   const archive = createArchive(archiveProvider, options);
   const response = await archive.content(target, options);
@@ -319,7 +326,11 @@ export async function contentArchives(
   };
 }
 
-/** Lists the built-in providers, their `provider=all` membership, and Perma.cc key state. */
+/**
+ * Lists the built-in providers, their `provider=all` membership, and Perma.cc key state.
+ *
+ * @returns {ToolResult<ProvidersDetails>} The operation result.
+ */
 export function listArchiveProviders(): ToolResult<ProvidersDetails> {
   const statuses = getProviderStatuses();
   return {
@@ -330,7 +341,13 @@ export function listArchiveProviders(): ToolResult<ProvidersDetails> {
   };
 }
 
-/** Wayback-only lookup backing the interactive `/archive` command. */
+/**
+ * Wayback-only lookup backing the interactive `/archive` command.
+ *
+ * @param target - Target.
+ * @param limit - Limit.
+ * @returns {Promise<ArchiveResponse>} A promise resolving to the operation result.
+ */
 export async function waybackSnapshots(
   target: string,
   limit: number = DEFAULT_LIMIT,
@@ -340,44 +357,56 @@ export async function waybackSnapshots(
   return archive.snapshots(target, options);
 }
 
+type SingleProviderName = Exclude<ProviderName, "all">;
+type ProviderFactory = (
+  options: Readonly<SnapshotOptions | ContentOptions>,
+) => Promise<ArchiveProviderOrList>;
+
+function archiveItFactory(options: Readonly<SnapshotOptions | ContentOptions>) {
+  const collection = options.collection?.trim();
+  if (collection === undefined || !/^\d+$/.test(collection)) {
+    throw new Error("provider=archiveIt requires a numeric collection id.");
+  }
+  return providers.archiveIt({ ...options, collection });
+}
+
+function coniferFactory(options: Readonly<SnapshotOptions | ContentOptions>) {
+  const user = options.user?.trim();
+  const collection = options.collection?.trim();
+  if (!user || !collection) {
+    throw new Error("provider=conifer requires user and collection slugs.");
+  }
+  return providers.conifer({ ...options, user, collection });
+}
+
+const PROVIDER_FACTORIES: Readonly<Record<SingleProviderName, ProviderFactory>> = {
+  wayback: (options) => providers.wayback(options),
+  archiveIt: archiveItFactory,
+  conifer: coniferFactory,
+  archiveToday: (options) => providers.archiveToday(options),
+  memento: (options) => providers.memento(options),
+  commoncrawl: (options) => providers.commoncrawl(options),
+  webcite: (options) => providers.webcite(options),
+  permacc: (options) => providers.permacc(options),
+};
+
 async function createProvider(
   provider: ProviderName,
-  options: SnapshotOptions | ContentOptions,
+  options: Readonly<SnapshotOptions | ContentOptions>,
 ): Promise<ArchiveProviderOrList> {
-  if (provider === "all") return providers.all(options);
-  if (provider === "wayback") return providers.wayback(options);
-  if (provider === "archiveIt") {
-    const collection = options.collection?.trim();
-    if (collection === undefined || !/^\d+$/.test(collection)) {
-      throw new Error("provider=archiveIt requires a numeric collection id.");
-    }
-    return providers.archiveIt({ ...options, collection });
-  }
-  if (provider === "conifer") {
-    const user = options.user?.trim();
-    const collection = options.collection?.trim();
-    if (!user || !collection) {
-      throw new Error("provider=conifer requires user and collection slugs.");
-    }
-    return providers.conifer({ ...options, user, collection });
-  }
-  if (provider === "archiveToday") return providers.archiveToday(options);
-  if (provider === "memento") return providers.memento(options);
-  if (provider === "commoncrawl") return providers.commoncrawl(options);
-  if (provider === "webcite") return providers.webcite(options);
-  if (provider === "permacc") {
-    return providers.permacc(options as SnapshotOptions & { apiKey: string });
-  }
-  // A new entry in PROVIDERS reaches here instead of silently querying Perma.cc.
-  const unhandled: never = provider;
-  throw new Error(`Provider "${String(unhandled)}" has no factory.`);
+  return provider === "all" ? providers.all(options) : PROVIDER_FACTORIES[provider](options);
 }
 
 type ArchiveProviderOrList = Awaited<
   ReturnType<typeof providers.wayback> | ReturnType<typeof providers.all>
 >;
 
-/** Resolves a user-supplied provider name, accepting the kebab-case spellings. */
+/**
+ * Resolves a user-supplied provider name, accepting the kebab-case spellings.
+ *
+ * @param provider - Provider.
+ * @returns {ProviderName} The operation result.
+ */
 export function normalizeProvider(provider: string | undefined): ProviderName {
   const raw = (provider ?? "auto").trim() || "auto";
   const alias = PROVIDER_ALIASES[raw as keyof typeof PROVIDER_ALIASES];
@@ -413,7 +442,7 @@ const TEXT_BOUNDS = {
   to: MAX_TIMESTAMP_LENGTH,
 } as const satisfies Record<string, number>;
 
-/** Validates every bounded argument an operation's parameters happen to carry. */
+/* Validates every bounded argument an operation's parameters happen to carry. */
 function checkBounds(
   params: Partial<Record<keyof typeof NUMERIC_BOUNDS, number>> &
     Partial<Record<keyof typeof TEXT_BOUNDS, string>>,
@@ -426,7 +455,7 @@ function checkBounds(
   }
 }
 
-/**
+/*
  * Rejects an out-of-range argument the same way on every surface.
  *
  * A schema is the first line, not the only one: a fractional `limit` that slips
@@ -437,7 +466,7 @@ function checkNumber(name: keyof typeof NUMERIC_BOUNDS, value: number | undefine
   if (value === undefined) return;
   const { minimum, maximum } = NUMERIC_BOUNDS[name];
   if (!Number.isInteger(value)) {
-    throw new Error(`${name} must be a whole number`);
+    throw new TypeError(`${name} must be a whole number`);
   }
   if (value < minimum || value > maximum) {
     throw new Error(`${name} must be between ${minimum} and ${maximum}`);
@@ -451,38 +480,59 @@ function checkText(name: keyof typeof TEXT_BOUNDS, value: string | undefined): v
   }
 }
 
-function buildSnapshotOptions(params: SnapshotParams, provider: ProviderName): SnapshotOptions {
-  checkBounds(params);
+const SNAPSHOT_OPTION_KEYS = [
+  "cache",
+  "ttl",
+  "concurrency",
+  "batchSize",
+  "timeout",
+  "retries",
+  "collection",
+  "user",
+  "collapse",
+  "filter",
+  "from",
+  "to",
+] as const satisfies readonly (keyof SnapshotParams & keyof SnapshotOptions)[];
 
-  const limit = params.limit ?? DEFAULT_LIMIT;
-  const options: SnapshotOptions = { limit };
-  if (params.cache !== undefined) options.cache = params.cache;
-  if (params.ttl !== undefined) options.ttl = params.ttl;
-  if (params.concurrency !== undefined) options.concurrency = params.concurrency;
-  if (params.batchSize !== undefined) options.batchSize = params.batchSize;
-  if (params.timeout !== undefined) options.timeout = params.timeout;
-  if (params.retries !== undefined) options.retries = params.retries;
-  if (params.collection !== undefined) options.collection = params.collection;
-  if (params.user !== undefined) options.user = params.user;
-  if (params.collapse !== undefined) options.collapse = params.collapse;
-  if (params.filter !== undefined) options.filter = params.filter;
-  if (params.from !== undefined) options.from = params.from;
-  if (params.to !== undefined) options.to = params.to;
-
-  if (provider === "permacc") {
-    const { apiKey } = getPermaccApiKeyState();
-    if (!apiKey) {
-      throw new Error(
-        `Perma.cc provider requires an API key in ${PERMACC_API_KEY_ENVS.join(" or ")}.`,
-      );
-    }
-    options.apiKey = apiKey;
+function snapshotPassthroughOptions(params: Readonly<SnapshotParams>): Partial<SnapshotOptions> {
+  const result: Partial<SnapshotOptions> = {};
+  for (const key of SNAPSHOT_OPTION_KEYS) {
+    const value = params[key];
+    if (value !== undefined) Object.assign(result, { [key]: value });
   }
+  return result;
+}
 
+function addPermaccApiKey(options: SnapshotOptions): void {
+  const { apiKey } = getPermaccApiKeyState();
+  if (!apiKey) {
+    throw new Error(
+      `Perma.cc provider requires an API key in ${PERMACC_API_KEY_ENVS.join(" or ")}.`,
+    );
+  }
+  options.apiKey = apiKey;
+}
+
+function buildSnapshotOptions(
+  params: Readonly<SnapshotParams>,
+  provider: ProviderName,
+): SnapshotOptions {
+  checkBounds(params);
+  const options: SnapshotOptions = {
+    limit: params.limit ?? DEFAULT_LIMIT,
+    ...snapshotPassthroughOptions(params),
+  };
+  if (provider === "permacc") addPermaccApiKey(options);
   return options;
 }
 
-/** Resolves the requested rendering, rejecting a spelling no surface offers. */
+/**
+ * Resolves the requested rendering, rejecting a spelling no surface offers.
+ *
+ * @param format - Format.
+ * @returns {ContentFormat} The operation result.
+ */
 export function normalizeFormat(format: string | undefined): ContentFormat {
   const raw = (format ?? "text").trim() || "text";
   if (!(CONTENT_FORMATS as readonly string[]).includes(raw)) {
@@ -491,48 +541,64 @@ export function normalizeFormat(format: string | undefined): ContentFormat {
   return raw as ContentFormat;
 }
 
+const CONTENT_OPTION_KEYS = [
+  "cache",
+  "ttl",
+  "user",
+  "retries",
+  "collection",
+] as const satisfies readonly (keyof ContentParams & keyof ContentOptions)[];
+
+function contentPassthroughOptions(params: Readonly<ContentParams>): Partial<ContentOptions> {
+  const result: Partial<ContentOptions> = {};
+  for (const key of CONTENT_OPTION_KEYS) {
+    const value = params[key];
+    if (value !== undefined) Object.assign(result, { [key]: value });
+  }
+  return result;
+}
+
+function contentTimestamp(value: string | undefined): Partial<ContentOptions> {
+  if (value === undefined) return {};
+  const timestamp = resolveRequestedTimestamp(value);
+  return timestamp ? { timestamp } : {};
+}
+
+function contentByteLimit(format: ContentFormat, maxChars: number): number {
+  const requested = format === "raw" ? maxChars : maxChars * 8;
+  return Math.min(MAX_CONTENT_FETCH_BYTES, Math.max(MIN_CONTENT_FETCH_BYTES, requested));
+}
+
+/**
+ * Builds read options with extra byte headroom for markup and a slower archive timeout.
+ *
+ * @param params - Requested content parameters.
+ * @param format - Rendering format used to size the raw read.
+ * @param maxChars - Maximum rendered character count.
+ * @returns {Promise<ContentOptions>} Resolved options for one content request.
+ */
 async function buildContentOptions(
-  params: ContentParams,
-  provider: ProviderName,
+  params: Readonly<ContentParams>,
   format: ContentFormat,
   maxChars: number,
 ): Promise<ContentOptions> {
   checkBounds(params);
 
-  const options: ContentOptions = {
-    // Markup is most of an HTML capture's bytes and none of its text, so a text
-    // read has to fetch several times what it will hand back; a raw read hands
-    // back what it fetched. Both stay inside one fixed ceiling.
-    maxBytes: Math.min(
-      MAX_CONTENT_FETCH_BYTES,
-      Math.max(MIN_CONTENT_FETCH_BYTES, format === "raw" ? maxChars : maxChars * 8),
-    ),
-  };
-
-  if (params.timestamp !== undefined) {
-    // Rejected here rather than at the provider: an unusable instant would
-    // otherwise become a silent "newest capture" for some providers.
-    const timestamp = resolveRequestedTimestamp(params.timestamp);
-    if (timestamp) options.timestamp = timestamp;
-  }
-  if (params.cache !== undefined) options.cache = params.cache;
-  if (params.ttl !== undefined) options.ttl = params.ttl;
-  if (params.user !== undefined) options.user = params.user;
-  // Reading a page moves far more than a list of index rows, and archives replay
-  // captures slowly. A configured timeout above this floor is honored, so a host
-  // that already allows for slow archives keeps what it asked for.
   const { performance } = await getConfig();
-  options.timeout = params.timeout ?? Math.max(performance.timeout ?? 0, DEFAULT_CONTENT_TIMEOUT);
-  if (params.retries !== undefined) options.retries = params.retries;
-  if (params.collection !== undefined) options.collection = params.collection;
-
-  // No key is read here on purpose. Perma.cc serves no capture bodies, so its
-  // own unsupported answer is the useful one; demanding a key first would send
-  // the caller to fix an environment that changes nothing.
-  return options;
+  return {
+    maxBytes: contentByteLimit(format, maxChars),
+    ...contentTimestamp(params.timestamp),
+    ...contentPassthroughOptions(params),
+    timeout: params.timeout ?? Math.max(performance.timeout ?? 0, DEFAULT_CONTENT_TIMEOUT),
+  };
 }
 
-/** Strips private runtime state before options reach a transcript or a tool result. */
+/**
+ * Strips private runtime state before options reach a transcript or a tool result.
+ *
+ * @param options - Options.
+ * @returns {Omit<TOptions, "apiKey" | "signal"> & { apiKey?: "<redacted>" }} The operation result.
+ */
 export function redactOptions<TOptions extends { apiKey?: string; signal?: AbortSignal }>(
   options: TOptions,
 ): Omit<TOptions, "apiKey" | "signal"> & { apiKey?: "<redacted>" } {
@@ -631,7 +697,24 @@ function getProviderStatuses(): ProviderStatus[] {
   ];
 }
 
-/**
+function snapshotUnsupportedNote(response: ArchiveResponse): string {
+  const unsupported = response._meta?.unsupportedProviders;
+  return Array.isArray(unsupported) && unsupported.length > 0
+    ? `; unsupported=${unsupported.length}`
+    : "";
+}
+
+function snapshotWindowNote(options: Readonly<SnapshotOptions>): string {
+  if (options.from === undefined && options.to === undefined) return "";
+  return `; window=${sanitizeField(options.from ?? "")}..${sanitizeField(options.to ?? "")}`;
+}
+
+function snapshotFailureNote(response: ArchiveResponse): string {
+  const count = providerErrors(response).length;
+  return count > 0 ? `; failed=${count}` : "";
+}
+
+/*
  * One-line summary above the snapshot records.
  *
  * The applied window is part of it: a windowed listing that reads like the
@@ -641,20 +724,12 @@ function buildSnapshotHeader(
   provider: ProviderName,
   target: string,
   response: ArchiveResponse,
-  options: SnapshotOptions,
+  options: Readonly<SnapshotOptions>,
 ): string {
-  const unsupported = response._meta?.unsupportedProviders;
-  const unsupportedNote =
-    Array.isArray(unsupported) && unsupported.length > 0
-      ? `; unsupported=${unsupported.length}`
-      : "";
-  const failed = providerErrors(response);
-  const failedNote = failed.length > 0 ? `; failed=${failed.length}` : "";
+  const unsupportedNote = snapshotUnsupportedNote(response);
+  const failedNote = snapshotFailureNote(response);
   const errorNote = response.error ? `; error=${truncateSingleLine(response.error, 80)}` : "";
-  const windowNote =
-    options.from !== undefined || options.to !== undefined
-      ? `; window=${sanitizeField(options.from ?? "")}..${sanitizeField(options.to ?? "")}`
-      : "";
+  const windowNote = snapshotWindowNote(options);
   // The tool is annotated open-world, so a replay from the 7-day cache has to say
   // so rather than pass for a fresh read of the archive.
   const cacheNote = response.fromCache ? "; cached" : "";
@@ -672,7 +747,7 @@ function sanitizeResponse<TResponse extends { _meta?: ArchiveResponse["_meta"] }
   return { ...response, _meta: { ...safeMeta, errorDetails: "<redacted>" } };
 }
 
-/**
+/*
  * The capture as the transcript keeps it: metadata intact, body replaced by the
  * text the caller was handed.
  *
@@ -694,9 +769,9 @@ interface RenderedBody {
   clipped: boolean;
 }
 
-/** Formats one capture's body for a caller, and clips it to `maxChars`. */
+/* Formats one capture's body for a caller, and clips it to `maxChars`. */
 function renderBody(
-  capture: NonNullable<ArchiveContentResponse["content"]>,
+  capture: ArchivedContent,
   format: ContentFormat,
   maxChars: number,
 ): RenderedBody {
@@ -707,8 +782,8 @@ function renderBody(
   return { body, characters: body.length, clipped: body.length < formatted.length };
 }
 
-/** True when the capture is markup a reader would want stripped. */
-function isMarkup(capture: NonNullable<ArchiveContentResponse["content"]>): boolean {
+/* True when the capture is markup a reader would want stripped. */
+function isMarkup(capture: ArchivedContent): boolean {
   const mime = capture.mime;
   if (mime) return mime.includes("html") || mime.includes("xml");
   // Captures from before content types were reliable arrive without one.
@@ -719,7 +794,7 @@ function clipText(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
 
   const clipped = text.slice(0, maxChars);
-  const lastCode = clipped.charCodeAt(clipped.length - 1);
+  const lastCode = clipped.codePointAt(clipped.length - 1) ?? 0;
   // Cutting between the halves of a surrogate pair leaves a lone code unit that
   // renders as a replacement character.
   return lastCode >= 0xd8_00 && lastCode <= 0xdb_ff ? clipped.slice(0, -1) : clipped;
@@ -729,7 +804,7 @@ function buildContentHeader(
   provider: ProviderName,
   target: string,
   response: ArchiveContentResponse,
-  rendered: RenderedBody,
+  rendered: Readonly<RenderedBody>,
 ): string {
   const capture = response.content;
   const cacheNote = response.fromCache ? "; cached" : "";
@@ -750,14 +825,17 @@ function buildContentHeader(
   ].join("\n");
 }
 
-/**
+/*
  * The lines below a content header: the body itself, or why there is none.
  *
  * The body is third-party text arriving in a context window, so it is fenced and
  * labelled: whatever an archived page says about what to do next, it is a
  * recording of a web page, not a message to the caller.
  */
-function contentBody(capture: ArchiveContentResponse["content"], rendered: RenderedBody): string[] {
+function contentBody(
+  capture: ArchivedContent | undefined,
+  rendered: Readonly<RenderedBody>,
+): string[] {
   if (!capture) return [];
 
   if (!isTextualMime(capture.mime)) {
@@ -786,86 +864,91 @@ function contentBody(capture: ArchiveContentResponse["content"], rendered: Rende
   ];
 }
 
-/** Reasons no capture could be read, named per provider. */
-function contentFailures(response: ArchiveContentResponse): string[] {
-  const lines: string[] = [];
-
+function providerFailureLines(response: ArchiveResponse | ArchiveContentResponse): string[] {
   const failed = providerErrors(response);
-  if (failed.length > 0) {
-    lines.push("", "Failed providers:");
-    for (const failure of failed) lines.push(`  ${sanitizeField(failure)}`);
-  }
+  return failed.length === 0
+    ? []
+    : ["", "Failed providers:", ...failed.map((failure) => `  ${sanitizeField(failure)}`)];
+}
 
+function unsupportedProviderLines(response: ArchiveResponse | ArchiveContentResponse): string[] {
   const unsupported = response._meta?.unsupportedProviders;
-  if (Array.isArray(unsupported) && unsupported.length > 0) {
-    lines.push("", "Unsupported providers:");
-    for (const record of unsupported) {
-      lines.push(`  ${sanitizeField(record.provider)}: ${sanitizeField(record.reason)}`);
-    }
-  }
+  if (!Array.isArray(unsupported) || unsupported.length === 0) return [];
+  const records = unsupported
+    .filter((record) => isUnsupportedRecord(record))
+    .map((record) => `  ${sanitizeField(record.provider)}: ${sanitizeField(record.reason)}`);
+  return ["", "Unsupported providers:", ...records];
+}
 
-  if (response.unsupportedReason && !Array.isArray(unsupported)) {
+/* Reasons no capture could be read, named per provider. */
+function contentFailures(response: ArchiveContentResponse): string[] {
+  const unsupportedLines = unsupportedProviderLines(response);
+  const lines = [...providerFailureLines(response), ...unsupportedLines];
+  const hasUnsupportedList = unsupportedLines.length > 0;
+  if (response.unsupportedReason && !hasUnsupportedList) {
     lines.push("", `Unsupported: ${sanitizeField(response.unsupportedReason)}`);
   }
-  if (response.error) {
-    lines.push("", `Error: ${sanitizeField(response.error)}`);
-  }
-
+  if (response.error) lines.push("", `Error: ${sanitizeField(response.error)}`);
   return lines;
 }
 
-/** Removes terminal control bytes that provider-supplied text could smuggle into a TUI. */
+/**
+ * Removes terminal control bytes that provider-supplied text could smuggle into a TUI.
+ *
+ * @param text - Text.
+ * @returns {string} The resulting string.
+ */
 export function sanitizeTerminalText(text: string): string {
   return text.replace(UNSAFE_TERMINAL_CONTROLS, "");
 }
 
-/** Reduces an error of unknown shape to one safe line. */
+/**
+ * Reduces an error of unknown shape to one safe line.
+ *
+ * @param error - Error.
+ * @returns {string} The resulting string.
+ */
 export function errorMessage(error: unknown): string {
   return sanitizeTerminalText(error instanceof Error ? error.message : String(error));
 }
 
-/** Names why a response carries no usable pages. */
+/**
+ * Names why a response carries no usable pages.
+ *
+ * @param response - Response.
+ * @returns {string} The resulting string.
+ */
 export function responseFailureMessage(response: ArchiveResponse): string {
   return sanitizeTerminalText(
     response.error ?? response.unsupportedReason ?? "Failed to fetch archive snapshots",
   );
 }
 
-function withHeader(header: string, body: string[]): string {
+function withHeader(header: string, body: readonly string[]): string {
   const joined = body.join("\n");
   return sanitizeTerminalText(joined ? `${header}\n\n${joined}` : `${header}\nNo snapshots.`);
 }
 
 function formatSnapshots(response: ArchiveResponse): string[] {
-  const lines = response.pages.map((page, index) => formatPage(page, index));
-  const unsupported = response._meta?.unsupportedProviders;
-  if (Array.isArray(unsupported) && unsupported.length > 0) {
-    lines.push("", "Unsupported providers:");
-    for (const item of unsupported) {
-      if (isUnsupportedRecord(item)) {
-        lines.push(`  ${sanitizeField(item.provider)}: ${sanitizeField(item.reason)}`);
-      }
-    }
-  }
-  // combineResults clears `error` as soon as one provider answered and parks the
-  // rest in `_meta.errors`; without this block a partial outage reads as a
-  // complete answer.
-  const failed = providerErrors(response);
-  if (failed.length > 0) {
-    lines.push("", "Failed providers:");
-    for (const failure of failed) lines.push(`  ${sanitizeField(failure)}`);
-  }
+  const lines = [
+    ...response.pages.map((page, index) => formatPage(page, index)),
+    ...unsupportedProviderLines(response),
+    ...providerFailureLines(response),
+  ];
   if (response.unsupportedReason) {
     lines.push("", `Unsupported: ${sanitizeField(response.unsupportedReason)}`);
   }
-  if (response.error) {
-    lines.push("", `Error: ${sanitizeField(response.error)}`);
-  }
+  if (response.error) lines.push("", `Error: ${sanitizeField(response.error)}`);
   return lines;
 }
 
-/** Per-provider failures, which a partially successful fan-out hides in `_meta`. */
-function providerErrors(response: { _meta?: ArchiveResponse["_meta"] }): string[] {
+/**
+ * Reads provider failures hidden in metadata by a partially successful fan-out.
+ *
+ * @param response - Archive response carrying provider metadata.
+ * @returns {string[]} Individual provider failures.
+ */
+function providerErrors(response: ArchiveResponse | ArchiveContentResponse): string[] {
   const errors = response._meta?.errors;
   return Array.isArray(errors) ? errors.filter((entry) => typeof entry === "string") : [];
 }
@@ -876,6 +959,11 @@ function providerErrors(response: { _meta?: ArchiveResponse["_meta"] }): string[
  * Every interpolated field is provider-supplied and goes through
  * {@link sanitizeField}: a newline inside a URL would otherwise close the record
  * and forge a second entry that reads exactly like a real snapshot.
+
+ *
+ * @param page - Page.
+ * @param index - Index.
+ * @returns {string} The resulting string.
  */
 export function formatPage(page: ArchivedPage, index?: number): string {
   const head = index === undefined ? "" : `${index + 1}. `;
@@ -884,13 +972,23 @@ export function formatPage(page: ArchivedPage, index?: number): string {
   return `${head}${sanitizeField(page.timestamp)}${provider}\n   ${sanitizeField(page.snapshot)}\n   original: ${sanitizeField(page.url)}`;
 }
 
-/** Reduces one untrusted field to a single line with no terminal control bytes. */
+/**
+ * Reduces one untrusted field to a single line with no terminal control bytes.
+ *
+ * @param value - Value.
+ * @returns {string} The resulting string.
+ */
 export function sanitizeField(value: string): string {
-  return sanitizeTerminalText(value).replace(/[\n\r\t]/g, " ");
+  return sanitizeTerminalText(value).replaceAll(/[\n\r\t]/g, " ");
 }
 
-/** Renders one provider row of {@link listArchiveProviders}. */
-export function formatProviderStatus(status: ProviderStatus): string {
+/**
+ * Renders one provider row of {@link listArchiveProviders}.
+ *
+ * @param status - Status.
+ * @returns {string} The resulting string.
+ */
+export function formatProviderStatus(status: Readonly<ProviderStatus>): string {
   const symbol = status.requiresApiKey && !status.configured ? "⚠" : "✓";
   const inAll = status.includedInAll ? " in provider=all" : "";
   const api = status.requiresApiKey ? " requires API key" : "";
@@ -908,8 +1006,14 @@ function isUnsupportedRecord(value: unknown): value is { provider: string; reaso
   );
 }
 
-/** Collapses whitespace and clips text to `maxLength`, for one-line call previews. */
+/**
+ * Collapses whitespace and clips text to `maxLength`, for one-line call previews.
+ *
+ * @param text - Text.
+ * @param maxLength - Max Length.
+ * @returns {string} The resulting string.
+ */
 export function truncateSingleLine(text: string, maxLength: number): string {
-  const singleLine = text.replace(/\s+/g, " ").trim();
+  const singleLine = text.replaceAll(/\s+/g, " ").trim();
   return singleLine.length <= maxLength ? singleLine : `${singleLine.slice(0, maxLength - 1)}…`;
 }

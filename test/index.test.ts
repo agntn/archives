@@ -1,3 +1,4 @@
+import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Archive, createArchive, UnsupportedOperationError, storage, resetConfig } from "../src";
 import createWayback from "../src/providers/wayback";
@@ -14,7 +15,7 @@ beforeEach(async () => {
 
 // --- helpers ---
 
-function successProvider(slug: string, pages: ArchivedPage[]): ArchiveProvider {
+function successProvider(slug: string, pages: readonly ArchivedPage[]): ArchiveProvider {
   return {
     name: slug,
     slug,
@@ -60,7 +61,7 @@ const samplePage = (slug: string): ArchivedPage => ({
   _meta: { provider: slug },
 });
 
-async function captureThrow(promise: Promise<unknown>): Promise<unknown> {
+async function captureThrow(promise: Readonly<Promise<unknown>>): Promise<unknown> {
   try {
     await promise;
   } catch (error) {
@@ -96,12 +97,13 @@ describe("createArchive", () => {
 
     expect(mockProvider.snapshots).toHaveBeenCalledWith(
       "example.com",
-      expect.objectContaining({ timeout: 10_000, limit: 100 }),
+      objectContaining({ timeout: 10_000, limit: 100 }),
     );
   });
 
   it("keeps snapshots callable when passed as a callback", async () => {
     const archive = createArchive(successProvider("callback", []), { cache: false });
+    /* oxlint-disable-next-line typescript/unbound-method -- extraction is the behavior under test; Archive binds this method. */
     const snapshots = archive.snapshots;
 
     await expect(snapshots("example.com")).resolves.toMatchObject({
@@ -149,7 +151,7 @@ describe("Archive.snapshots / window", () => {
     expect(response.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T12:00:00Z"]);
     expect(provider.snapshots).toHaveBeenCalledWith(
       "example.com",
-      expect.objectContaining({ from: "20190101", to: "201906" }),
+      objectContaining({ from: "20190101", to: "201906" }),
     );
   });
 
