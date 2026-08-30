@@ -140,8 +140,8 @@ pnpm install          # install deps
 pnpm dev              # vitest watch mode
 pnpm test             # lint + type-check + vitest with coverage
 pnpm test:types       # build + tsc over lib and both extension surfaces
-pnpm lint             # build + type-aware oxlint + oxfmt check
-pnpm lint:fix         # build + oxlint fixes + oxfmt write
+pnpm lint             # build + Nuxt types + type-aware oxlint + oxfmt check
+pnpm lint:fix         # build + Nuxt types + oxlint fixes + oxfmt write
 pnpm build            # obuild (build.config.ts) → dist/
 node dist/cli.mjs mcp # run the MCP server over stdio (bin: archives mcp)
 pnpm release          # test + changelogen + publish

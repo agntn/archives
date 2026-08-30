@@ -64,9 +64,10 @@
   },
   "scripts": {
     "dev": "vitest dev",
-    "lint": "pnpm build && oxlint . && oxfmt --check .",
-    "lint:fix": "pnpm build && oxlint . --fix && oxfmt .",
-    "fmt": "pnpm build && oxlint . --fix && oxfmt .",
+    "quality:prepare": "pnpm build && pnpm --dir playground exec nuxt prepare",
+    "lint": "pnpm quality:prepare && oxlint . && oxfmt --check .",
+    "lint:fix": "pnpm quality:prepare && oxlint . --fix && oxfmt .",
+    "fmt": "pnpm quality:prepare && oxlint . --fix && oxfmt .",
     "fmt:check": "oxfmt --check .",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
     "test:types": "pnpm build && tsc --noEmit --skipLibCheck && tsc --noEmit --skipLibCheck -p tsconfig.extensions.json",
