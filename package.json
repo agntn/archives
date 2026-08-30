@@ -64,9 +64,9 @@
   },
   "scripts": {
     "dev": "vitest dev",
-    "lint": "oxlint .",
-    "lint:fix": "oxlint . --fix",
-    "fmt": "oxlint . --fix && oxfmt .",
+    "lint": "pnpm build && oxlint . && oxfmt --check .",
+    "lint:fix": "pnpm build && oxlint . --fix && oxfmt .",
+    "fmt": "pnpm build && oxlint . --fix && oxfmt .",
     "fmt:check": "oxfmt --check .",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
     "test:types": "pnpm build && tsc --noEmit --skipLibCheck && tsc --noEmit --skipLibCheck -p tsconfig.extensions.json",

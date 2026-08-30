@@ -105,7 +105,7 @@ archives/
 - **Unsupported operations are first-class**: when an operation is outside a provider's API surface (e.g. WebCite has no list-by-domain endpoint), return `createUnsupportedResponse(reason, slug)`, not a fake page or a fake error. `combineResults` propagates these into `_meta.unsupportedProviders`. `getPages()` throws `UnsupportedOperationError` (with `.providers`) when the whole call is unsupported, so callers can distinguish structural mismatches from runtime failures.
 - **Timestamp format**: providers convert native timestamps to ISO 8601. Raw format preserved in `_meta`.
 - **Option merging**: three-level cascade: config defaults → init options → request options. Via `mergeOptions()`.
-- **Linting**: `oxlint` only; ESLint was removed intentionally.
+- **Quality config**: `oxlint` and `oxfmt` spread the shared `@agntn/ox` policies. Linting is type-aware; ESLint was removed intentionally.
 - **Build**: `obuild` reads `build.config.ts` → `dist/`. Four inputs in **one** bundle entry so the entrypoint, the CLI, the MCP server and the executors share chunks instead of each carrying a private copy of the provider factory.
 - **One executor per operation**: MCP, Pi and OMP all call `src/tool-operations.ts`. A surface owns only its schema, its call rendering and its result envelope. Schema metadata (`PROVIDER_HINT`, limits) is restated per surface because parameters are declared before the executors can be loaded — the extension tests guard it against drift.
 - **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tool-operations.ts")` and `import("../../../dist/tool-operations.mjs")`. Never `import(url.href)`. `tsc` resolves that dist specifier, so `test:types` builds before it type-checks.
@@ -140,8 +140,8 @@ pnpm install          # install deps
 pnpm dev              # vitest watch mode
 pnpm test             # lint + type-check + vitest with coverage
 pnpm test:types       # build + tsc over lib and both extension surfaces
-pnpm lint             # oxlint
-pnpm lint:fix         # oxlint --fix
+pnpm lint             # build + type-aware oxlint + oxfmt check
+pnpm lint:fix         # build + oxlint fixes + oxfmt write
 pnpm build            # obuild (build.config.ts) → dist/
 node dist/cli.mjs mcp # run the MCP server over stdio (bin: archives mcp)
 pnpm release          # test + changelogen + publish
