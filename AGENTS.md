@@ -40,61 +40,61 @@ archives/
 
 ## WHERE TO LOOK
 
-| Task                      | Location                                                | Notes                                                                              |
-| ------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Add a provider            | `src/providers/` + register in `src/providers/index.ts` | Copy wayback.ts as template. Default export factory fn returning `ArchiveProvider` |
-| Provider-specific options | `src/_providers.ts`                                     | Extend `ArchiveOptions`, add to `ProviderOptions` map                              |
-| Change public API         | `src/index.ts`                                          | Barrel re-exports only. Types via `export type *`                                  |
-| Modify caching            | `src/storage.ts`                                        | Key format: `{prefix}:{providerSlug}:{domain}:{limit?}`                            |
-| Config defaults           | `src/config.ts` → `getDefaultConfig()`                  | c12 loads from `.archives`, `archives.config.ts`, `package.json`                   |
-| Response helpers          | `src/utils/_utils.ts`                                   | `createSuccessResponse`, `createErrorResponse`, `mergeOptions`                     |
-| Read an archived body     | `src/utils/_content.ts`                                 | Capture selection, `id_` playback, WARC ranges, transfer/content encodings, charset, `htmlToText` |
-| Add content to a provider | provider file → `override content()`                    | Optional on `ArchiveProvider`; a provider that cannot serve bodies says so instead |
-| Parallel processing       | `src/utils/_utils.ts` → `processInParallel`             | Concurrency + batch control                                                        |
-| CDX row mapping           | `src/utils/_utils.ts` → `mapCdxRows`                    | Wayback/CommonCrawl share CDX format                                               |
-| Test a provider           | `test/{provider}.test.ts`                               | Uses vitest, mocks with `vi.fn()`                                                  |
-| Manual testing            | `playground/server/api/snapshots/`                      | One Nuxt endpoint per provider                                                     |
-| Extend Pi extension       | `packages/pi/extensions/archives.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb            |
-| Change what a tool does   | `src/tool-operations.ts`                                | One implementation for MCP, Pi and OMP. Never fix a tool in one surface only        |
-| Add/change an MCP tool    | `src/mcp.ts` + `test/mcp.test.ts`                       | Executor in tool-operations first, then the TypeBox schema and annotations here     |
-| Verify the shipped package | `pnpm pack` + install the tarball elsewhere            | Catches missing `files`, a wrong `exports` map and absent runtime deps             |
+| Task                       | Location                                                          | Notes                                                                                             |
+| -------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Add a provider             | `src/providers/` + register in `src/providers/index.ts`           | Copy wayback.ts as template. Default export factory fn returning `ArchiveProvider`                |
+| Provider-specific options  | `src/_providers.ts`                                               | Extend `ArchiveOptions`, add to `ProviderOptions` map                                             |
+| Change public API          | `src/index.ts`                                                    | Barrel re-exports only. Types via `export type *`                                                 |
+| Modify caching             | `src/storage.ts`                                                  | Key format: `{prefix}:{providerSlug}:{domain}:{limit?}`                                           |
+| Config defaults            | `src/config.ts` → `getDefaultConfig()`                            | c12 loads from `.archives`, `archives.config.ts`, `package.json`                                  |
+| Response helpers           | `src/utils/_utils.ts`                                             | `createSuccessResponse`, `createErrorResponse`, `mergeOptions`                                    |
+| Read an archived body      | `src/utils/_content.ts`                                           | Capture selection, `id_` playback, WARC ranges, transfer/content encodings, charset, `htmlToText` |
+| Add content to a provider  | provider file → `override content()`                              | Optional on `ArchiveProvider`; a provider that cannot serve bodies says so instead                |
+| Parallel processing        | `src/utils/_utils.ts` → `processInParallel`                       | Concurrency + batch control                                                                       |
+| CDX row mapping            | `src/utils/_utils.ts` → `mapCdxRows`                              | Wayback/CommonCrawl share CDX format                                                              |
+| Test a provider            | `test/{provider}.test.ts`                                         | Uses vitest, mocks with `vi.fn()`                                                                 |
+| Manual testing             | `playground/server/api/snapshots/`                                | One Nuxt endpoint per provider                                                                    |
+| Extend Pi extension        | `packages/pi/extensions/archives.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb                          |
+| Change what a tool does    | `src/tool-operations.ts`                                          | One implementation for MCP, Pi and OMP. Never fix a tool in one surface only                      |
+| Add/change an MCP tool     | `src/mcp.ts` + `test/mcp.test.ts`                                 | Executor in tool-operations first, then the TypeBox schema and annotations here                   |
+| Verify the shipped package | `pnpm pack` + install the tarball elsewhere                       | Catches missing `files`, a wrong `exports` map and absent runtime deps                            |
 
 ## CODE MAP
 
-| Symbol                      | Type      | Location              | Role                                                                                        |
-| --------------------------- | --------- | --------------------- | ------------------------------------------------------------------------------------------- |
-| `createArchive`             | function  | archive.ts:56         | Core factory. Accepts provider(s) + options, returns `ArchiveInterface`.                    |
-| `UnsupportedOperationError` | class     | archive.ts:18         | Thrown by `getPages()` when every queried provider is unsupported. Carries `providers` list. |
-| `providers`                 | object    | providers/index.ts:14 | Lazy-loading factory. Each method returns `Promise<ArchiveProvider>`.                       |
-| `MementoProvider`           | class     | providers/memento.ts  | JSON TimeMap from several archives via ODU MemGator; reads exact Memento URI, then proxy fallback. |
-| `ArchiveInterface`          | interface | types.ts:127          | Public API: `snapshots()`, `getPages()`, `use()`, `useAll()`.                               |
-| `ArchiveProvider`           | interface | types.ts:117          | Provider contract: `name`, `slug?`, `snapshots()`.                                          |
-| `ArchiveResponse`           | interface | types.ts:100          | `{ success, pages, error?, unsupported?, unsupportedReason?, _meta?, fromCache? }`.         |
-| `ArchivedPage`              | interface | types.ts:61           | `{ url, timestamp, snapshot, _meta }`.                                                      |
-| `UnsupportedProviderRecord` | interface | types.ts:84           | `{ provider, reason }` row used in `_meta.unsupportedProviders`.                            |
-| `ArchivesConfig`            | interface | config.ts:8           | Config shape: `storage` + `performance` + env overrides.                                    |
-| `processInParallel`         | function  | utils/_utils.ts:16    | Generic parallel executor with concurrency + batching.                                      |
-| `createSuccessResponse`     | function  | utils/_utils.ts       | Build a normalized success `ArchiveResponse`.                                               |
-| `createErrorResponse`       | function  | utils/_utils.ts       | Build a normalized runtime-error `ArchiveResponse`.                                         |
-| `createUnsupportedResponse` | function  | utils/_utils.ts:184   | Build a response signalling the operation is outside the provider's API surface.            |
-| `configureStorage`          | function  | storage.ts:147        | **@deprecated** – use config files or `createArchive` options.                              |
-| `archives`                  | Pi tool   | packages/pi/extensions/archives.ts | Query archive snapshots through Pi; delegates to the shared executors (source first, `dist/` in an installed package).       |
-| `archives_providers`        | Pi tool   | packages/pi/extensions/archives.ts | List provider status and Perma.cc env configuration.                                        |
-| `snapshotArchives`          | function  | tool-operations.ts    | Shared executor behind the snapshot tool on every surface. Throws on bad provider/prereqs.  |
-| `listArchiveProviders`      | function  | tool-operations.ts    | Shared executor listing providers, `provider=all` membership and Perma.cc key state.        |
-| `waybackSnapshots`          | function  | tool-operations.ts    | Wayback-only lookup behind the interactive `/archive` command.                              |
-| `createMcpServer`           | function  | mcp.ts                | Unconnected MCP server exposing `archives_snapshots`, `archives_content`, `archives_providers`. |
-| `Archive.content`           | method    | archive.ts            | Reads one capture. Tries providers in order; the first body wins.                           |
-| `Archive.getContent`        | method    | archive.ts            | Throwing variant of `content()`, mirroring `getPages()`.                                    |
-| `combineContentResults`     | function  | archive.ts            | Picks the winning body and keeps the other providers' outcomes in `_meta`.                  |
-| `ArchivedContent`           | interface | types.ts              | `{ url, timestamp, snapshot, content, mime?, bytes, truncated, _meta }`.                    |
-| `ArchiveContentOptions`     | interface | types.ts              | `ArchiveOptions` + `timestamp` (capture to read) + `maxBytes` (read cap).                   |
-| `readPlaybackCapture`       | function  | utils/_content.ts     | Reads a Wayback-style `<prefix>/<stamp>id_/<url>` capture into `ArchivedContent`.            |
-| `selectCapture`             | function  | utils/_content.ts     | An exact stamp names one capture; otherwise newest at or before, else closest after, preferring a 2xx one. |
-| `preferSameUrl`             | function  | utils/_content.ts     | Keeps candidates recorded under the requested URL, and the scheme when the caller named one. |
-| `unwrapSnapshotUrl`         | function  | utils/_content.ts     | Splits a playback URL back into original URL + capture stamp.                                |
-| `htmlToText`                | function  | utils/_content.ts     | Lossy markup stripping, applied by the surfaces, never by the library response.              |
-| `contentArchives`           | function  | tool-operations.ts    | Shared executor behind the content tool on every surface.                                    |
+| Symbol                      | Type      | Location                           | Role                                                                                                                   |
+| --------------------------- | --------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `createArchive`             | function  | archive.ts:56                      | Core factory. Accepts provider(s) + options, returns `ArchiveInterface`.                                               |
+| `UnsupportedOperationError` | class     | archive.ts:18                      | Thrown by `getPages()` when every queried provider is unsupported. Carries `providers` list.                           |
+| `providers`                 | object    | providers/index.ts:14              | Lazy-loading factory. Each method returns `Promise<ArchiveProvider>`.                                                  |
+| `MementoProvider`           | class     | providers/memento.ts               | JSON TimeMap from several archives via ODU MemGator; reads exact Memento URI, then proxy fallback.                     |
+| `ArchiveInterface`          | interface | types.ts:127                       | Public API: `snapshots()`, `getPages()`, `use()`, `useAll()`.                                                          |
+| `ArchiveProvider`           | interface | types.ts:117                       | Provider contract: `name`, `slug?`, `snapshots()`.                                                                     |
+| `ArchiveResponse`           | interface | types.ts:100                       | `{ success, pages, error?, unsupported?, unsupportedReason?, _meta?, fromCache? }`.                                    |
+| `ArchivedPage`              | interface | types.ts:61                        | `{ url, timestamp, snapshot, _meta }`.                                                                                 |
+| `UnsupportedProviderRecord` | interface | types.ts:84                        | `{ provider, reason }` row used in `_meta.unsupportedProviders`.                                                       |
+| `ArchivesConfig`            | interface | config.ts:8                        | Config shape: `storage` + `performance` + env overrides.                                                               |
+| `processInParallel`         | function  | utils/_utils.ts:16                 | Generic parallel executor with concurrency + batching.                                                                 |
+| `createSuccessResponse`     | function  | utils/_utils.ts                    | Build a normalized success `ArchiveResponse`.                                                                          |
+| `createErrorResponse`       | function  | utils/_utils.ts                    | Build a normalized runtime-error `ArchiveResponse`.                                                                    |
+| `createUnsupportedResponse` | function  | utils/_utils.ts:184                | Build a response signalling the operation is outside the provider's API surface.                                       |
+| `configureStorage`          | function  | storage.ts:147                     | **@deprecated** - use config files or `createArchive` options.                                                         |
+| `archives`                  | Pi tool   | packages/pi/extensions/archives.ts | Query archive snapshots through Pi; delegates to the shared executors (source first, `dist/` in an installed package). |
+| `archives_providers`        | Pi tool   | packages/pi/extensions/archives.ts | List provider status and Perma.cc env configuration.                                                                   |
+| `snapshotArchives`          | function  | tool-operations.ts                 | Shared executor behind the snapshot tool on every surface. Throws on bad provider/prereqs.                             |
+| `listArchiveProviders`      | function  | tool-operations.ts                 | Shared executor listing providers, `provider=all` membership and Perma.cc key state.                                   |
+| `waybackSnapshots`          | function  | tool-operations.ts                 | Wayback-only lookup behind the interactive `/archive` command.                                                         |
+| `createMcpServer`           | function  | mcp.ts                             | Unconnected MCP server exposing `archives_snapshots`, `archives_content`, `archives_providers`.                        |
+| `Archive.content`           | method    | archive.ts                         | Reads one capture. Tries providers in order; the first body wins.                                                      |
+| `Archive.getContent`        | method    | archive.ts                         | Throwing variant of `content()`, mirroring `getPages()`.                                                               |
+| `combineContentResults`     | function  | archive.ts                         | Picks the winning body and keeps the other providers' outcomes in `_meta`.                                             |
+| `ArchivedContent`           | interface | types.ts                           | `{ url, timestamp, snapshot, content, mime?, bytes, truncated, _meta }`.                                               |
+| `ArchiveContentOptions`     | interface | types.ts                           | `ArchiveOptions` + `timestamp` (capture to read) + `maxBytes` (read cap).                                              |
+| `readPlaybackCapture`       | function  | utils/_content.ts                  | Reads a Wayback-style `<prefix>/<stamp>id_/<url>` capture into `ArchivedContent`.                                      |
+| `selectCapture`             | function  | utils/_content.ts                  | An exact stamp names one capture; otherwise newest at or before, else closest after, preferring a 2xx one.             |
+| `preferSameUrl`             | function  | utils/_content.ts                  | Keeps candidates recorded under the requested URL, and the scheme when the caller named one.                           |
+| `unwrapSnapshotUrl`         | function  | utils/_content.ts                  | Splits a playback URL back into original URL + capture stamp.                                                          |
+| `htmlToText`                | function  | utils/_content.ts                  | Lossy markup stripping, applied by the surfaces, never by the library response.                                        |
+| `contentArchives`           | function  | tool-operations.ts                 | Shared executor behind the content tool on every surface.                                                              |
 
 ## CONVENTIONS
 

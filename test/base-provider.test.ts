@@ -6,10 +6,7 @@ class ArrowProvider extends BaseProvider {
   readonly name = "Arrow provider";
   readonly slug = "arrow";
 
-  snapshots = async (
-    _domain: string,
-    _options?: ArchiveOptions,
-  ): Promise<ArchiveResponse> => ({
+  snapshots = async (_domain: string, _options?: ArchiveOptions): Promise<ArchiveResponse> => ({
     success: true,
     pages: [],
   });
