@@ -106,6 +106,30 @@ describe("Common Crawl", () => {
     );
   });
 
+  it("surfaces a collinfo fetch failure without querying a fake latest index", async () => {
+    vi.mocked($fetch).mockRejectedValueOnce(new Error("collinfo unavailable"));
+
+    const result = await createArchive(createCommonCrawl()).snapshots("example.com");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("collinfo unavailable");
+    expect($fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["an empty list", []],
+    ["a non-list response", {}],
+    ["an unusable entry", [{}]],
+  ])("rejects %s from collinfo without querying a fake latest index", async (_label, collInfo) => {
+    vi.mocked($fetch).mockResolvedValueOnce(collInfo);
+
+    const result = await createArchive(createCommonCrawl()).snapshots("example.com");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Common Crawl collinfo.json returned no usable collection");
+    expect($fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("handles empty results", async () => {
     // CommonCrawl returns no data for empty results
     // Mock collection info then empty NDJSON
