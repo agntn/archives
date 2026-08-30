@@ -400,33 +400,25 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
     if (configured && configured !== "CC-MAIN-latest") {
       return { collectionName: configured, indexName: indexName(configured) };
     }
-    return (
-      (await this.fetchLatestIndex(options)) ?? {
-        collectionName: "CC-MAIN-latest",
-        indexName: indexName("CC-MAIN-latest"),
-      }
-    );
+    return this.fetchLatestIndex(options);
   }
 
   private async fetchLatestIndex(
     options: Readonly<Partial<CommonCrawlOptions>>,
-  ): Promise<CrawlIndex | undefined> {
-    try {
-      const fetchOptions = await createFetchOptions(
-        BASE_URL,
-        {},
-        {
-          retries: options.retries,
-          signal: options.signal,
-          timeout: options.timeout ?? 60_000,
-        },
-      );
-      const response: unknown = await $fetch("/collinfo.json", fetchOptions);
-      return parseCollinfo(response);
-    } catch (error) {
-      consola.debug("[commoncrawl] collinfo.json fetch failed, using fallback:", error);
-      return undefined;
-    }
+  ): Promise<CrawlIndex> {
+    const fetchOptions = await createFetchOptions(
+      BASE_URL,
+      {},
+      {
+        retries: options.retries,
+        signal: options.signal,
+        timeout: options.timeout ?? 60_000,
+      },
+    );
+    const response: unknown = await $fetch("/collinfo.json", fetchOptions);
+    const index = parseCollinfo(response);
+    if (!index) throw new Error("Common Crawl collinfo.json returned no usable collection");
+    return index;
   }
 
   /**
