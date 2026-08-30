@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { mapCdxRows, processInParallel, waybackTimestampToISO } from "../src/utils";
+import {
+  mapCdxRows,
+  normalizeDomain,
+  processInParallel,
+  waybackTimestampToISO,
+} from "../src/utils";
 
 describe("processInParallel", () => {
   it("preserves input order regardless of completion order", async () => {
@@ -41,6 +46,21 @@ describe("processInParallel", () => {
     });
 
     expect(result).toEqual([2, 4]);
+  });
+});
+
+describe("normalizeDomain", () => {
+  it("keeps a bare host as a prefix search", () => {
+    expect(normalizeDomain("https://example.com/")).toBe("example.com/*");
+  });
+
+  it("keeps paths and queries exact", () => {
+    expect(normalizeDomain("https://example.com/page")).toBe("example.com/page");
+    expect(normalizeDomain("https://example.com/?q=1")).toBe("example.com/?q=1");
+  });
+
+  it("keeps a caller-supplied wildcard", () => {
+    expect(normalizeDomain("https://example.com/pages/*")).toBe("example.com/pages/*");
   });
 });
 

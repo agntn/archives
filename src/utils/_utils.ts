@@ -135,7 +135,7 @@ export function waybackTimestampToISO(timestamp: string): string {
 /**
  * Normalizes a domain string for search queries
  * @param domain The domain or URL to normalize
- * @param appendWildcard Whether to append a wildcard for prefix matching
+ * @param appendWildcard Whether a bare host should use prefix matching
  * @returns Normalized domain string
  */
 export function normalizeDomain(domain: string, appendWildcard = true): string {
@@ -143,11 +143,14 @@ export function normalizeDomain(domain: string, appendWildcard = true): string {
   const normalizedDomain = hasProtocol(domain) ? withoutProtocol(domain) : domain;
 
   // Create URL pattern for search if requested
-  if (domain.includes("*")) {
+  if (!appendWildcard || domain.includes("*")) {
     return normalizedDomain;
   }
 
-  return appendWildcard ? withTrailingSlash(normalizedDomain) + "*" : normalizedDomain;
+  const suffixStart = normalizedDomain.search(/[/?#]/);
+  const isBareHost = suffixStart === -1 || /^\/+$/u.test(normalizedDomain.slice(suffixStart));
+
+  return isBareHost ? withTrailingSlash(normalizedDomain) + "*" : normalizedDomain;
 }
 
 /**
