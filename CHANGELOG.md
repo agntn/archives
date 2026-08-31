@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.5.2
+
+[compare changes](https://github.com/agntn/archives/compare/v0.5.1...v0.5.2)
+
+### 🩹 Fixes
+
+- Deduplicate concurrent provider loads ([#51](https://github.com/agntn/archives/pull/51))
+- Avoid wildcarding exact archive URLs ([#53](https://github.com/agntn/archives/pull/53))
+- Remove the fake Common Crawl latest index ([#56](https://github.com/agntn/archives/pull/56))
+- Preserve Archive.today capture URLs ([#57](https://github.com/agntn/archives/pull/57))
+- Don't drop providers added during resolution ([#58](https://github.com/agntn/archives/pull/58))
+- Reject enum values outside tool schemas ([#59](https://github.com/agntn/archives/pull/59))
+- Stop promising raw archive bytes ([#60](https://github.com/agntn/archives/pull/60))
+- Restore provider labels on archive results ([#61](https://github.com/agntn/archives/pull/61))
+
+### 💅 Refactors
+
+- Make shared Ox checks real ([#55](https://github.com/agntn/archives/pull/55))
+
+### ❤️ Contributors
+
+- Aeitwoen <aeitwoen@gmail.com>
+- Ori ([@oritwoen](https://github.com/oritwoen))
+
 ## v0.5.1
 
 [compare changes](https://github.com/agntn/archives/compare/v0.5.0...v0.5.1)
