@@ -21,6 +21,8 @@ import {
   PROVIDER_INPUTS,
   SNAPSHOT_FROM_HINT,
   SNAPSHOT_TO_HINT,
+  normalizeFormat,
+  normalizeProvider,
 } from "../src/tool-operations";
 import type { ArchiveContentResponse, ArchiveResponse } from "../src/types";
 
@@ -202,6 +204,15 @@ describe("Pi extension", () => {
       (properties["format"]?.["anyOf"] ?? []) as Array<{ const: string }>
     ).map((member) => member.const);
     expect(offeredFormats).toEqual([...CONTENT_FORMATS]);
+  });
+
+  it("rejects enum spellings hidden from the tool schemas", () => {
+    expect(normalizeProvider(undefined)).toBe("all");
+    expect(normalizeFormat(undefined)).toBe("text");
+    expect(() => normalizeProvider(" wayback ")).toThrow('Unknown provider " wayback "');
+    expect(() => normalizeProvider(" ")).toThrow('Unknown provider " "');
+    expect(() => normalizeFormat(" raw ")).toThrow('Unknown format " raw "');
+    expect(() => normalizeFormat(" ")).toThrow('Unknown format " "');
   });
 
   it("reads one capture through the shared executor", async () => {

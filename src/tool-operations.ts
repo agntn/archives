@@ -408,7 +408,7 @@ type ArchiveProviderOrList = Awaited<
  * @returns {ProviderName} The operation result.
  */
 export function normalizeProvider(provider: string | undefined): ProviderName {
-  const raw = (provider ?? "auto").trim() || "auto";
+  const raw = provider ?? "auto";
   const alias = PROVIDER_ALIASES[raw as keyof typeof PROVIDER_ALIASES];
   if (alias) return alias;
   if (!isKnownProvider(raw)) {
@@ -534,7 +534,7 @@ function buildSnapshotOptions(
  * @returns {ContentFormat} The operation result.
  */
 export function normalizeFormat(format: string | undefined): ContentFormat {
-  const raw = (format ?? "text").trim() || "text";
+  const raw = format ?? "text";
   if (!(CONTENT_FORMATS as readonly string[]).includes(raw)) {
     throw new Error(`Unknown format "${raw}". Available: ${CONTENT_FORMATS.join(", ")}.`);
   }
