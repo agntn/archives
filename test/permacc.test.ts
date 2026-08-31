@@ -72,6 +72,7 @@ describe("Perma.cc Platform", () => {
         title: "Example Page",
         status: "success",
         created_by: "1",
+        provider: "permacc",
       },
     });
     expect(result._meta?.meta).toEqual({

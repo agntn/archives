@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  createSuccessResponse,
   mapCdxRows,
   normalizeDomain,
   processInParallel,
@@ -46,6 +47,27 @@ describe("processInParallel", () => {
     });
 
     expect(result).toEqual([2, 4]);
+  });
+});
+
+describe("createSuccessResponse", () => {
+  it("uses the response source as each page provider", () => {
+    const response = createSuccessResponse(
+      [
+        {
+          url: "https://example.com/",
+          timestamp: "2023-01-01T00:00:00Z",
+          snapshot: "https://archive.example/capture",
+          _meta: { digest: "example", provider: "stale-source" },
+        },
+      ],
+      "example-archive",
+    );
+
+    expect(response.pages[0]._meta).toEqual({
+      digest: "example",
+      provider: "example-archive",
+    });
   });
 });
 
