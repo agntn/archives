@@ -455,7 +455,7 @@ describe("archive-today content", () => {
     fetchMock.mockResolvedValueOnce(timemap);
     rawMock.mockResolvedValueOnce(
       rawResponse("<html><body>archived profile</body></html>", {
-        url: "http://archive.md/20210326214327/https://example.com",
+        url: "http://archive.md/20210326214327/https://example.com/",
         headers: {
           "content-type": "text/html;charset=utf-8",
           "memento-datetime": "Fri, 26 Mar 2021 21:43:27 GMT",
@@ -466,12 +466,14 @@ describe("archive-today content", () => {
     const response = await createArchive(createArchiveToday()).content("example.com");
 
     expect(response.success).toBe(true);
-    expect(response.content?.url).toBe("https://example.com");
-    expect(response.content?.snapshot).toBe("http://archive.md/20210326214327/https://example.com");
+    expect(response.content?.url).toBe("https://example.com/");
+    expect(response.content?.snapshot).toBe(
+      "http://archive.md/20210326214327/https://example.com/",
+    );
     expect(response.content?.timestamp).toBe("2021-03-26T21:43:27Z");
     expect(response.content?.content).toContain("archived profile");
     expect(rawMock).toHaveBeenCalledWith(
-      "/20210326214327/https://example.com",
+      "/20210326214327/https://example.com/",
       objectContaining({ baseURL: "http://archive.md" }),
     );
   });
@@ -487,7 +489,7 @@ describe("archive-today content", () => {
     await createArchive(createArchiveToday()).content("example.com", { timestamp: "2020-12-31" });
 
     expect(rawMock).toHaveBeenCalledWith(
-      "/20200606060606/https://example.com",
+      "/20200606060606/https://example.com/",
       objectContaining({ baseURL: "http://archive.md" }),
     );
   });
@@ -507,7 +509,7 @@ describe("archive-today content", () => {
     expect(response.success).toBe(true);
     expect(fetchMock).toHaveBeenCalledWith("/timemap/http://example.com", expect.anything());
     expect(rawMock).toHaveBeenCalledWith(
-      "/20200606060606/https://example.com",
+      "/20200606060606/https://example.com/",
       objectContaining({ baseURL: "http://archive.md" }),
     );
   });
@@ -535,7 +537,9 @@ describe("archive-today content", () => {
 
     expect(response.success).toBe(true);
     expect(fetchMock).toHaveBeenCalledWith("/timemap/http://example.com", expect.anything());
-    expect(response.content?.snapshot).toBe("http://archive.md/20200606060606/https://example.com");
+    expect(response.content?.snapshot).toBe(
+      "http://archive.md/20200606060606/https://example.com/",
+    );
   });
 
   it("refuses a body that arrives without a Memento-Datetime header", async () => {

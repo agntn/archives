@@ -1,6 +1,5 @@
 import { consola } from "consola";
 import { $fetch } from "ofetch";
-import { cleanDoubleSlashes, withoutTrailingSlash } from "ufo";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -73,11 +72,11 @@ function archiveTodayPage(
       });
       return undefined;
     }
-    const normalizedOriginal = origUrl.includes("://") ? origUrl : `https://${origUrl}`;
+    const originalUrl = origUrl.includes("://") ? origUrl : `https://${origUrl}`;
     return {
-      url: withoutTrailingSlash(cleanDoubleSlashes(normalizedOriginal)),
+      url: originalUrl,
       timestamp: isoTimestamp,
-      snapshot: withoutTrailingSlash(snapshotUrl),
+      snapshot: snapshotUrl,
       _meta: { hash: timestamp, raw_date: datetime, position } as ArchiveTodayMetadata,
     };
   } catch (error) {
@@ -213,7 +212,9 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
    * The timemap labels its newest row `last memento` and a lone capture
    * `first last memento`, so the match takes any first/last qualifiers;
    * requiring a bare `memento` would drop the newest capture from every
-   * listing.
+   * listing. Fully qualified URLs stay exactly as the timemap recorded them:
+   * scheme, duplicate path separators, and a trailing slash can all distinguish
+   * one archived resource from another.
 
    *
    * @param target - Target.
@@ -241,7 +242,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
     // <http://archive.md/20140101030405/https://example.com/>; rel="memento"; datetime="Wed, 01 Jan 2014 03:04:05 GMT"
     const pages: ArchivedPage[] = [];
     const mementoRegex =
-      /<(https?:\/\/archive\.(?:is|today|md|ph)\/([0-9]{8,14})\/(?:https?:\/\/)?([^>]+))>;\s*rel="(?:(?:first|last)\s+)*memento";\s*datetime="([^"]+)"/g;
+      /<(https?:\/\/archive\.(?:is|today|md|ph)\/([0-9]{8,14})\/((?:https?:\/\/)?[^>]+))>;\s*rel="(?:(?:first|last)\s+)*memento";\s*datetime="([^"]+)"/g;
 
     let mementoMatch;
     let index = 0;

@@ -36,8 +36,8 @@ describe("archive.today", () => {
     expect(result.pages).toHaveLength(4);
 
     // Check first snapshot
-    expect(result.pages[0].url).toBe("https://example.com");
-    expect(result.pages[0].snapshot).toBe("http://archive.md/20020120142510/http://example.com");
+    expect(result.pages[0].url).toBe("http://example.com/");
+    expect(result.pages[0].snapshot).toBe("http://archive.md/20020120142510/http://example.com/");
     expect(result.pages[0]._meta.hash).toBe("20020120142510");
     expect(result.pages[0]._meta.raw_date).toBe("Sun, 20 Jan 2002 14:25:10 GMT");
 
@@ -52,6 +52,22 @@ describe("archive.today", () => {
         timeout: 10000,
       }),
     );
+  });
+
+  it("preserves the original and snapshot URLs reported by the timemap", async () => {
+    const originalUrl = "http://example.com/path//?next=//cdn.example/";
+    const snapshotUrl = `http://archive.md/20140101030405/${originalUrl}`;
+    vi.mocked($fetch).mockResolvedValueOnce(
+      `<${snapshotUrl}>; rel="memento"; datetime="Wed, 01 Jan 2014 03:04:05 GMT"`,
+    );
+
+    const archive = createArchiveClient(createArchiveToday());
+    const result = await archive.snapshots("https://example.com/path//?next=//cdn.example/");
+
+    expect(result.success).toBe(true);
+    expect(result.pages).toHaveLength(1);
+    expect(result.pages[0].url).toBe(originalUrl);
+    expect(result.pages[0].snapshot).toBe(snapshotUrl);
   });
 
   /**
