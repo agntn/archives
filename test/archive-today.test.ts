@@ -40,6 +40,7 @@ describe("archive.today", () => {
     expect(result.pages[0].snapshot).toBe("http://archive.md/20020120142510/http://example.com/");
     expect(result.pages[0]._meta.hash).toBe("20020120142510");
     expect(result.pages[0]._meta.raw_date).toBe("Sun, 20 Jan 2002 14:25:10 GMT");
+    expect(result.pages[0]._meta.provider).toBe("archive-today");
 
     // Verify API call
     expect($fetch).toHaveBeenCalledWith(

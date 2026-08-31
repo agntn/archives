@@ -200,7 +200,10 @@ export function createSuccessResponse(
 ): ArchiveResponse {
   return {
     success: true,
-    pages: [...pages],
+    pages: pages.map((page) => ({
+      ...page,
+      _meta: { ...page._meta, provider: source },
+    })),
     _meta: {
       source,
       provider: source,
