@@ -184,6 +184,7 @@ describe("Pi extension", () => {
     expect(content?.description).toContain(
       "Use this tool only when the caller wants the archived body or already has a capture to read.",
     );
+    expect(content?.description).toContain("format=raw keeps markup");
   });
 
   it("declares the content schema the shared executors enforce", () => {

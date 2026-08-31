@@ -4,7 +4,12 @@ import { $fetch } from "ofetch";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import archivesOmpExtension from "../packages/omp/extensions/archives.js";
-import { MAX_CONTENT_CHARS, MAX_LIMIT, PROVIDER_INPUTS } from "../src/tool-operations";
+import {
+  CONTENT_FORMAT_HINT,
+  MAX_CONTENT_CHARS,
+  MAX_LIMIT,
+  PROVIDER_INPUTS,
+} from "../src/tool-operations";
 
 vi.mock("ofetch", () => ({
   $fetch: vi.fn(),
@@ -85,6 +90,7 @@ describe("archives OMP extension", () => {
     expect(content.description).toContain(
       "Use this tool only when the caller wants the archived body or already has a capture to read.",
     );
+    expect(content.description).toContain("format=raw keeps markup");
   });
 
   it("declares the content bounds the shared executors enforce", () => {
@@ -97,6 +103,7 @@ describe("archives OMP extension", () => {
       const parameter = properties[parameterName];
       expect(parameter?.["description"]).toContain(rangeDescription(parameter));
     }
+    expect(properties["format"]?.["description"]).toBe(CONTENT_FORMAT_HINT);
     expect(accepts(tool, { target: "example.com" })).toBe(true);
     expect(accepts(tool, { target: "example.com", format: "text" })).toBe(true);
     expect(accepts(tool, { target: "example.com", format: "raw" })).toBe(true);

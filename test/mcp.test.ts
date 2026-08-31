@@ -139,6 +139,13 @@ describe("archives MCP server", () => {
       openWorldHint: true,
     });
     expect(response.tools[1]?.inputSchema).toMatchObject({ type: "object", required: ["target"] });
+    const contentProperties = response.tools[1]?.inputSchema.properties as Record<
+      string,
+      Record<string, unknown>
+    >;
+    expect(contentProperties["format"]?.["description"]).toContain(
+      "decoded capture body without stripping markup",
+    );
     expect(response.tools[1]?.annotations).toMatchObject({
       readOnlyHint: true,
       openWorldHint: true,
@@ -536,7 +543,7 @@ describe("archives MCP server", () => {
     expect(rendered).not.toContain("<script>");
   });
 
-  it("keeps the archived bytes when the caller asks for raw", async () => {
+  it("keeps markup when the caller asks for raw decoded text", async () => {
     stubContentProvider(providersMock.wayback, capture({ content: "<p>markup</p>" }));
     const client = await connectTestClient();
 

@@ -63,11 +63,11 @@ export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", whic
 
 export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, then Archive.today, then Common Crawl. Memento reads the selected TimeMap URI directly and uses MemGator's proxy as fallback. Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 
-/** Rendering of the archived body: readable text, or the bytes as archived. */
+/** Rendering of the archived body: readable text, or decoded text with markup intact. */
 export const CONTENT_FORMATS = ["text", "raw"] as const;
 export type ContentFormat = (typeof CONTENT_FORMATS)[number];
 
-export const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the archived bytes as they were served.`;
+export const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the decoded capture body without stripping markup.`;
 
 export const SNAPSHOT_FROM_HINT = `Earliest capture to list, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Inclusive; a partial stamp starts the window at the beginning of the period it names.`;
 
