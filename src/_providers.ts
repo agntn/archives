@@ -5,6 +5,8 @@ export interface WaybackOptions extends ArchiveOptions {
   filter?: string;
 }
 
+export type ArquivoOptions = ArchiveOptions;
+
 export interface ArchiveItOptions extends ArchiveOptions {
   collection: number | string;
   collapse?: string;

@@ -1,6 +1,7 @@
 import type { ArchiveOptions, ArchiveProvider } from "../types";
 import type {
   WaybackOptions,
+  ArquivoOptions,
   ArchiveItOptions,
   ConiferOptions,
   ArchiveTodayOptions,
@@ -12,6 +13,7 @@ import type {
 import { createRetryableLazyImport } from "./_lazy-import";
 
 const loadWaybackModule = createRetryableLazyImport(() => import("./wayback"));
+const loadArquivoModule = createRetryableLazyImport(() => import("./arquivo"));
 const loadArchiveItModule = createRetryableLazyImport(() => import("./archive-it"));
 const loadConiferModule = createRetryableLazyImport(() => import("./conifer"));
 const loadArchiveTodayModule = createRetryableLazyImport(() => import("./archive-today"));
@@ -37,6 +39,16 @@ export const providers = {
   async wayback(options?: Readonly<WaybackOptions>): Promise<ArchiveProvider> {
     const { WaybackProvider } = await loadWaybackModule();
     return new WaybackProvider(options);
+  },
+
+  /**
+   * Creates an Arquivo.pt provider.
+   * @param options - Configuration options for the Arquivo.pt provider
+   * @returns {Promise<ArchiveProvider>} The Arquivo.pt provider
+   */
+  async arquivo(options?: Readonly<ArquivoOptions>): Promise<ArchiveProvider> {
+    const { ArquivoProvider } = await loadArquivoModule();
+    return new ArquivoProvider(options);
   },
 
   /**
@@ -149,6 +161,7 @@ export const providers = {
   async all(options?: Readonly<ArchiveOptions>): Promise<ArchiveProvider[]> {
     return Promise.all([
       this.wayback(options),
+      this.arquivo(options),
       this.archiveToday(options),
       this.commoncrawl(options),
       this.webcite(options),

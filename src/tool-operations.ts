@@ -35,6 +35,7 @@ export const PROVIDERS = [
   "auto",
   "all",
   "wayback",
+  "arquivo",
   "archiveIt",
   "conifer",
   "archiveToday",
@@ -59,9 +60,9 @@ export const PROVIDER_INPUTS = [
 export type ProviderInput = (typeof PROVIDERS)[number];
 export type ProviderName = Exclude<ProviderInput, "auto">;
 
-export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Archive.today, Common Crawl, and WebCite. Memento uses the public MemGator service to query several archives and stays outside "all" to avoid duplicate requests. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
+export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Arquivo.pt, Archive.today, Common Crawl, and WebCite. Memento uses the public MemGator service to query several archives and stays outside "all" to avoid duplicate requests. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
 
-export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, then Archive.today, then Common Crawl. Memento reads the selected TimeMap URI directly and uses MemGator's proxy as fallback. Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
+export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, Arquivo.pt, Archive.today, and Common Crawl. Memento reads the selected TimeMap URI directly and uses MemGator's proxy as fallback. Arquivo.pt and Wayback use raw replay endpoints; Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 
 /** Rendering of the archived body: readable text, or decoded text with markup intact. */
 export const CONTENT_FORMATS = ["text", "raw"] as const;
@@ -381,6 +382,7 @@ function coniferFactory(options: Readonly<SnapshotOptions | ContentOptions>) {
 
 const PROVIDER_FACTORIES: Readonly<Record<SingleProviderName, ProviderFactory>> = {
   wayback: (options) => providers.wayback(options),
+  arquivo: (options) => providers.arquivo(options),
   archiveIt: archiveItFactory,
   conifer: coniferFactory,
   archiveToday: (options) => providers.archiveToday(options),
@@ -626,7 +628,7 @@ function getProviderStatuses(): ProviderStatus[] {
       includedInAll: false,
       requiresApiKey: false,
       configured: true,
-      note: "Queries Wayback, Archive.today, Common Crawl, and WebCite; excludes Archive-It, Conifer, Memento, and Perma.cc.",
+      note: "Queries Wayback, Arquivo.pt, Archive.today, Common Crawl, and WebCite; excludes Archive-It, Conifer, Memento, and Perma.cc.",
     },
     {
       name: "wayback",
@@ -635,6 +637,14 @@ function getProviderStatuses(): ProviderStatus[] {
       requiresApiKey: false,
       configured: true,
       note: "Internet Archive CDX API.",
+    },
+    {
+      name: "arquivo",
+      factory: "providers.arquivo()",
+      includedInAll: true,
+      requiresApiKey: false,
+      configured: true,
+      note: "Arquivo.pt CDX API with raw replay support.",
     },
     {
       name: "archiveIt",
