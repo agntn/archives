@@ -338,7 +338,7 @@ export class Archive implements ArchiveInterface {
   readonly options?: ArchiveOptions;
 
   private readonly providersInput: ProviderInput;
-  private resolvedProviders: ArchiveProvider[] | undefined;
+  private providerResolution: Promise<ArchiveProvider[]> | undefined;
 
   constructor(providers: ProviderInput, options?: Readonly<ArchiveOptions>) {
     this.providersInput = isProviderArray(providers) ? [...providers] : providers;
@@ -361,13 +361,14 @@ export class Archive implements ArchiveInterface {
    * @returns {Promise<ArchiveProvider[]>} A promise resolving to the operation result.
    */
   async resolveProviders(): Promise<ArchiveProvider[]> {
-    if (this.resolvedProviders) {
-      return [...this.resolvedProviders];
-    }
+    return [...(await this.resolveProviderList())];
+  }
 
-    const result = await Promise.resolve(this.providersInput);
-    this.resolvedProviders = isProviderArray(result) ? [...result] : [result];
-    return [...this.resolvedProviders];
+  private resolveProviderList(): Promise<ArchiveProvider[]> {
+    this.providerResolution ??= Promise.resolve(this.providersInput).then((result) =>
+      isProviderArray(result) ? [...result] : [result],
+    );
+    return this.providerResolution;
   }
 
   /**
@@ -714,8 +715,8 @@ export class Archive implements ArchiveInterface {
    */
   async use(provider: ProviderReference): Promise<ArchiveInterface> {
     const resolvedProvider = await Promise.resolve(provider);
-    const currentProviders = await this.resolveProviders();
-    this.resolvedProviders = [...currentProviders, resolvedProvider];
+    const currentProviders = await this.resolveProviderList();
+    currentProviders.push(resolvedProvider);
     return this;
   }
 
@@ -741,8 +742,8 @@ export class Archive implements ArchiveInterface {
    */
   async useAll(newProviders: readonly ProviderReference[]): Promise<ArchiveInterface> {
     const resolvedNewProviders = await Promise.all(newProviders.map((p) => Promise.resolve(p)));
-    const currentProviders = await this.resolveProviders();
-    this.resolvedProviders = [...currentProviders, ...resolvedNewProviders];
+    const currentProviders = await this.resolveProviderList();
+    currentProviders.push(...resolvedNewProviders);
     return this;
   }
 }

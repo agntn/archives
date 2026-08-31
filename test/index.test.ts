@@ -70,6 +70,16 @@ async function captureThrow(promise: Readonly<Promise<unknown>>): Promise<unknow
   throw new Error("expected promise to reject");
 }
 
+function deferred<T>() {
+  let resolve = (_value: T): void => {
+    throw new Error("Deferred promise was not initialized");
+  };
+  const promise = new Promise<T>((fulfill) => {
+    resolve = fulfill;
+  });
+  return { promise, resolve };
+}
+
 // --- factory ---
 
 describe("createArchive", () => {
@@ -124,6 +134,23 @@ describe("Archive.resolveProviders", () => {
 
     resolved.pop();
     await expect(archive.resolveProviders()).resolves.toHaveLength(2);
+  });
+
+  it("keeps providers added while the initial provider is still resolving", async () => {
+    const initial = deferred<ArchiveProvider>();
+    const archive = new Archive(initial.promise);
+    const additions = Promise.all([
+      archive.use(successProvider("one", [])),
+      archive.useAll([successProvider("two", [])]),
+    ]);
+
+    initial.resolve(successProvider("initial", []));
+    await additions;
+
+    const resolved = await archive.resolveProviders();
+    expect(new Set(resolved.map((provider) => provider.slug))).toEqual(
+      new Set(["initial", "one", "two"]),
+    );
   });
 });
 
