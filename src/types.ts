@@ -41,6 +41,15 @@ export interface WaybackMetadata extends ArchiveMetadata {
   provider: string;
 }
 
+export interface ArquivoMetadata extends ArchiveMetadata {
+  timestamp: string;
+  status: number;
+  mime?: string;
+  digest?: string;
+  length?: string;
+  provider: "arquivo";
+}
+
 export interface CommonCrawlMetadata extends ArchiveMetadata {
   timestamp: string;
   status: number;

@@ -9,6 +9,7 @@ export {
 } from "./archive";
 export { BaseProvider } from "./providers/base-provider";
 export { WaybackProvider } from "./providers/wayback";
+export { ArquivoProvider } from "./providers/arquivo";
 export { ArchiveItProvider } from "./providers/archive-it";
 export { ConiferProvider } from "./providers/conifer";
 export { ArchiveTodayProvider } from "./providers/archive-today";

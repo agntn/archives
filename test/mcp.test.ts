@@ -21,6 +21,7 @@ type ContentOverrides = Readonly<Omit<Partial<ArchivedContent>, "_meta">> & {
 
 const providersMock = vi.hoisted(() => ({
   all: vi.fn(),
+  arquivo: vi.fn(),
   archiveIt: vi.fn(),
   archiveToday: vi.fn(),
   memento: vi.fn(),
@@ -197,6 +198,7 @@ describe("archives MCP server", () => {
     const listed = text(response.content);
     expect(response.isError).toBeUndefined();
     expect(listed).toContain("✓ wayback — providers.wayback() in provider=all");
+    expect(listed).toContain("providers.arquivo() in provider=all");
     expect(listed).toContain("✓ memento \u2014 providers.memento()");
     expect(listed).toContain("⚠ permacc — providers.permacc() requires API key");
   });
@@ -376,6 +378,25 @@ describe("archives MCP server", () => {
 
     // The tool is annotated open-world; a silent 7-day replay would misrepresent it.
     expect(text(second.content)).toContain("; cached");
+  });
+
+  it("dispatches an explicit Arquivo.pt query", async () => {
+    stubProvider(
+      providersMock.arquivo,
+      success([page({ _meta: { provider: "arquivo" } })], "arquivo"),
+      "arquivo",
+    );
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "example.com", provider: "arquivo" },
+    });
+
+    expect(response.isError).toBeUndefined();
+    expect(text(response.content)).toContain("[provider=arquivo] 1 snapshot(s)");
+    expect(providersMock.arquivo).toHaveBeenCalled();
+    expect(providersMock.all).not.toHaveBeenCalled();
   });
 
   it("dispatches an explicit Memento query without adding it to provider=all", async () => {
