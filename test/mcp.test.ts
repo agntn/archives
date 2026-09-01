@@ -4,6 +4,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMcpServer } from "../src/mcp";
 import { storage } from "../src/storage";
+import { MAX_CONTENT_OFFSET } from "../src/tool-operations";
 import type {
   ArchiveContentResponse,
   ArchiveResponse,
@@ -178,7 +179,7 @@ describe("archives MCP server", () => {
 
     for (const [toolName, parameterNames] of [
       ["archives_snapshots", ["limit", "ttl", "concurrency", "batchSize", "timeout", "retries"]],
-      ["archives_content", ["maxChars", "ttl", "timeout", "retries"]],
+      ["archives_content", ["maxChars", "offset", "ttl", "timeout", "retries"]],
     ] as const) {
       const tool = response.tools.find((candidate) => candidate.name === toolName);
       if (!tool) throw new Error(`Tool not registered: ${toolName}`);
@@ -597,21 +598,244 @@ describe("archives MCP server", () => {
     expect(text(response.content)).toContain("<p>markup</p>");
   });
 
-  it("says when the body was clipped rather than cutting it silently", async () => {
+  it("reports a complete body as one finished slice", async () => {
+    stubContentProvider(providersMock.wayback, capture({ content: "short", mime: "text/plain" }));
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback", maxChars: 10 },
+    });
+
+    const rendered = text(response.content);
+    expect(rendered).toContain("slice: 0..5; hasMore=false");
+    expect(rendered).not.toContain("nextOffset=");
+    expect(rendered).toContain("\nshort\n");
+  });
+
+  it("pins the provider, collection and capture before exposing continuation", async () => {
+    const maxFetchBytes = MAX_CONTENT_OFFSET;
+    const collection = "CC-MAIN-2024-10";
+    const content = vi
+      .fn()
+      .mockImplementation((_target: string, options: Readonly<{ maxBytes: number }>) =>
+        Promise.resolve(
+          options.maxBytes === maxFetchBytes
+            ? capture({
+                content: "<p>A &amp; B</p>",
+                _meta: { provider: "commoncrawl", collection },
+              })
+            : capture({
+                content: "<p>A &amp",
+                truncated: true,
+                _meta: { provider: "commoncrawl", collection },
+              }),
+        ),
+      );
+    providersMock.commoncrawl.mockResolvedValue({
+      name: "commoncrawl",
+      slug: "commoncrawl",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    const first = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "commoncrawl", maxChars: 4 },
+    });
+    const second = await client.callTool({
+      name: "archives_content",
+      arguments: {
+        target: "https://example.com/",
+        provider: "commoncrawl",
+        format: "text",
+        maxChars: 4,
+        offset: 4,
+        timestamp: "2024-01-02T03:04:05Z",
+        collection,
+      },
+    });
+
+    expect(content).toHaveBeenNthCalledWith(
+      2,
+      "https://example.com/",
+      objectContaining({
+        collection,
+        maxBytes: maxFetchBytes,
+        timestamp: "2024-01-02T03:04:05Z",
+      }),
+    );
+    expect(text(first.content)).toContain("slice: 0..4; hasMore=true; nextOffset=4");
+    expect(text(first.content)).toContain(
+      `continue: target="https://example.com/"; provider=commoncrawl; timestamp="2024-01-02T03:04:05Z"; format=text; collection="${collection}"; offset=4`,
+    );
+    expect(text(first.content)).toContain("\nA & \n");
+    expect(text(second.content)).toContain("slice: 4..5; hasMore=false");
+    expect(text(second.content)).toContain("\nB\n");
+  });
+
+  it("continues a body from the previous slice", async () => {
     stubContentProvider(
       providersMock.wayback,
       capture({ content: "abcdefghij", mime: "text/plain" }),
     );
     const client = await connectTestClient();
 
-    const response = await client.callTool({
+    const first = await client.callTool({
       name: "archives_content",
       arguments: { target: "https://example.com/", provider: "wayback", maxChars: 4 },
     });
+    const second = await client.callTool({
+      name: "archives_content",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        maxChars: 4,
+        offset: 4,
+        timestamp: "2024-01-02T03:04:05Z",
+      },
+    });
+
+    expect(text(first.content)).toContain("slice: 0..4; hasMore=true; nextOffset=4");
+    expect(text(first.content)).toContain("\nabcd\n");
+    expect(text(second.content)).toContain("slice: 4..8; hasMore=true; nextOffset=8");
+    expect(text(second.content)).toContain("\nefgh\n");
+    expect(text(second.content)).not.toContain("\nabcd\n");
+  });
+
+  it("reads far enough to reach a later raw slice", async () => {
+    const content = vi.fn().mockResolvedValue(capture({ content: "later", mime: "text/plain" }));
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    await client.callTool({
+      name: "archives_content",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        format: "raw",
+        maxChars: 200_000,
+        offset: 200_000,
+        cache: false,
+      },
+    });
+
+    expect(content).toHaveBeenCalledWith(
+      "https://example.com/",
+      objectContaining({ maxBytes: MAX_CONTENT_OFFSET }),
+    );
+  });
+
+  it("continues through the end of the fixed fetched prefix", async () => {
+    stubContentProvider(
+      providersMock.wayback,
+      capture({ content: "x".repeat(MAX_CONTENT_OFFSET), mime: "text/plain" }),
+    );
+    const client = await connectTestClient();
+    const offset = MAX_CONTENT_OFFSET - 300_000;
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        format: "raw",
+        maxChars: 200_000,
+        offset,
+      },
+    });
+
+    expect(text(response.content)).toContain(
+      `slice: ${offset}..${offset + 200_000}; hasMore=true; nextOffset=${offset + 200_000}`,
+    );
+  });
+
+  it("keeps a Unicode character whole at a slice boundary", async () => {
+    stubContentProvider(
+      providersMock.wayback,
+      capture({ content: "abc😀def", mime: "text/plain" }),
+    );
+    const client = await connectTestClient();
+
+    const first = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback", maxChars: 4 },
+    });
+    const second = await client.callTool({
+      name: "archives_content",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        maxChars: 1,
+        offset: 3,
+        timestamp: "2024-01-02T03:04:05Z",
+      },
+    });
+
+    expect(text(first.content)).toContain("slice: 0..3; hasMore=true; nextOffset=3");
+    expect(text(first.content)).toContain("\nabc\n");
+    expect(text(second.content)).toContain("slice: 3..5; hasMore=true; nextOffset=5");
+    expect(text(second.content)).toContain("\n😀\n");
+    expect(text(first.content) + text(second.content)).not.toContain("�");
+  });
+
+  it("pages HTML after rendering it as text", async () => {
+    stubContentProvider(providersMock.wayback, capture({ content: "<p>alpha</p><p>beta</p>" }));
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        maxChars: 4,
+        offset: 6,
+      },
+    });
 
     const rendered = text(response.content);
-    expect(rendered).toContain("clipped to 4 characters");
-    expect(rendered).toContain("\nabcd\n");
+    expect(rendered).toContain("slice: 6..10; hasMore=false");
+    expect(rendered).toContain("\nbeta\n");
+    expect(rendered).not.toContain("<p>");
+  });
+
+  it("keeps raw rendering coordinates in the continuation", async () => {
+    stubContentProvider(providersMock.wayback, capture({ content: "<p>alpha</p>" }));
+    const client = await connectTestClient();
+
+    const first = await client.callTool({
+      name: "archives_content",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        format: "raw",
+        maxChars: 3,
+      },
+    });
+    const second = await client.callTool({
+      name: "archives_content",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        timestamp: "2024-01-02T03:04:05Z",
+        format: "raw",
+        maxChars: 3,
+        offset: 3,
+      },
+    });
+
+    expect(text(first.content)).toContain(
+      'provider=wayback; timestamp="2024-01-02T03:04:05Z"; format=raw; offset=3',
+    );
+    expect(text(first.content)).toContain("\n<p>\n");
+    expect(text(second.content)).toContain("slice: 3..6; hasMore=true; nextOffset=6");
+    expect(text(second.content)).toContain("\nalp\n");
   });
 
   it("points at the snapshot instead of decoding a capture that is not text", async () => {

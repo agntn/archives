@@ -15,6 +15,7 @@ import { providers } from "./providers";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
+  ArchiveInterface,
   ArchiveOptions,
   ArchiveResponse,
   ArchivedContent,
@@ -79,9 +80,11 @@ export const DEFAULT_LIMIT = 10;
 export const MAX_LIMIT = 100;
 export const DEFAULT_MAX_CHARS = 20_000;
 export const MAX_CONTENT_CHARS = 200_000;
-export const MAX_TIMESTAMP_LENGTH = 32;
 /** Ceiling on what one content call may pull over the network. */
 const MAX_CONTENT_FETCH_BYTES = 2_000_000;
+/** Largest UTF-16 position accepted within the fixed fetched prefix. */
+export const MAX_CONTENT_OFFSET = MAX_CONTENT_FETCH_BYTES;
+export const MAX_TIMESTAMP_LENGTH = 32;
 /** Floor on the same, so a small `maxChars` still reads enough to strip markup from. */
 const MIN_CONTENT_FETCH_BYTES = 4096;
 /** Timeout one content call asks for when the caller names none. */
@@ -158,6 +161,7 @@ export interface ContentParams {
   timestamp?: string;
   format?: string;
   maxChars?: number;
+  offset?: number;
   cache?: boolean;
   ttl?: number;
   timeout?: number;
@@ -167,6 +171,15 @@ export interface ContentParams {
 }
 
 /** The capture that was read, plus how much of it the caller received. */
+export interface ContentContinuation {
+  target: string;
+  provider: string;
+  timestamp: string;
+  format: ContentFormat;
+  collection?: string;
+  offset: number;
+}
+
 export interface ContentDetails {
   mode: "content";
   target: string;
@@ -175,6 +188,16 @@ export interface ContentDetails {
   options: RedactedContentOptions;
   /** Characters of body text handed back, after formatting and clipping. */
   characters: number;
+  /** UTF-16 position where this slice starts. */
+  offset: number;
+  /** UTF-16 position immediately after this slice. */
+  endOffset: number;
+  /** Another slice can be requested. */
+  hasMore: boolean;
+  /** Position to pass as `offset` for the next slice. */
+  nextOffset?: number;
+  /** Arguments pinned to the capture for the next slice. */
+  continuation?: Readonly<ContentContinuation>;
   /** Body text was clipped to `maxChars` while rendering. */
   clipped: boolean;
   response: ArchiveContentResponse;
@@ -284,18 +307,41 @@ export async function contentArchives(
   const provider = normalizeProvider(params.provider);
   const format = normalizeFormat(params.format);
   const maxChars = params.maxChars ?? DEFAULT_MAX_CHARS;
-  const options = { ...(await buildContentOptions(params, format, maxChars)), signal };
-  const archiveProvider = await createProvider(provider, options);
-  const archive = createArchive(archiveProvider, options);
-  const response = await archive.content(target, options);
+  const offset = params.offset ?? 0;
+  const requestedOptions = {
+    ...(await buildContentOptions(params, format, maxChars, offset)),
+    signal,
+  };
+  const archiveProvider = await createProvider(provider, requestedOptions);
+  const archive = createArchive(archiveProvider, requestedOptions);
+  const { response, options } = await readContentForPaging(
+    archive,
+    target,
+    requestedOptions,
+    provider,
+  );
 
   const capture = response.success ? response.content : undefined;
   // A capture that is not text is described rather than decoded, so nothing of
   // its body is rendered and the counts have to say so.
   const rendered =
     capture && isTextualMime(capture.mime)
-      ? renderBody(capture, format, maxChars)
-      : { body: "", characters: 0, clipped: false };
+      ? renderBody(capture, format, maxChars, offset)
+      : {
+          body: "",
+          characters: 0,
+          offset: 0,
+          endOffset: 0,
+          hasMore: false,
+          clipped: false,
+        };
+  const continuation = createContentContinuation(
+    capture,
+    rendered.nextOffset,
+    provider,
+    format,
+    options,
+  );
 
   return {
     content: [
@@ -303,7 +349,7 @@ export async function contentArchives(
         type: "text",
         text: sanitizeTerminalText(
           [
-            buildContentHeader(provider, target, response, rendered),
+            buildContentHeader(provider, target, response, rendered, continuation),
             // Named even on a successful fan-out: which archive answered, and
             // which one could not, is part of how much the body is worth.
             ...contentFailures(response),
@@ -322,6 +368,10 @@ export async function contentArchives(
       format,
       options: redactOptions(options),
       characters: rendered.characters,
+      offset: rendered.offset,
+      endOffset: rendered.endOffset,
+      hasMore: rendered.hasMore,
+      ...continuationDetails(continuation),
       clipped: rendered.clipped,
       response: detailsResponse(response, rendered.body),
     },
@@ -429,6 +479,7 @@ function isKnownProvider(name: string): name is ProviderInput {
 const NUMERIC_BOUNDS = {
   limit: { minimum: 1, maximum: MAX_LIMIT },
   maxChars: { minimum: 1, maximum: MAX_CONTENT_CHARS },
+  offset: { minimum: 0, maximum: MAX_CONTENT_OFFSET },
   ttl: { minimum: 0, maximum: MAX_TTL },
   concurrency: { minimum: 1, maximum: 10 },
   batchSize: { minimum: 1, maximum: 100 },
@@ -568,9 +619,38 @@ function contentTimestamp(value: string | undefined): Partial<ContentOptions> {
   return timestamp ? { timestamp } : {};
 }
 
-function contentByteLimit(format: ContentFormat, maxChars: number): number {
+function contentByteLimit(format: ContentFormat, maxChars: number, offset: number): number {
+  if (offset > 0) return MAX_CONTENT_FETCH_BYTES;
+
   const requested = format === "raw" ? maxChars : maxChars * 8;
   return Math.min(MAX_CONTENT_FETCH_BYTES, Math.max(MIN_CONTENT_FETCH_BYTES, requested));
+}
+
+async function readContentForPaging(
+  archive: ArchiveInterface,
+  target: string,
+  requestedOptions: Readonly<ContentOptions>,
+  fallbackProvider: ProviderName,
+): Promise<{ response: ArchiveContentResponse; options: ContentOptions }> {
+  const response = await archive.content(target, requestedOptions);
+  if (!response.content?.truncated || requestedOptions.maxBytes === MAX_CONTENT_FETCH_BYTES) {
+    return { response, options: { ...requestedOptions } };
+  }
+
+  const captureCollection = response.content._meta.collection;
+  const options = {
+    ...requestedOptions,
+    ...(typeof captureCollection === "string" ? { collection: captureCollection } : {}),
+    timestamp: response.content.timestamp,
+    maxBytes: MAX_CONTENT_FETCH_BYTES,
+  };
+  const responseProvider = response.content._meta.provider;
+  const provider = normalizeProvider(
+    typeof responseProvider === "string" ? responseProvider : fallbackProvider,
+  );
+  const pinnedProvider = await createProvider(provider, options);
+  const pinnedArchive = createArchive(pinnedProvider, options);
+  return { response: await pinnedArchive.content(response.content.url, options), options };
 }
 
 /**
@@ -579,18 +659,20 @@ function contentByteLimit(format: ContentFormat, maxChars: number): number {
  * @param params - Requested content parameters.
  * @param format - Rendering format used to size the raw read.
  * @param maxChars - Maximum rendered character count.
+ * @param offset - Starting position in the rendered body.
  * @returns {Promise<ContentOptions>} Resolved options for one content request.
  */
 async function buildContentOptions(
   params: Readonly<ContentParams>,
   format: ContentFormat,
   maxChars: number,
+  offset: number,
 ): Promise<ContentOptions> {
   checkBounds(params);
 
   const { performance } = await getConfig();
   return {
-    maxBytes: contentByteLimit(format, maxChars),
+    maxBytes: contentByteLimit(format, maxChars, offset),
     ...contentTimestamp(params.timestamp),
     ...contentPassthroughOptions(params),
     timeout: params.timeout ?? Math.max(performance.timeout ?? 0, DEFAULT_CONTENT_TIMEOUT),
@@ -786,20 +868,23 @@ function detailsResponse(
 interface RenderedBody {
   body: string;
   characters: number;
+  offset: number;
+  endOffset: number;
+  hasMore: boolean;
+  nextOffset?: number;
   clipped: boolean;
 }
 
-/* Formats one capture's body for a caller, and clips it to `maxChars`. */
+/* Formats one capture's body and returns one bounded slice. */
 function renderBody(
   capture: ArchivedContent,
   format: ContentFormat,
   maxChars: number,
+  offset: number,
 ): RenderedBody {
   const formatted =
     format === "text" && isMarkup(capture) ? htmlToText(capture.content) : capture.content;
-  const body = clipText(formatted, maxChars);
-
-  return { body, characters: body.length, clipped: body.length < formatted.length };
+  return sliceText(formatted, offset, maxChars);
 }
 
 /* True when the capture is markup a reader would want stripped. */
@@ -810,14 +895,82 @@ function isMarkup(capture: ArchivedContent): boolean {
   return /^\s*<(?:!doctype|html|\?xml)/i.test(capture.content.slice(0, 200));
 }
 
-function clipText(text: string, maxChars: number): string {
-  if (text.length <= maxChars) return text;
+function sliceText(text: string, requestedOffset: number, maxChars: number): RenderedBody {
+  const offset = alignOffset(text, requestedOffset);
+  let endOffset = Math.min(offset + maxChars, text.length);
+  if (splitsSurrogatePair(text, endOffset)) {
+    endOffset += endOffset - offset === 1 ? 1 : -1;
+  }
 
-  const clipped = text.slice(0, maxChars);
-  const lastCode = clipped.codePointAt(clipped.length - 1) ?? 0;
-  // Cutting between the halves of a surrogate pair leaves a lone code unit that
-  // renders as a replacement character.
-  return lastCode >= 0xd8_00 && lastCode <= 0xdb_ff ? clipped.slice(0, -1) : clipped;
+  const body = text.slice(offset, endOffset);
+  const clipped = endOffset < text.length;
+  const canContinue = endOffset > offset && endOffset <= MAX_CONTENT_OFFSET;
+  const hasMore = canContinue && clipped;
+  return {
+    body,
+    characters: body.length,
+    offset,
+    endOffset,
+    hasMore,
+    ...(hasMore ? { nextOffset: endOffset } : {}),
+    clipped,
+  };
+}
+
+function createContentContinuation(
+  capture: ArchivedContent | undefined,
+  nextOffset: number | undefined,
+  fallbackProvider: ProviderName,
+  format: ContentFormat,
+  options: Readonly<ContentOptions>,
+): ContentContinuation | undefined {
+  if (!capture || nextOffset === undefined) return undefined;
+
+  const provider =
+    typeof capture._meta.provider === "string" ? capture._meta.provider : fallbackProvider;
+  const captureCollection = capture._meta.collection;
+  const collection = typeof captureCollection === "string" ? captureCollection : options.collection;
+  return {
+    target: capture.url,
+    provider,
+    timestamp: capture.timestamp,
+    format,
+    ...(collection ? { collection } : {}),
+    offset: nextOffset,
+  };
+}
+
+function continuationDetails(continuation: Readonly<ContentContinuation> | undefined): {
+  nextOffset?: number;
+  continuation?: Readonly<ContentContinuation>;
+} {
+  return continuation ? { nextOffset: continuation.offset, continuation } : {};
+}
+
+function alignOffset(text: string, offset: number): number {
+  const bounded = Math.min(offset, text.length);
+  return splitsSurrogatePair(text, bounded) ? bounded - 1 : bounded;
+}
+
+function splitsSurrogatePair(text: string, offset: number): boolean {
+  if (offset === 0 || offset === text.length) return false;
+
+  const current = text.codePointAt(offset);
+  const previous = text.codePointAt(offset - 1);
+  return (
+    current !== undefined &&
+    current >= 0xdc_00 &&
+    current <= 0xdf_ff &&
+    previous !== undefined &&
+    previous > 0xff_ff
+  );
+}
+
+function formatContinuation(continuation: Readonly<ContentContinuation>): string {
+  const collection = continuation.collection
+    ? `; collection=${JSON.stringify(sanitizeField(continuation.collection))}`
+    : "";
+  return `continue: target=${JSON.stringify(sanitizeField(continuation.target))}; provider=${sanitizeField(continuation.provider)}; timestamp=${JSON.stringify(sanitizeField(continuation.timestamp))}; format=${continuation.format}${collection}; offset=${continuation.offset}`;
 }
 
 function buildContentHeader(
@@ -825,6 +978,7 @@ function buildContentHeader(
   target: string,
   response: ArchiveContentResponse,
   rendered: Readonly<RenderedBody>,
+  continuation: Readonly<ContentContinuation> | undefined,
 ): string {
   const capture = response.content;
   const cacheNote = response.fromCache ? "; cached" : "";
@@ -832,16 +986,19 @@ function buildContentHeader(
     return `[provider=${provider}] no capture read for "${sanitizeField(target)}"${cacheNote}`;
   }
 
-  const clipNote = rendered.clipped
-    ? `; clipped to ${rendered.characters} characters, raise maxChars for more`
-    : "";
   const truncatedNote = capture.truncated ? "; body truncated at the byte cap" : "";
+  const nextNote = rendered.nextOffset === undefined ? "" : `; nextOffset=${rendered.nextOffset}`;
+  const sliceNote = isTextualMime(capture.mime)
+    ? `; slice: ${rendered.offset}..${rendered.endOffset}; hasMore=${rendered.hasMore}${nextNote}`
+    : "";
+  const continuationLine = continuation ? [formatContinuation(continuation)] : [];
   return [
     `[provider=${provider}] read 1 capture for "${sanitizeField(target)}"${cacheNote}`,
     `url: ${sanitizeField(capture.url)}`,
     `captured: ${sanitizeField(capture.timestamp)}`,
     `snapshot: ${sanitizeField(capture.snapshot)}`,
-    `type: ${sanitizeField(capture.mime ?? "unknown")}; ${capture.bytes} bytes read${truncatedNote}${clipNote}`,
+    `type: ${sanitizeField(capture.mime ?? "unknown")}; ${capture.bytes} bytes read${truncatedNote}${sliceNote}`,
+    ...continuationLine,
   ].join("\n");
 }
 
