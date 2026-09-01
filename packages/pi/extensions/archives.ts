@@ -51,6 +51,7 @@ const PROVIDERS = [
   "all",
   "wayback",
   "arquivo",
+  "webarchiv",
   "archiveIt",
   "conifer",
   "archiveToday",
@@ -61,8 +62,8 @@ const PROVIDERS = [
 ] as const;
 const PROVIDER_ALIASES = ["archive-today", "archive-it"] as const;
 const PROVIDER_INPUTS = [...PROVIDERS, ...PROVIDER_ALIASES] as const;
-const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Arquivo.pt, Archive.today, Common Crawl, and WebCite. Memento uses the public MemGator service to query several archives and stays outside "all" to avoid duplicate requests. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
-const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, Arquivo.pt, Archive.today, and Common Crawl. Memento reads the selected TimeMap URI directly and uses MemGator's proxy as fallback. Arquivo.pt and Wayback use raw replay endpoints; Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
+const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl, and WebCite. Webarchiv Österreich searches one exact URL through a public CDXJ endpoint. Memento uses the public MemGator service to query several archives and stays outside "all" to avoid duplicate requests. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
+const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, and Common Crawl. Memento reads the selected TimeMap URI directly and uses MemGator's proxy as fallback. Wayback, Arquivo.pt and Webarchiv Österreich use raw replay endpoints; Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 const CONTENT_FORMATS = ["text", "raw"] as const;
 const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the decoded capture body without stripping markup.`;
 const SNAPSHOT_FROM_HINT = `Earliest capture to list, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Inclusive; a partial stamp starts the window at the beginning of the period it names.`;
@@ -303,7 +304,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives",
     label: "Archives Snapshots",
     description:
-      "Read-only/open-world network fetch: find captures, timestamps, and snapshot URLs without reading archived bodies. Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all queries Wayback Machine, Arquivo.pt, Archive.today, Common Crawl, and WebCite; provider=memento uses the public MemGator service to query several archives; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY and searches one exact URL.",
+      "Read-only/open-world network fetch: find captures, timestamps, and snapshot URLs without reading archived bodies. Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all queries Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl, and WebCite; provider=memento uses the public MemGator service to query several archives; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY and searches one exact URL.",
     promptSnippet:
       "Find capture timestamps and snapshot URLs with archives; use archives_content only to read a body.",
     promptGuidelines: [
@@ -326,7 +327,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives_content",
     label: "Archives Content",
     description:
-      "Read-only/open-world network fetch for archived bodies. Use this tool only when the caller wants the archived body or already has a capture to read. Returns the capture's original URL, its date, the snapshot it came from, and the body as decoded text (format=raw keeps markup). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Arquivo.pt, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc answer as unsupported.",
+      "Read-only/open-world network fetch for archived bodies. Use this tool only when the caller wants the archived body or already has a capture to read. Returns the capture's original URL, its date, the snapshot it came from, and the body as decoded text (format=raw keeps markup). Pass timestamp to read the page as it stood then, or pass a snapshot URL and the capture it names is used. Wayback, Arquivo.pt, Webarchiv Österreich, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc answer as unsupported.",
     promptSnippet:
       "Read an archived page's body with archives_content; archives lists which captures exist.",
     promptGuidelines: [

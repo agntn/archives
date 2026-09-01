@@ -2,6 +2,7 @@ import type { ArchiveOptions, ArchiveProvider } from "../types";
 import type {
   WaybackOptions,
   ArquivoOptions,
+  WebarchivOptions,
   ArchiveItOptions,
   ConiferOptions,
   ArchiveTodayOptions,
@@ -14,6 +15,7 @@ import { createRetryableLazyImport } from "./_lazy-import";
 
 const loadWaybackModule = createRetryableLazyImport(() => import("./wayback"));
 const loadArquivoModule = createRetryableLazyImport(() => import("./arquivo"));
+const loadWebarchivModule = createRetryableLazyImport(() => import("./webarchiv"));
 const loadArchiveItModule = createRetryableLazyImport(() => import("./archive-it"));
 const loadConiferModule = createRetryableLazyImport(() => import("./conifer"));
 const loadArchiveTodayModule = createRetryableLazyImport(() => import("./archive-today"));
@@ -49,6 +51,16 @@ export const providers = {
   async arquivo(options?: Readonly<ArquivoOptions>): Promise<ArchiveProvider> {
     const { ArquivoProvider } = await loadArquivoModule();
     return new ArquivoProvider(options);
+  },
+
+  /**
+   * Creates a Webarchiv Österreich provider.
+   * @param options - Configuration options for Webarchiv Österreich
+   * @returns {Promise<ArchiveProvider>} The Webarchiv Österreich provider
+   */
+  async webarchiv(options?: Readonly<WebarchivOptions>): Promise<ArchiveProvider> {
+    const { WebarchivProvider } = await loadWebarchivModule();
+    return new WebarchivProvider(options);
   },
 
   /**
@@ -162,6 +174,7 @@ export const providers = {
     return Promise.all([
       this.wayback(options),
       this.arquivo(options),
+      this.webarchiv(options),
       this.archiveToday(options),
       this.commoncrawl(options),
       this.webcite(options),

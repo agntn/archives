@@ -22,6 +22,7 @@ type ContentOverrides = Readonly<Omit<Partial<ArchivedContent>, "_meta">> & {
 const providersMock = vi.hoisted(() => ({
   all: vi.fn(),
   arquivo: vi.fn(),
+  webarchiv: vi.fn(),
   archiveIt: vi.fn(),
   archiveToday: vi.fn(),
   memento: vi.fn(),
@@ -199,6 +200,7 @@ describe("archives MCP server", () => {
     expect(response.isError).toBeUndefined();
     expect(listed).toContain("✓ wayback — providers.wayback() in provider=all");
     expect(listed).toContain("providers.arquivo() in provider=all");
+    expect(listed).toContain("providers.webarchiv() in provider=all");
     expect(listed).toContain("✓ memento \u2014 providers.memento()");
     expect(listed).toContain("⚠ permacc — providers.permacc() requires API key");
   });
@@ -396,6 +398,25 @@ describe("archives MCP server", () => {
     expect(response.isError).toBeUndefined();
     expect(text(response.content)).toContain("[provider=arquivo] 1 snapshot(s)");
     expect(providersMock.arquivo).toHaveBeenCalled();
+    expect(providersMock.all).not.toHaveBeenCalled();
+  });
+
+  it("dispatches an explicit Webarchiv Österreich query", async () => {
+    stubProvider(
+      providersMock.webarchiv,
+      success([page({ _meta: { provider: "webarchiv" } })], "webarchiv"),
+      "webarchiv",
+    );
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "https://example.com/", provider: "webarchiv" },
+    });
+
+    expect(response.isError).toBeUndefined();
+    expect(text(response.content)).toContain("[provider=webarchiv] 1 snapshot(s)");
+    expect(providersMock.webarchiv).toHaveBeenCalled();
     expect(providersMock.all).not.toHaveBeenCalled();
   });
 
