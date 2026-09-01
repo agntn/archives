@@ -7,6 +7,7 @@ import archivesOmpExtension from "../packages/omp/extensions/archives.js";
 import {
   CONTENT_FORMAT_HINT,
   MAX_CONTENT_CHARS,
+  MAX_CONTENT_OFFSET,
   MAX_LIMIT,
   PROVIDER_INPUTS,
 } from "../src/tool-operations";
@@ -99,7 +100,7 @@ describe("archives OMP extension", () => {
       "properties"
     ] as Record<string, Record<string, unknown>>;
 
-    for (const parameterName of ["maxChars", "ttl", "timeout", "retries"]) {
+    for (const parameterName of ["maxChars", "offset", "ttl", "timeout", "retries"]) {
       const parameter = properties[parameterName];
       expect(parameter?.["description"]).toContain(rangeDescription(parameter));
     }
@@ -111,6 +112,9 @@ describe("archives OMP extension", () => {
     expect(accepts(tool, { target: "example.com", maxChars: MAX_CONTENT_CHARS })).toBe(true);
     expect(accepts(tool, { target: "example.com", maxChars: MAX_CONTENT_CHARS + 1 })).toBe(false);
     expect(accepts(tool, { target: "example.com", maxChars: 10.5 })).toBe(false);
+    expect(accepts(tool, { target: "example.com", offset: MAX_CONTENT_OFFSET })).toBe(true);
+    expect(accepts(tool, { target: "example.com", offset: MAX_CONTENT_OFFSET + 1 })).toBe(false);
+    expect(accepts(tool, { target: "example.com", offset: 0.5 })).toBe(false);
     expect(accepts(tool, { target: "example.com", timestamp: "2019-03-01" })).toBe(true);
     for (const provider of PROVIDER_INPUTS) {
       expect(accepts(tool, { target: "example.com", provider })).toBe(true);

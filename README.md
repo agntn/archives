@@ -233,7 +233,7 @@ Speaks MCP over stdio and exposes three tools: `archives_snapshots`, `archives_c
 
 An MCP client sees the text a tool returns and nothing else, so the text carries the whole answer: the provider that was queried, every snapshot with its timestamp and original URL, and the providers that could not answer, named with their reason instead of silently dropped. `archives_providers` is there for the same reason — without it the only way to learn which providers exist, which ones `provider=all` covers, and whether Perma.cc has a key is to send a value you expect to fail.
 
-`archives_content` returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless `format=raw` and clipped to `maxChars` (20 000 by default) with a note saying so. The body is fenced and labelled as untrusted data: it is a recording of a web page, not a message to the caller. A capture that is not text is described instead of decoded.
+`archives_content` returns one body slice, with markup stripped to readable text unless `format=raw` and bounded by `maxChars` (20 000 by default). The response names its UTF-16 range and `hasMore`. When another slice exists, its `continue` line supplies arguments pinned to that capture for the following call, including `target`, `provider`, `timestamp`, `format`, `offset`, and a provider collection when needed. When the first internal read is truncated, the tool expands it to a fixed prefix of 2 000 000 bytes before slicing so later offsets address the same rendered text. The body is fenced and labelled as untrusted data: it is a recording of a web page, not a message to the caller. A capture that is not text is described instead of decoded.
 
 `archives_snapshots` is annotated read-only and open-world: it leaves the machine on every call, and archives keep growing, so two identical calls may legitimately differ. An answer replayed from the response cache is marked `; cached` in its header. A provider that returns no snapshots is an answer, not a tool error. Only a rejected argument or a failed query sets `isError`. `from` and `to` bound the listing to a time window, and the applied window is echoed in the header so a narrowed answer never reads as the archive's whole holdings.
 
@@ -255,7 +255,7 @@ pi install git:github.com/agntn/archives
 Tools:
 
 - `archives` — query archived snapshots for a domain or URL. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
-- `archives_content` - read the body of one archived capture. Pass `timestamp` for a point in time, or a snapshot URL to read the capture it names.
+- `archives_content` - read the body of one archived capture. Pass `timestamp` for a point in time, a snapshot URL to read the capture it names, or the returned `continue` arguments for the following slice.
 - `archives_providers` — list built-in archive providers and Perma.cc API-key environment status.
 
 Commands:

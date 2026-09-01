@@ -17,6 +17,7 @@ import {
   DEFAULT_MAX_CHARS,
   listArchiveProviders,
   MAX_CONTENT_CHARS,
+  MAX_CONTENT_OFFSET,
   MAX_LIMIT,
   MAX_PARAMETER_LENGTH,
   MAX_RETRIES,
@@ -177,7 +178,7 @@ const tools: ToolDefinition[] = [
     name: "archives_content",
     title: "Archive Content",
     description:
-      "Use this tool only when the caller wants the archived body or already has a capture to read. Returns the capture's original URL, its date, the snapshot it was read from, and the body, with markup stripped to readable text unless format=raw. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback, Arquivo.pt, Webarchiv Österreich, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
+      "Use this tool only when the caller wants the archived body or already has a capture to read. Returns one bounded slice with its position and continuation arguments pinned to the capture, plus the capture's original URL, date, and snapshot. Readable text is the default; format=raw keeps markup. Pass timestamp to read the page as it stood then, or pass a snapshot URL from archives_snapshots and the capture it names is used. Wayback, Arquivo.pt, Webarchiv Österreich, Archive-It, Archive.today, Memento and Common Crawl serve capture bodies; Memento reads the selected TimeMap URI directly with MemGator's proxy as fallback, and Archive.today serves its rendered wrapper page. Conifer, WebCite and Perma.cc have no such endpoint and answer as unsupported. Fetching a snapshot URL any other way returns the archive's own framing of the page instead of what the site served.",
     inputSchema: Type.Object(
       {
         target: Type.String({
@@ -210,6 +211,13 @@ const tools: ToolDefinition[] = [
             description: `Maximum characters of body to return. Defaults to ${DEFAULT_MAX_CHARS}; accepted range: 1-${MAX_CONTENT_CHARS}.`,
             minimum: 1,
             maximum: MAX_CONTENT_CHARS,
+          }),
+        ),
+        offset: Type.Optional(
+          Type.Integer({
+            description: `UTF-16 offset where the returned slice starts. Use it with every other argument from the prior continue line. Defaults to 0; accepted range: 0-${MAX_CONTENT_OFFSET}.`,
+            minimum: 0,
+            maximum: MAX_CONTENT_OFFSET,
           }),
         ),
         cache: Type.Optional(

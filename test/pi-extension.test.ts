@@ -16,6 +16,7 @@ import {
   DEFAULT_LIMIT,
   DEFAULT_MAX_CHARS,
   MAX_CONTENT_CHARS,
+  MAX_CONTENT_OFFSET,
   MAX_LIMIT,
   PROVIDER_HINT,
   PROVIDER_INPUTS,
@@ -205,7 +206,12 @@ describe("Pi extension", () => {
       maximum: MAX_CONTENT_CHARS,
     });
     expect(properties["maxChars"]?.["description"]).toContain(`Defaults to ${DEFAULT_MAX_CHARS}`);
-    expectRangeDescriptions(properties, ["maxChars", "ttl", "timeout", "retries"]);
+    expect(properties["offset"]).toMatchObject({
+      type: "integer",
+      minimum: 0,
+      maximum: MAX_CONTENT_OFFSET,
+    });
+    expectRangeDescriptions(properties, ["maxChars", "offset", "ttl", "timeout", "retries"]);
 
     const offeredFormats = (
       (properties["format"]?.["anyOf"] ?? []) as Array<{ const: string }>
@@ -259,6 +265,21 @@ describe("Pi extension", () => {
       "https://example.com/",
       objectContaining({ timestamp: "20190301" }),
     );
+  });
+
+  it("rejects an offset beyond the shared executor bound", async () => {
+    const tool = getExecutableTool(loadExtension().tools, "archives_content");
+
+    await expect(
+      tool.execute(
+        "test",
+        { target: "example.com", offset: MAX_CONTENT_OFFSET + 1 },
+        undefined,
+        undefined,
+        {} as ExtensionContext,
+      ),
+    ).rejects.toThrow(`offset must be between 0 and ${MAX_CONTENT_OFFSET}`);
+    expect(archivesMock.content).not.toHaveBeenCalled();
   });
 
   it("rejects a timestamp no archive could act on, before any network work", async () => {
