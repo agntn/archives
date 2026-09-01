@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.3
+
+[compare changes](https://github.com/agntn/archives/compare/v0.5.2...v0.5.3)
+
+### 🚀 Enhancements
+
+- Add Arquivo.pt provider ([#62](https://github.com/agntn/archives/pull/62))
+- Add Webarchiv Österreich provider ([#63](https://github.com/agntn/archives/pull/63))
+
+### ❤️ Contributors
+
+- Ori ([@oritwoen](https://github.com/oritwoen))
+
 ## v0.5.2
 
 [compare changes](https://github.com/agntn/archives/compare/v0.5.1...v0.5.2)
