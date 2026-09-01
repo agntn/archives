@@ -7,6 +7,8 @@ export interface WaybackOptions extends ArchiveOptions {
 
 export type ArquivoOptions = ArchiveOptions;
 
+export type WebarchivOptions = ArchiveOptions;
+
 export interface ArchiveItOptions extends ArchiveOptions {
   collection: number | string;
   collapse?: string;

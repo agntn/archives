@@ -9,7 +9,7 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 
 ## Features
 
-- 🔍 **Multiple providers** - Wayback Machine, Arquivo.pt, Archive-It, Conifer, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite
+- 🔍 **Multiple providers** - Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive-It, Conifer, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite
 - 📄 **Reads captures, not just lists them** - `content()` returns what an archived page said, decoded from the original response
 - 🌳 **Tree-shakable** - providers are lazy-loaded via dynamic imports, bundle only what you use
 - 📦 **Caching built in** - pluggable storage layer via [unstorage](https://github.com/unjs/unstorage) with configurable TTL
@@ -62,7 +62,7 @@ const archive = createArchive(
 const response = await archive.snapshots("example.com", { from: "2019", to: "2019-06" });
 ```
 
-Providers whose index takes a window (Wayback, Arquivo.pt, Archive-It) narrow the query itself; for the rest the listing is filtered after it returns, so captures outside the window never mix into a fan-out. While a window is active, `limit` applies after the filter rather than at the provider, so a tight limit cannot eat the window. What the window cannot reach past is the single batch a windowed fetch asks for: up to 1000 index rows from Arquivo.pt, Common Crawl and Conifer, 100 from Perma.cc, and the library does not paginate beyond that.
+Providers whose index takes a window (Wayback, Arquivo.pt, Webarchiv Österreich, Archive-It) narrow the query itself; for the rest the listing is filtered after it returns, so captures outside the window never mix into combined results. While a window is active, `limit` applies after the filter rather than at the provider, so a tight limit cannot eat the window. What the window cannot reach past is the single batch a windowed fetch asks for: up to 1000 index rows from Arquivo.pt, Webarchiv Österreich, Common Crawl and Conifer, 100 from Perma.cc, and the library does not paginate beyond that.
 
 ### Arquivo.pt
 
@@ -71,6 +71,15 @@ Arquivo.pt lists captures through its public CDX API and serves the archived res
 ```ts
 const archive = createArchive(providers.arquivo());
 const response = await archive.snapshots("example.com");
+```
+
+### Webarchiv Österreich
+
+Webarchiv Österreich searches the Austrian National Library's public CDXJ index and serves captures through raw `id_` replay. It needs no API key, is included in `providers.all()`, and searches one exact URL rather than every path on a domain:
+
+```ts
+const archive = createArchive(providers.webarchiv());
+const response = await archive.snapshots("https://www.onb.ac.at/");
 ```
 
 ### Perma.cc
@@ -168,7 +177,7 @@ const older = await archive.content("https://example.com/page", { timestamp: "20
 await archive.content("https://web.archive.org/web/20190301120000/https://example.com/");
 ```
 
-Bodies are read through each archive's raw capture endpoint where one exists: Wayback, Arquivo.pt and Archive-It replay the original response under the `id_` modifier, Memento reads the TimeMap's exact Memento URI with a raw replay modifier where supported and falls back to MemGator's proxy when direct playback fails, and Common Crawl serves the byte range of the WARC record the index points at. Archive.today has no raw endpoint at all, so its `content()` returns the page as the site renders it, wrapper markup and all, rather than the bytes the original server sent; a rate limit or CAPTCHA answer becomes an error instead of posing as the capture.
+Bodies are read through each archive's raw capture endpoint where one exists: Wayback, Arquivo.pt, Webarchiv Österreich and Archive-It replay the original response under the `id_` modifier, Memento reads the TimeMap's exact Memento URI with a raw replay modifier where supported and falls back to MemGator's proxy when direct playback fails, and Common Crawl serves the byte range of the WARC record the index points at. Archive.today has no raw endpoint at all, so its `content()` returns the page as the site renders it, wrapper markup and all, rather than the bytes the original server sent; a rate limit or CAPTCHA answer becomes an error instead of posing as the capture.
 
 Providers are tried in order and the first body wins, because there is one page to read rather than a set to merge. The ones that could not answer are reported next to the body:
 
@@ -182,18 +191,19 @@ response._meta?.unsupportedProviders; // [{ provider: "webcite", reason: "..." }
 
 ## Providers
 
-| Provider        | Factory                    | `content()` | Notes                                                                                                       |
-| --------------- | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
-| Wayback Machine | `providers.wayback()`      | yes         | web.archive.org CDX API; captures replayed under `id_`                                                      |
-| Arquivo.pt      | `providers.arquivo()`      | yes         | Public CDX API; raw captures replayed through `noFrame/replay`                                              |
-| Archive-It      | `providers.archiveIt()`    | yes         | Requires a numeric `collection`; collection-specific CDX/C API                                              |
-| Conifer         | `providers.conifer()`      | no          | Requires `user` and `collection`; searches an existing public collection                                    |
-| Archive.today   | `providers.archiveToday()` | yes         | archive.ph via Memento timemap; bodies are the rendered wrapper page, not the original bytes                |
-| Memento         | `providers.memento()`      | yes         | Public ODU MemGator JSON TimeMap; queries several archives; excluded from `all` to avoid duplicate requests |
-| Common Crawl    | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                         |
-| Perma.cc        | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                         |
-| WebCite         | `providers.webcite()`      | no          | No list-by-domain API; `snapshots()` returns unsupported. New archives no longer accepted (~2019).          |
-| All             | `providers.all()`          | n/a         | Wayback, Arquivo.pt, Archive.today, Common Crawl, and WebCite                                               |
+| Provider             | Factory                    | `content()` | Notes                                                                                                       |
+| -------------------- | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| Wayback Machine      | `providers.wayback()`      | yes         | web.archive.org CDX API; captures replayed under `id_`                                                      |
+| Arquivo.pt           | `providers.arquivo()`      | yes         | Public CDX API; raw captures replayed through `noFrame/replay`                                              |
+| Webarchiv Österreich | `providers.webarchiv()`    | yes         | Public CDXJ index; exact URL lookup; raw captures replayed under `id_`                                      |
+| Archive-It           | `providers.archiveIt()`    | yes         | Requires a numeric `collection`; CDX/C API specific to that collection                                      |
+| Conifer              | `providers.conifer()`      | no          | Requires `user` and `collection`; searches an existing public collection                                    |
+| Archive.today        | `providers.archiveToday()` | yes         | archive.ph via Memento timemap; bodies are the rendered wrapper page, not the original bytes                |
+| Memento              | `providers.memento()`      | yes         | Public ODU MemGator JSON TimeMap; queries several archives; excluded from `all` to avoid duplicate requests |
+| Common Crawl         | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                         |
+| Perma.cc             | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                         |
+| WebCite              | `providers.webcite()`      | no          | No API for listing a domain; `snapshots()` returns unsupported. New archives no longer accepted (~2019).    |
+| All                  | `providers.all()`          | n/a         | Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl, and WebCite                         |
 
 A provider that cannot serve bodies answers `content()` as unsupported with the reason, exactly as it does for a listing it has no endpoint for.
 
@@ -293,7 +303,7 @@ interface ArchivedContent {
 }
 ```
 
-The `_meta` object on each page carries fields specific to each provider. Wayback includes `status` and `timestamp` in its raw format. Arquivo.pt adds `digest`, `mime` and `length`. Memento adds the upstream `archive` hostname and raw `datetime`. Common Crawl adds `digest`, `mime`, `collection`. Perma.cc has `guid`, `title`, `created_by`. Archive.today provides `hash` and `raw_date`.
+The `_meta` object on each page carries fields specific to each provider. Wayback includes `status` and `timestamp` in its raw format. Arquivo.pt and Webarchiv Österreich add `digest`, `mime` and `length`. Memento adds the upstream `archive` hostname and raw `datetime`. Common Crawl adds `digest`, `mime`, `collection`. Perma.cc has `guid`, `title`, `created_by`. Archive.today provides `hash` and `raw_date`.
 
 ### Unsupported operations
 
@@ -313,7 +323,7 @@ Example:
 const archive = createArchive(providers.all());
 const response = await archive.snapshots("example.com");
 
-response.pages; // results from Wayback, Arquivo.pt, Archive.today, Common Crawl
+response.pages; // results from Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl
 response._meta?.unsupportedProviders;
 // [{ provider: "webcite", reason: "WebCite has no list-by-domain API. ..." }]
 ```

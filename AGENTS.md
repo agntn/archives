@@ -1,13 +1,13 @@
 # PROJECT KNOWLEDGE BASE
 
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-09-01
 **Branch:** main
 
 > Verify against current HEAD: `git rev-parse HEAD`. Code map line numbers reflect the snapshot above; rerun `grep -n` if they look stale.
 
 ## OVERVIEW
 
-Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Built on the unjs ecosystem: ofetch, unstorage, c12, consola, ufo, obuild, changelogen.
+Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Built on the unjs ecosystem: ofetch, unstorage, c12, consola, ufo, obuild, changelogen.
 
 ## STRUCTURE
 
@@ -67,6 +67,7 @@ archives/
 | `UnsupportedOperationError` | class     | archive.ts:18                      | Thrown by `getPages()` when every queried provider is unsupported. Carries `providers` list.                           |
 | `providers`                 | object    | providers/index.ts:14              | Lazy-loading factory. Each method returns `Promise<ArchiveProvider>`.                                                  |
 | `ArquivoProvider`           | class     | providers/arquivo.ts               | Public Arquivo.pt CDX index and raw `noFrame/replay` capture reads.                                                    |
+| `WebarchivProvider`         | class     | providers/webarchiv.ts             | Austrian National Library public CDXJ index and raw `id_` replay for exact URLs.                                       |
 | `MementoProvider`           | class     | providers/memento.ts               | JSON TimeMap from several archives via ODU MemGator; reads exact Memento URI, then proxy fallback.                     |
 | `ArchiveInterface`          | interface | types.ts:127                       | Public API: `snapshots()`, `getPages()`, `use()`, `useAll()`.                                                          |
 | `ArchiveProvider`           | interface | types.ts:117                       | Provider contract: `name`, `slug?`, `snapshots()`.                                                                     |
@@ -112,7 +113,7 @@ archives/
 - **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tool-operations.ts")` and `import("../../../dist/tool-operations.mjs")`. Never `import(url.href)`. `tsc` resolves that dist specifier, so `test:types` builds before it type-checks.
 - **MCP result is text only**: `details` never reaches an MCP client, so anything a caller needs for the next call belongs in `content[].text`.
 - **Listing fans out, reading falls back**: `snapshots()` queries providers in parallel and merges; `content()` walks them in order and stops at the first body, because there is one page to read rather than a set to merge. Providers that failed or cannot read are reported beside the body in `_meta`.
-- **A capture is read raw or not at all**: bodies come from `id_` playback (Wayback, Arquivo.pt, Archive-It) or a WARC byte range (Common Crawl). An archive that only serves its own rendition of a page returns `createUnsupportedContentResponse` with the reason instead.
+- **A capture is read raw or not at all**: bodies come from `id_` playback (Wayback, Arquivo.pt, Webarchiv Österreich, Archive-It) or a WARC byte range (Common Crawl). An archive that only serves its own rendition of a page returns `createUnsupportedContentResponse` with the reason instead.
 - **A stored capture is the response as it travelled**: a WARC record keeps the chunked framing and the `Content-Encoding` the server used, so reading its text means undoing both before the charset is applied. Playback endpoints do it for you, which is why only the Common Crawl path carries this.
 - **The library decodes, a surface renders**: charset decoding, WARC unwrapping and transfer/content encodings are library work, and the body it returns is text; `htmlToText`, clipping to `maxChars` and the untrusted-data fence are applied in `tool-operations.ts`, so a library consumer keeps the whole document rather than a reader's view of it. Text is the contract, not the raw bytes: a capture that is not text decodes lossily and its bytes stay behind `_meta.rawSnapshot` or the WARC coordinates.
 - **The MCP process does not trust its own cwd**: `src/commands/mcp.ts` calls `setConfigCwd(homedir())` because a client spawns the server in an arbitrary checkout, and c12 executes the `archives.config.ts` it finds. `consola.level` is pinned there too — stdout carries the JSON-RPC frames.
@@ -154,6 +155,7 @@ pnpm release          # test + changelogen + publish
 - **Defaults**: concurrency=3, batchSize=20, timeout=10000ms, retries=1, cache TTL=7 days. README and code must match.
 - **Memento Time Travel is gone**: `mementoweb.org` remains a static documentation site after LANL discontinued the aggregator in 2025. `providers.memento()` defaults to the live public ODU MemGator endpoint and may be pointed at another compatible instance with `baseUrl`.
 - **Arquivo.pt is a direct provider**: query `https://arquivo.pt/wayback/cdx` as newline-delimited JSON and read raw bodies from `noFrame/replay/<timestamp>id_/<url>`. It belongs in `providers.all()` even though MemGator may also return Arquivo.pt captures, because Memento stays outside that fan-out.
+- **Webarchiv Österreich uses CDXJ for one URL at a time**: query `https://webarchiv.onb.ac.at/web/cdx` with the URL written as HTTP, because the index canonicalizes schemes but the HTTPS version can fail upstream. `from`, `to`, `limit` and `reverse=true` are supported; wildcard and `sort` queries are not. Read raw bodies from `/web/<timestamp>id_/<url>`. It requires no credentials and belongs in `providers.all()`.
 - **WebCite has no list-by-domain API**: `webcite.snapshots(domain)` returns `unsupported: true` with a `unsupportedReason`. Direct snapshot retrieval (`webcitation.org/<id>`) is planned via a future `getById` API. New archives have not been accepted since ~2019.
 - **Archive.today uses Memento API**: parses timemap link headers with regex. Fragile if format changes.
 - **Playground targets Cloudflare**: `nitro.preset = 'cloudflare_module'` with `nodeCompat: true`.

@@ -51,6 +51,12 @@ vi.mock("../src/providers", () => ({
       snapshots: archivesMock.snapshots,
       content: archivesMock.content,
     }),
+    webarchiv: async () => ({
+      name: "Webarchiv Österreich",
+      slug: "webarchiv",
+      snapshots: archivesMock.snapshots,
+      content: archivesMock.content,
+    }),
     archiveIt: archivesMock.archiveIt,
     conifer: archivesMock.conifer,
     archiveToday: async () => ({
