@@ -8,6 +8,8 @@ import {
   CONTENT_FORMAT_HINT,
   MAX_CONTENT_CHARS,
   MAX_CONTENT_OFFSET,
+  MAX_DIFF_CONTEXT,
+  MAX_DIFF_OFFSET,
   MAX_LIMIT,
   PROVIDER_INPUTS,
 } from "../src/tool-operations";
@@ -75,7 +77,12 @@ describe("archives OMP extension", () => {
     const { label, tools, commands } = registerExtension();
 
     expect(label).toBe("Archives");
-    expect([...tools.keys()]).toEqual(["archives", "archives_content", "archives_providers"]);
+    expect([...tools.keys()]).toEqual([
+      "archives",
+      "archives_content",
+      "archives_diff",
+      "archives_providers",
+    ]);
     expect(commands).toEqual(["archive", "archive-providers"]);
     for (const tool of tools.values()) expect(tool.approval).toBe("read");
   });
@@ -84,6 +91,7 @@ describe("archives OMP extension", () => {
     const { tools } = registerExtension();
     const snapshots = requireTool(tools, "archives");
     const content = requireTool(tools, "archives_content");
+    const diff = requireTool(tools, "archives_diff");
 
     expect(snapshots.description).toMatch(
       /find captures, timestamps, and snapshot URLs without reading archived bodies\./i,
@@ -92,6 +100,46 @@ describe("archives OMP extension", () => {
       "Use this tool only when the caller wants the archived body or already has a capture to read.",
     );
     expect(content.description).toContain("format=raw keeps markup");
+    expect(diff.description).toContain("two chronological captures from one archive provider");
+  });
+
+  it("declares the diff bounds the shared executor enforces", () => {
+    const tool = requireTool(registerExtension().tools, "archives_diff");
+    const properties = (tool.parameters as unknown as TypeBox.TSchema).toJsonSchema()[
+      "properties"
+    ] as Record<string, Record<string, unknown>>;
+
+    expect(accepts(tool, { target: "example.com", before: "2019", after: "2020" })).toBe(true);
+    expect(accepts(tool, { target: "example.com", before: "2019" })).toBe(false);
+    expect(
+      accepts(tool, {
+        target: "example.com",
+        before: "2019",
+        after: "2020",
+        context: MAX_DIFF_CONTEXT + 1,
+      }),
+    ).toBe(false);
+    expect(
+      accepts(tool, {
+        target: "example.com",
+        before: "2019",
+        after: "2020",
+        offset: MAX_DIFF_OFFSET,
+        digest: "a".repeat(64),
+      }),
+    ).toBe(true);
+    expect(
+      accepts(tool, {
+        target: "example.com",
+        before: "2019",
+        after: "2020",
+        digest: "not-a-digest",
+      }),
+    ).toBe(false);
+    expect(properties).not.toHaveProperty("timestamp");
+    for (const name of ["context", "maxChars", "offset", "ttl", "timeout", "retries"]) {
+      expect(properties[name]?.["description"]).toContain(rangeDescription(properties[name]));
+    }
   });
 
   it("declares the content bounds the shared executors enforce", () => {

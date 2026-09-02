@@ -163,6 +163,48 @@ export interface ArchiveContentResponse {
   fromCache?: boolean;
 }
 
+/** Rendering applied before two archived bodies are compared. */
+export type ArchiveDiffFormat = "text" | "raw";
+
+/** Bounds and rendering controls for {@link diffArchivedContent}. */
+export interface ArchiveDiffOptions {
+  /** Compare visible text by default, or decoded markup/source verbatim. */
+  format?: ArchiveDiffFormat;
+  /** Unchanged lines kept around each hunk. Defaults to 3. */
+  context?: number;
+  /** Elapsed time budget for the line diff algorithm. Defaults to 1000 ms. */
+  timeout?: number;
+  /** Maximum line edit distance considered before aborting. Defaults to 10 000. */
+  maxEditLength?: number;
+}
+
+/** Capture identity retained beside a derived diff without copying its body. */
+export interface ArchivedContentSummary {
+  url: string;
+  timestamp: string;
+  snapshot: string;
+  mime?: string;
+  bytes: number;
+  truncated: boolean;
+  provider: string;
+  /** Underlying archive host when the provider is an aggregator such as Memento. */
+  archive?: string;
+}
+
+/** A bounded line diff between two archived captures that preserves provenance. */
+export interface ArchivedContentDiff {
+  before: ArchivedContentSummary;
+  after: ArchivedContentSummary;
+  patch: string;
+  additions: number;
+  deletions: number;
+  identical: boolean;
+  /** True when either archived body was truncated before comparison. */
+  partial: boolean;
+  format: ArchiveDiffFormat;
+  context: number;
+}
+
 // Type for response metadata
 export interface ResponseMetadata {
   source: string;

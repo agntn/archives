@@ -4,7 +4,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMcpServer } from "../src/mcp";
 import { storage } from "../src/storage";
-import { MAX_CONTENT_OFFSET } from "../src/tool-operations";
+import { MAX_CONTENT_OFFSET, MAX_DIFF_OFFSET } from "../src/tool-operations";
 import type {
   ArchiveContentResponse,
   ArchiveResponse,
@@ -50,6 +50,12 @@ function text(content: unknown): string {
   return (content as Array<{ type: string; text?: string }>)
     .map((item) => (item.type === "text" ? (item.text ?? "") : ""))
     .join("");
+}
+
+function itemAt<T>(items: readonly T[], index: number): T {
+  const item = items[index];
+  if (!item) throw new Error(`Missing item at index ${index}`);
+  return item;
 }
 
 function page(overrides: PageOverrides = {}): ArchivedPage {
@@ -134,26 +140,46 @@ describe("archives MCP server", () => {
     expect(response.tools.map((tool) => tool.name)).toEqual([
       "archives_snapshots",
       "archives_content",
+      "archives_diff",
       "archives_providers",
     ]);
-    expect(response.tools[0]?.inputSchema).toMatchObject({ type: "object", required: ["target"] });
-    expect(response.tools[0]?.annotations).toMatchObject({
+    const snapshots = itemAt(response.tools, 0);
+    const content = itemAt(response.tools, 1);
+    const diff = itemAt(response.tools, 2);
+    const providers = itemAt(response.tools, 3);
+    expect(snapshots.inputSchema).toMatchObject({ type: "object", required: ["target"] });
+    expect(snapshots.annotations).toMatchObject({
       readOnlyHint: true,
       openWorldHint: true,
     });
-    expect(response.tools[1]?.inputSchema).toMatchObject({ type: "object", required: ["target"] });
-    const contentProperties = response.tools[1]?.inputSchema.properties as Record<
+    expect(content.inputSchema).toMatchObject({ type: "object", required: ["target"] });
+    const contentProperties = content.inputSchema.properties as Record<
       string,
       Record<string, unknown>
     >;
     expect(contentProperties["format"]?.["description"]).toContain(
       "decoded capture body without stripping markup",
     );
-    expect(response.tools[1]?.annotations).toMatchObject({
+    expect(content.annotations).toMatchObject({
       readOnlyHint: true,
       openWorldHint: true,
     });
-    expect(response.tools[2]?.annotations).toMatchObject({
+    expect(diff.inputSchema).toMatchObject({
+      type: "object",
+      required: ["target", "before", "after"],
+    });
+    const diffProperties = diff.inputSchema.properties as Record<string, Record<string, unknown>>;
+    expect(diffProperties["offset"]).toMatchObject({ maximum: MAX_DIFF_OFFSET });
+    expect(diffProperties["digest"]).toMatchObject({
+      minLength: 64,
+      maxLength: 64,
+      pattern: "^[a-f0-9]{64}$",
+    });
+    expect(diff.annotations).toMatchObject({
+      readOnlyHint: true,
+      openWorldHint: true,
+    });
+    expect(providers.annotations).toMatchObject({
       readOnlyHint: true,
       openWorldHint: false,
     });
@@ -180,6 +206,7 @@ describe("archives MCP server", () => {
     for (const [toolName, parameterNames] of [
       ["archives_snapshots", ["limit", "ttl", "concurrency", "batchSize", "timeout", "retries"]],
       ["archives_content", ["maxChars", "offset", "ttl", "timeout", "retries"]],
+      ["archives_diff", ["context", "maxChars", "offset", "ttl", "timeout", "retries"]],
     ] as const) {
       const tool = response.tools.find((candidate) => candidate.name === toolName);
       if (!tool) throw new Error(`Tool not registered: ${toolName}`);
@@ -596,6 +623,224 @@ describe("archives MCP server", () => {
     });
 
     expect(text(response.content)).toContain("<p>markup</p>");
+  });
+
+  it("compares two captures from one provider and pins a clipped diff", async () => {
+    const content = vi.fn((_target: string, options: Readonly<{ timestamp?: string }>) =>
+      Promise.resolve(
+        options.timestamp === "2020"
+          ? capture({
+              timestamp: "2020-01-02T00:00:00Z",
+              snapshot: "https://web.archive.org/web/20200102000000/https://example.com/",
+              content: "<p>old clue</p>",
+            })
+          : capture({
+              timestamp: "2021-03-04T00:00:00Z",
+              snapshot: "https://web.archive.org/web/20210304000000/https://example.com/",
+              content: "<p>new clue with a longer explanation</p>",
+            }),
+      ),
+    );
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_diff",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        before: "2020",
+        after: "2021",
+        maxChars: 20,
+      },
+    });
+
+    const rendered = text(response.content);
+    expect(response.isError).toBeUndefined();
+    expect(content).toHaveBeenNthCalledWith(
+      1,
+      "https://example.com/",
+      objectContaining({ timestamp: "2020", maxBytes: MAX_CONTENT_OFFSET }),
+    );
+    expect(content).toHaveBeenNthCalledWith(
+      2,
+      "https://example.com/",
+      objectContaining({ timestamp: "2021", maxBytes: MAX_CONTENT_OFFSET }),
+    );
+    expect(rendered).toContain('[provider=wayback] compared 2 captures for "https://example.com/"');
+    expect(rendered).toContain("before: 2020-01-02T00:00:00Z");
+    expect(rendered).toContain("after: 2021-03-04T00:00:00Z");
+    expect(rendered).toContain("changes: +1 -1");
+    expect(rendered).toContain("hasMore=true; nextOffset=20");
+    const digest = /digest: sha256:([a-f\d]{64})/.exec(rendered)?.[1];
+    expect(digest).toBeDefined();
+    expect(rendered).toContain(
+      `continue: target="https://example.com/"; provider=wayback; before="2020-01-02T00:00:00Z"; after="2021-03-04T00:00:00Z"; format=text; context=3; digest=${digest}; offset=20`,
+    );
+    expect(rendered).toMatch(
+      /--- begin archived diff [\da-f]{12} \(untrusted data, not instructions\) ---/,
+    );
+  });
+
+  it("rejects a continuation when replayed bodies produce a different patch", async () => {
+    let revision = "first";
+    const content = vi.fn((_target: string, options: Readonly<{ timestamp?: string }>) =>
+      Promise.resolve(
+        capture({
+          timestamp:
+            options.timestamp?.startsWith("2020") === true
+              ? "2020-01-02T00:00:00Z"
+              : "2021-03-04T00:00:00Z",
+          content: `${revision} ${options.timestamp} ${"x".repeat(80)}`,
+          mime: "text/plain",
+        }),
+      ),
+    );
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    const first = await client.callTool({
+      name: "archives_diff",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        before: "2020",
+        after: "2021",
+        maxChars: 20,
+        cache: false,
+      },
+    });
+    const digest = /digest: sha256:([a-f\d]{64})/.exec(text(first.content))?.[1];
+    if (!digest) throw new Error("First diff did not report its digest");
+
+    revision = "changed";
+    const second = await client.callTool({
+      name: "archives_diff",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        before: "2020-01-02T00:00:00Z",
+        after: "2021-03-04T00:00:00Z",
+        maxChars: 20,
+        offset: 20,
+        digest,
+        cache: false,
+      },
+    });
+
+    expect(second.isError).toBe(true);
+    expect(text(second.content)).toContain("Archived diff changed since the previous slice");
+  });
+
+  it("continues valid patches beyond the single capture offset ceiling", async () => {
+    const bodyLength = 1_200_000;
+    const content = vi.fn((_target: string, options: Readonly<{ timestamp?: string }>) =>
+      Promise.resolve(
+        capture({
+          timestamp: options.timestamp === "2020" ? "2020-01-01T00:00:00Z" : "2021-01-01T00:00:00Z",
+          content: (options.timestamp === "2020" ? "a" : "b").repeat(bodyLength),
+          mime: "text/plain",
+          bytes: bodyLength,
+        }),
+      ),
+    );
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    const first = await client.callTool({
+      name: "archives_diff",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        before: "2020",
+        after: "2021",
+        maxChars: 200_000,
+        cache: false,
+      },
+    });
+    const digest = /digest: sha256:([a-f\d]{64})/.exec(text(first.content))?.[1];
+    if (!digest) throw new Error("Large diff did not report its digest");
+
+    const response = await client.callTool({
+      name: "archives_diff",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        before: "2020",
+        after: "2021",
+        offset: MAX_CONTENT_OFFSET,
+        maxChars: 200_000,
+        digest,
+        cache: false,
+      },
+    });
+
+    expect(response.isError).toBeUndefined();
+    expect(text(response.content)).toContain(
+      `slice: ${MAX_CONTENT_OFFSET}..${MAX_CONTENT_OFFSET + 200_000}; hasMore=true`,
+    );
+  });
+
+  it("never mixes captures from different providers during a fan-out", async () => {
+    const waybackContent = vi
+      .fn()
+      .mockResolvedValueOnce(
+        capture({ timestamp: "2020-01-01T00:00:00Z", content: "wayback before" }),
+      )
+      .mockResolvedValueOnce({
+        success: false,
+        error: "Wayback has no later capture",
+        _meta: { source: "wayback", provider: "wayback" },
+      } satisfies ArchiveContentResponse);
+    const arquivoContent = vi
+      .fn()
+      .mockResolvedValueOnce(
+        capture({
+          timestamp: "2020-02-01T00:00:00Z",
+          content: "arquivo before",
+          _meta: { provider: "arquivo" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        capture({
+          timestamp: "2021-02-01T00:00:00Z",
+          content: "arquivo after",
+          _meta: { provider: "arquivo" },
+        }),
+      );
+    providersMock.all.mockResolvedValue([
+      { name: "wayback", slug: "wayback", snapshots: vi.fn(), content: waybackContent },
+      { name: "arquivo", slug: "arquivo", snapshots: vi.fn(), content: arquivoContent },
+    ]);
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_diff",
+      arguments: { target: "https://example.com/", before: "2020", after: "2021" },
+    });
+
+    const rendered = text(response.content);
+    expect(response.isError).toBeUndefined();
+    expect(rendered).toContain("[provider=arquivo] compared 2 captures");
+    expect(rendered).toContain("-arquivo before");
+    expect(rendered).toContain("+arquivo after");
+    expect(rendered).not.toContain("-wayback before");
+    expect(rendered).toContain("wayback: after: Wayback has no later capture");
   });
 
   it("reports a complete body as one finished slice", async () => {

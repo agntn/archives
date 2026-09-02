@@ -16,6 +16,7 @@ export default defineConfig({
             name: [
               "ArchiveContentOptions",
               "ArchiveContentResponse",
+              "ArchiveDiffOptions",
               "ArchiveInterface",
               "ArchiveItOptions",
               "ArchiveOptions",
@@ -23,6 +24,8 @@ export default defineConfig({
               "ArchiveResponse",
               "ArchiveTodayOptions",
               "ArchivedContent",
+              "ArchivedContentDiff",
+              "ArchivedContentSummary",
               "ArchivedPage",
               "ArchivesConfig",
               "CommonCrawlOptions",
@@ -38,7 +41,7 @@ export default defineConfig({
             ],
           },
           // These internal accumulators are intentionally mutated while folding results.
-          { from: "file", name: ["ContentMergeState", "ListingMergeState"] },
+          { from: "file", name: ["ContentMergeState", "DiffWinner", "ListingMergeState"] },
           // Platform and dependency contracts are not owned by this package.
           {
             from: "lib",

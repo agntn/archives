@@ -11,6 +11,7 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 
 - 🔍 **Multiple providers** - Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive-It, Conifer, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite
 - 📄 **Reads captures, not just lists them** - `content()` returns what an archived page said, decoded from the original response
+- 🔀 **Compares historical versions** - `diffArchivedContent()` and `archives_diff` expose removed or changed text, markup, scripts, and comments with capture provenance
 - 🌳 **Tree-shakable** - providers are lazy-loaded via dynamic imports, bundle only what you use
 - 📦 **Caching built in** - pluggable storage layer via [unstorage](https://github.com/unjs/unstorage) with configurable TTL
 - ⚡ **Parallel queries** - concurrency control, batching, automatic retries, configurable timeouts
@@ -189,6 +190,28 @@ response._meta?.unsupportedProviders; // [{ provider: "webcite", reason: "..." }
 
 `content()` reads at most `maxBytes` (2 MiB by default) and reports `truncated: true` when it stopped early, so an archived video or disk image cannot be pulled into memory by accident. `getContent()` is the throwing variant, mirroring `getPages()`.
 
+## Comparing archived captures
+
+`diffArchivedContent()` creates a unified line diff from two textual captures of the same original URL and provider. Text mode compares what a reader sees; raw mode retains decoded markup, scripts, comments, and source:
+
+```ts
+import { diffArchivedContent } from "@agntn/archives";
+
+const before = await archive.getContent("https://example.com/puzzle", {
+  timestamp: "2020",
+});
+const after = await archive.getContent("https://example.com/puzzle", {
+  timestamp: "2021",
+});
+
+const visibleChanges = diffArchivedContent(before, after);
+const sourceChanges = diffArchivedContent(before, after, { format: "raw" });
+```
+
+The helper rejects missing or different provider provenance, different original URLs, nontextual bodies, and captures that are not chronological. Memento inputs must also identify the same underlying archive host; the aggregator label alone is not enough. Its diff algorithm has both an elapsed time budget and an edit distance ceiling. `partial: true` means at least one input body was already truncated, so absence beyond that prefix is not proved.
+
+Agent clients can perform retrieval and comparison in one call with `archives_diff`. With `provider=all`, it tries providers in order until one provider can serve both captures. It never combines versions from different archives, where replay rewriting could look like a site change. The result reports the actual selected dates because a requested time can resolve to the closest available capture.
+
 ## Providers
 
 | Provider             | Factory                    | `content()` | Notes                                                                                                       |
@@ -221,7 +244,7 @@ await archive.useAll([providers.commoncrawl(), providers.webcite()]);
 archives mcp
 ```
 
-Speaks MCP over stdio and exposes three tools: `archives_snapshots`, `archives_content` and `archives_providers`. Point a client at it:
+Speaks MCP over stdio and exposes four tools: `archives_snapshots`, `archives_content`, `archives_diff` and `archives_providers`. Point a client at it:
 
 ```json
 {
@@ -234,6 +257,8 @@ Speaks MCP over stdio and exposes three tools: `archives_snapshots`, `archives_c
 An MCP client sees the text a tool returns and nothing else, so the text carries the whole answer: the provider that was queried, every snapshot with its timestamp and original URL, and the providers that could not answer, named with their reason instead of silently dropped. `archives_providers` is there for the same reason — without it the only way to learn which providers exist, which ones `provider=all` covers, and whether Perma.cc has a key is to send a value you expect to fail.
 
 `archives_content` returns one body slice, with markup stripped to readable text unless `format=raw` and bounded by `maxChars` (20 000 by default). The response names its UTF-16 range and `hasMore`. When another slice exists, its `continue` line supplies arguments pinned to that capture for the following call, including `target`, `provider`, `timestamp`, `format`, `offset`, and a provider collection when needed. When the first internal read is truncated, the tool expands it to a fixed prefix of 2 000 000 bytes before slicing so later offsets address the same rendered text. The body is fenced and labelled as untrusted data: it is a recording of a web page, not a message to the caller. A capture that is not text is described instead of decoded.
+
+`archives_diff` takes `before` and `after`, reads both versions from one provider, and returns a unified diff with exact capture dates and snapshot URLs. `format=text` compares visible text; `format=raw` keeps source changes. Large patches use a bounded slice contract with their own output offset ceiling. The returned `continue` line pins both actual timestamps, provider, rendering, context, collection, SHA-256 of the complete patch, and next offset. If replayed bodies produce a different hash, continuation aborts instead of slicing unstable data. A partial input warning limits any negative conclusion.
 
 `archives_snapshots` is annotated read-only and open-world: it leaves the machine on every call, and archives keep growing, so two identical calls may legitimately differ. An answer replayed from the response cache is marked `; cached` in its header. A provider that returns no snapshots is an answer, not a tool error. Only a rejected argument or a failed query sets `isError`. `from` and `to` bound the listing to a time window, and the applied window is echoed in the header so a narrowed answer never reads as the archive's whole holdings.
 
@@ -256,6 +281,7 @@ Tools:
 
 - `archives` — query archived snapshots for a domain or URL. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
 - `archives_content` - read the body of one archived capture. Pass `timestamp` for a point in time, a snapshot URL to read the capture it names, or the returned `continue` arguments for the following slice.
+- `archives_diff` - compare two chronological captures from one provider. Use `format=raw` for comments, scripts, and historical source.
 - `archives_providers` — list built-in archive providers and Perma.cc API-key environment status.
 
 Commands:
@@ -302,6 +328,8 @@ interface ArchivedContent {
   _meta: Record<string, unknown>;
 }
 ```
+
+`ArchivedContentDiff` contains `before` and `after` capture summaries with provider provenance, a unified `patch`, `additions`, `deletions`, `identical`, `partial`, `format`, and `context`. Memento summaries also retain the underlying `archive` host.
 
 The `_meta` object on each page carries fields specific to each provider. Wayback includes `status` and `timestamp` in its raw format. Arquivo.pt and Webarchiv Österreich add `digest`, `mime` and `length`. Memento adds the upstream `archive` hostname and raw `datetime`. Common Crawl adds `digest`, `mime`, `collection`. Perma.cc has `guid`, `title`, `created_by`. Archive.today provides `hash` and `raw_date`.
 
@@ -386,6 +414,7 @@ Returns:
 - `getPages(domain, options?)` - returns `ArchivedPage[]`, throws on failure
 - `content(url, options?)` - returns `ArchiveContentResponse` with the archived body
 - `getContent(url, options?)` - returns `ArchivedContent`, throws on failure
+- `diffArchivedContent(before, after, options?)` - compares two textual captures already in memory, with provenance and complexity guards
 - `use(provider)` - add a provider to the instance
 - `useAll(providers)` - add multiple providers at once
 

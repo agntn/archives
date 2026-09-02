@@ -17,6 +17,8 @@ import {
   DEFAULT_MAX_CHARS,
   MAX_CONTENT_CHARS,
   MAX_CONTENT_OFFSET,
+  MAX_DIFF_CONTEXT,
+  MAX_DIFF_OFFSET,
   MAX_LIMIT,
   PROVIDER_HINT,
   PROVIDER_INPUTS,
@@ -175,6 +177,7 @@ describe("Pi extension", () => {
     expect([...runtime.tools.keys()].sort()).toEqual([
       "archives",
       "archives_content",
+      "archives_diff",
       "archives_providers",
     ]);
     expect([...runtime.commands.keys()].sort()).toEqual(["archive", "archive-providers"]);
@@ -184,6 +187,7 @@ describe("Pi extension", () => {
     const runtime = loadExtension();
     const snapshots = runtime.tools.get("archives");
     const content = runtime.tools.get("archives_content");
+    const diff = runtime.tools.get("archives_diff");
 
     expect(snapshots?.description).toMatch(
       /find captures, timestamps, and snapshot URLs without reading archived bodies\./i,
@@ -192,6 +196,31 @@ describe("Pi extension", () => {
       "Use this tool only when the caller wants the archived body or already has a capture to read.",
     );
     expect(content?.description).toContain("format=raw keeps markup");
+    expect(diff?.description).toContain("two chronological captures from one archive provider");
+  });
+
+  it("declares the diff schema the shared executor enforces", () => {
+    const tool = getExecutableTool(loadExtension().tools, "archives_diff");
+    const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
+
+    expect(properties["before"]).toMatchObject({ type: "string", minLength: 1 });
+    expect(properties["after"]).toMatchObject({ type: "string", minLength: 1 });
+    expect(properties["context"]).toMatchObject({
+      type: "integer",
+      minimum: 0,
+      maximum: MAX_DIFF_CONTEXT,
+    });
+    expect(properties["offset"]).toMatchObject({ maximum: MAX_DIFF_OFFSET });
+    expect(properties["digest"]).toMatchObject({ minLength: 64, maxLength: 64 });
+    expect(properties).not.toHaveProperty("timestamp");
+    expectRangeDescriptions(properties, [
+      "context",
+      "maxChars",
+      "offset",
+      "ttl",
+      "timeout",
+      "retries",
+    ]);
   });
 
   it("declares the content schema the shared executors enforce", () => {

@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-02
 **Branch:** main
 
 > Verify against current HEAD: `git rev-parse HEAD`. Code map line numbers reflect the snapshot above; rerun `grep -n` if they look stale.
@@ -16,6 +16,7 @@ archives/
 ├── src/
 │   ├── index.ts          # barrel - public API surface
 │   ├── archive.ts        # createArchive factory + combineResults/combineContentResults
+│   ├── diff.ts           # bounded capture comparisons with checked provenance
 │   ├── types.ts          # all public interfaces/types
 │   ├── _providers.ts     # provider-specific option types (internal)
 │   ├── config.ts         # c12-based config loading with caching
@@ -49,6 +50,7 @@ archives/
 | Config defaults            | `src/config.ts` → `getDefaultConfig()`                            | c12 loads from `.archives`, `archives.config.ts`, `package.json`                                  |
 | Response helpers           | `src/utils/_utils.ts`                                             | `createSuccessResponse`, `createErrorResponse`, `mergeOptions`                                    |
 | Read an archived body      | `src/utils/_content.ts`                                           | Capture selection, `id_` playback, WARC ranges, transfer/content encodings, charset, `htmlToText` |
+| Compare two captures       | `src/diff.ts` + `src/tool-operations.ts`                          | Pure bounded diff, retrieval from one provider, and paged tool rendering                          |
 | Add content to a provider  | provider file → `override content()`                              | Optional on `ArchiveProvider`; a provider that cannot serve bodies says so instead                |
 | Parallel processing        | `src/utils/_utils.ts` → `processInParallel`                       | Concurrency + batch control                                                                       |
 | CDX row mapping            | `src/utils/_utils.ts` → `mapCdxRows`                              | Wayback/CommonCrawl share CDX format                                                              |
@@ -69,7 +71,7 @@ archives/
 | `ArquivoProvider`           | class     | providers/arquivo.ts               | Public Arquivo.pt CDX index and raw `noFrame/replay` capture reads.                                                    |
 | `WebarchivProvider`         | class     | providers/webarchiv.ts             | Austrian National Library public CDXJ index and raw `id_` replay for exact URLs.                                       |
 | `MementoProvider`           | class     | providers/memento.ts               | JSON TimeMap from several archives via ODU MemGator; reads exact Memento URI, then proxy fallback.                     |
-| `ArchiveInterface`          | interface | types.ts:127                       | Public API: `snapshots()`, `getPages()`, `use()`, `useAll()`.                                                          |
+| `ArchiveInterface`          | interface | types.ts                           | Public API: `snapshots()`, `getPages()`, `content()`, `getContent()`, `use()`, `useAll()`.                             |
 | `ArchiveProvider`           | interface | types.ts:117                       | Provider contract: `name`, `slug?`, `snapshots()`.                                                                     |
 | `ArchiveResponse`           | interface | types.ts:100                       | `{ success, pages, error?, unsupported?, unsupportedReason?, _meta?, fromCache? }`.                                    |
 | `ArchivedPage`              | interface | types.ts:61                        | `{ url, timestamp, snapshot, _meta }`.                                                                                 |
@@ -85,7 +87,7 @@ archives/
 | `snapshotArchives`          | function  | tool-operations.ts                 | Shared executor behind the snapshot tool on every surface. Throws on bad provider/prereqs.                             |
 | `listArchiveProviders`      | function  | tool-operations.ts                 | Shared executor listing providers, `provider=all` membership and Perma.cc key state.                                   |
 | `waybackSnapshots`          | function  | tool-operations.ts                 | Wayback-only lookup behind the interactive `/archive` command.                                                         |
-| `createMcpServer`           | function  | mcp.ts                             | Unconnected MCP server exposing `archives_snapshots`, `archives_content`, `archives_providers`.                        |
+| `createMcpServer`           | function  | mcp.ts                             | Unconnected MCP server exposing snapshot, content, diff and provider tools.                                            |
 | `Archive.content`           | method    | archive.ts                         | Reads one capture. Tries providers in order; the first body wins.                                                      |
 | `Archive.getContent`        | method    | archive.ts                         | Throwing variant of `content()`, mirroring `getPages()`.                                                               |
 | `combineContentResults`     | function  | archive.ts                         | Picks the winning body and keeps the other providers' outcomes in `_meta`.                                             |
@@ -97,6 +99,8 @@ archives/
 | `unwrapSnapshotUrl`         | function  | utils/_content.ts                  | Splits a playback URL back into original URL + capture stamp.                                                          |
 | `htmlToText`                | function  | utils/_content.ts                  | Lossy markup stripping, applied by the surfaces, never by the library response.                                        |
 | `contentArchives`           | function  | tool-operations.ts                 | Shared executor behind the content tool on every surface.                                                              |
+| `diffArchivedContent`       | function  | diff.ts                            | Bounded unified diff for two chronological textual captures with matching URL/provider provenance.                     |
+| `diffArchives`              | function  | tool-operations.ts                 | Reads both captures from one provider and renders a pageable diff for MCP, Pi and OMP.                                 |
 
 ## CONVENTIONS
 
@@ -113,6 +117,7 @@ archives/
 - **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tool-operations.ts")` and `import("../../../dist/tool-operations.mjs")`. Never `import(url.href)`. `tsc` resolves that dist specifier, so `test:types` builds before it type-checks.
 - **MCP result is text only**: `details` never reaches an MCP client, so anything a caller needs for the next call belongs in `content[].text`.
 - **Listing fans out, reading falls back**: `snapshots()` queries providers in parallel and merges; `content()` walks them in order and stops at the first body, because there is one page to read rather than a set to merge. Providers that failed or cannot read are reported beside the body in `_meta`.
+- **A diff never mixes archives**: `archives_diff` tries providers sequentially until one returns both chronological captures of the same original URL. Memento requires the same underlying archive host on both sides. It reports actual selected timestamps, preserves truncation as `partial`, and pages only the derived patch. Continuation carries a SHA-256 of the complete patch and aborts if replay produces different bytes.
 - **A capture is read raw or not at all**: bodies come from `id_` playback (Wayback, Arquivo.pt, Webarchiv Österreich, Archive-It) or a WARC byte range (Common Crawl). An archive that only serves its own rendition of a page returns `createUnsupportedContentResponse` with the reason instead.
 - **A stored capture is the response as it travelled**: a WARC record keeps the chunked framing and the `Content-Encoding` the server used, so reading its text means undoing both before the charset is applied. Playback endpoints do it for you, which is why only the Common Crawl path carries this.
 - **The library decodes, a surface renders**: charset decoding, WARC unwrapping and transfer/content encodings are library work, and the body it returns is text; `htmlToText`, slicing by `offset` and `maxChars`, and the untrusted-data fence are applied in `tool-operations.ts`, so a library consumer keeps the whole document rather than a reader's view of it. A truncated first read is expanded to the fixed tool byte ceiling before rendering, and the continuation line pins the answering provider, collection, capture timestamp and rendering format so later slices read that same prefix; offsets into separately selected or rendered captures are unstable. Text is the contract, not the raw bytes: a capture that is not text decodes lossily and its bytes stay behind `_meta.rawSnapshot` or the WARC coordinates.
