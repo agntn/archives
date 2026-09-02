@@ -7,6 +7,7 @@ export {
   combineResults,
   combineContentResults,
 } from "./archive";
+export { diffArchivedContent } from "./diff";
 export { BaseProvider } from "./providers/base-provider";
 export { WaybackProvider } from "./providers/wayback";
 export { ArquivoProvider } from "./providers/arquivo";
