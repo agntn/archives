@@ -1,6 +1,7 @@
 import { createStorage, type Storage, type Driver } from "unstorage";
 import memoryDriver from "unstorage/drivers/memory";
 import { consola } from "consola";
+import { digest } from "ohash/crypto";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -15,6 +16,10 @@ export const storage: Storage = createStorage({
 
 let storagePrefix = "archives";
 let storageInitialized = false;
+
+function serializeStorageKey(providerKey: string, parts: readonly string[]): string {
+  return `${storagePrefix}:${digest(providerKey)}:${digest(JSON.stringify(parts))}`;
+}
 
 type StorageConfigOptions = Readonly<{
   driver?: Driver;
@@ -139,7 +144,7 @@ export function generateStorageKey(
   const providerKey = provider.slug ?? provider.name;
   const keyParts = [providerKey, domain, ...getCacheKeyParts(provider, options)];
 
-  return `${storagePrefix}:${JSON.stringify(keyParts)}`;
+  return serializeStorageKey(providerKey, keyParts);
 }
 
 async function restoreStoredResponse(
@@ -260,7 +265,7 @@ export function generateContentStorageKey(
   const providerCacheKey = provider.cacheKey?.(options);
   if (providerCacheKey) keyParts.push(providerCacheKey);
 
-  return `${storagePrefix}:${JSON.stringify(keyParts)}`;
+  return serializeStorageKey(providerKey, keyParts);
 }
 
 /**
@@ -364,7 +369,7 @@ export async function clearProviderStorage(
     }
 
     const providerKey = typeof provider === "string" ? provider : (provider.slug ?? provider.name);
-    const providerPrefix = `${storagePrefix}:[${JSON.stringify(providerKey)},`;
+    const providerPrefix = `${storagePrefix}:${digest(providerKey)}:`;
     const keys = await storage.getKeys();
 
     for (const key of keys) {

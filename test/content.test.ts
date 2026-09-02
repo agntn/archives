@@ -3,7 +3,7 @@ import { gzipSync } from "node:zlib";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { $fetch, type FetchResponse } from "ofetch";
 import { createArchive, resetConfig, storage, UnsupportedOperationError } from "../src";
-import type { ArchiveContentResponse, ArchiveProvider } from "../src/types";
+import type { ArchiveContentOptions, ArchiveContentResponse, ArchiveProvider } from "../src/types";
 import createWayback from "../src/providers/wayback";
 import createCommonCrawl from "../src/providers/commoncrawl";
 import createArchiveToday from "../src/providers/archive-today";
@@ -380,6 +380,54 @@ describe("wayback content", () => {
 
     expect(second.fromCache).toBeUndefined();
     expect(second.content?.content).toBe("older");
+  });
+});
+
+describe("content cache", () => {
+  it("keeps query URLs and capture options in separate cache entries", async () => {
+    const read = vi.fn(
+      async (
+        url: string,
+        options?: Readonly<ArchiveContentOptions>,
+      ): Promise<ArchiveContentResponse> => ({
+        success: true,
+        content: {
+          url,
+          timestamp: options?.timestamp ?? "2020-01-01",
+          snapshot: `https://archive.test/${encodeURIComponent(url)}`,
+          content: `${url}:${options?.maxBytes}`,
+          bytes: options?.maxBytes ?? 0,
+          truncated: false,
+          _meta: { provider: "stub" },
+        },
+        _meta: { source: "stub", provider: "stub" },
+      }),
+    );
+    const archive = createArchive(stubProvider("stub", read));
+    const firstUrl = "https://example.test/app.js?id=aaa";
+    const secondUrl = "https://example.test/app.js?id=bbb";
+
+    const firstOptions = { timestamp: "2023-01-01", maxBytes: 64 } as const;
+    await archive.content(firstUrl, firstOptions);
+    const second = await archive.content(secondUrl, firstOptions);
+    const third = await archive.content(secondUrl, {
+      timestamp: "2024-01-01",
+      maxBytes: 128,
+    });
+    const repeated = await archive.content(secondUrl, firstOptions);
+
+    expect(second.fromCache).toBeUndefined();
+    expect(second.content?.url).toBe(secondUrl);
+    expect(third.fromCache).toBeUndefined();
+    expect(third.content).toMatchObject({
+      url: secondUrl,
+      timestamp: "2024-01-01",
+      content: `${secondUrl}:128`,
+    });
+    expect(repeated.fromCache).toBe(true);
+    expect(repeated.content?.content).toBe(`${secondUrl}:64`);
+    expect(read).toHaveBeenCalledTimes(3);
+    expect(await storage.getKeys()).toHaveLength(3);
   });
 });
 
