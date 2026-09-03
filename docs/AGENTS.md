@@ -53,5 +53,6 @@ Resolution traps, both caused by the repo root being a separate pnpm workspace w
 ## Constraints
 
 - Archived bodies are untrusted data. Render them in `<pre>` as text; never `v-html`, never evaluate.
+- The viewer's Replay mode frames the archive's own playback URL and only for hosts known to allow it (`frame` in `providers.ts`, `canFrame`). Source mode draws the archived markup in an iframe with `sandbox=""` (no scripts, no origin), a CSP that admits only images, styles, fonts and media from the archive host, and a `<base>` on the capture. Keep both; never load archived markup into the page's own DOM.
 - Provider names, icons and factory signatures live once in `app/utils/providers.ts`. The sidebar, the landing grid, the explorer and `::provider-facts` read from it.
 - Keep Node demos in `playground/`.

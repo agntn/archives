@@ -14,6 +14,10 @@ export interface ProviderInfo {
   readonly inAll: boolean;
   /** Extra option the factory needs before it can answer. */
   readonly needs?: string;
+  /** The archive's playback pages allow being framed by another site. */
+  readonly frame: boolean;
+  /** What the viewer should say before a read is even tried. */
+  readonly caveat?: string;
   readonly to: string;
 }
 
@@ -27,6 +31,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     index: "CDX",
     content: true,
     inAll: true,
+    frame: true,
     to: "/providers/wayback",
   },
   {
@@ -38,6 +43,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     index: "CDX",
     content: true,
     inAll: true,
+    frame: true,
     to: "/providers/arquivo",
   },
   {
@@ -49,6 +55,8 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     index: "CDXJ",
     content: true,
     inAll: true,
+    frame: false,
+    caveat: "This archive does not allow framing; Source and Text read the raw replay instead.",
     to: "/providers/webarchiv",
   },
   {
@@ -60,6 +68,9 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     index: "Memento TimeMap",
     content: true,
     inAll: true,
+    frame: false,
+    caveat:
+      "Archive.today throttles automated readers and often answers 429. Reads from here can fail; the capture always opens in a new tab.",
     to: "/providers/archive-today",
   },
   {
@@ -71,6 +82,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     index: "CDX + WARC",
     content: true,
     inAll: true,
+    frame: false,
     to: "/providers/commoncrawl",
   },
   {
@@ -82,6 +94,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     index: "none",
     content: false,
     inAll: true,
+    frame: false,
     to: "/providers/webcite",
   },
   {
@@ -93,6 +106,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     index: "MemGator TimeMap",
     content: true,
     inAll: false,
+    frame: false,
     to: "/providers/memento",
   },
   {
@@ -105,6 +119,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     content: true,
     inAll: false,
     needs: "collection",
+    frame: true,
     to: "/providers/archive-it",
   },
   {
@@ -117,6 +132,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     content: false,
     inAll: false,
     needs: "user, collection",
+    frame: false,
     to: "/providers/conifer",
   },
   {
@@ -129,6 +145,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     content: false,
     inAll: false,
     needs: "apiKey",
+    frame: false,
     to: "/providers/permacc",
   },
 ];
@@ -145,4 +162,20 @@ export function providerInfo(name: string): ProviderInfo | undefined {
 
 export function providerLabel(name: string): string {
   return providerInfo(name)?.label ?? name;
+}
+
+/** Playback hosts known to allow framing; Memento snapshots point at one of them or at an archive that does not. */
+const FRAMEABLE_HOSTS = new Set(["web.archive.org", "arquivo.pt", "wayback.archive-it.org"]);
+
+/** Whether a listed page's snapshot can be shown inside an iframe. */
+export function canFrame(page: { readonly snapshot: string; readonly _meta: { readonly provider?: unknown } }): boolean {
+  const provider = typeof page._meta.provider === "string" ? providerInfo(page._meta.provider) : undefined;
+  if (provider && provider.slug !== "memento") {
+    return provider.frame;
+  }
+  try {
+    return FRAMEABLE_HOSTS.has(new URL(page.snapshot).hostname);
+  } catch {
+    return false;
+  }
 }

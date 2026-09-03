@@ -7,7 +7,8 @@ export const LIMITS = {
   target: 2048,
   parameter: 64,
   snapshots: 50,
-  contentChars: 8000,
+  /** Source view of a whole page; the library's own ceiling. */
+  contentChars: 200_000,
   diffChars: 20_000,
   diffContext: 20,
   timeout: 25_000,

@@ -68,6 +68,7 @@ export function useLandingArchive() {
   async function refreshSnapshots(name: string) {
     try {
       const result = await $fetch<ApiResult<SnapshotDetails>>("/api/snapshots", {
+        retry: 0,
         query: { target: name, provider: "all", limit: 12 },
       });
       if (!result.details.response.success || result.details.response.pages.length === 0) {
@@ -85,6 +86,7 @@ export function useLandingArchive() {
   async function refreshContent(sample: ContentSample, position: number) {
     try {
       const result = await $fetch<ApiResult<ContentDetails>>("/api/content", {
+        retry: 0,
         query: { target: sample.target, provider: sample.provider, timestamp: sample.timestamp, maxChars: 400 },
       });
       if (!result.details.response.content) {
@@ -102,6 +104,7 @@ export function useLandingArchive() {
     try {
       const sample = diff.value;
       const result = await $fetch<ApiResult<DiffDetails>>("/api/diff", {
+        retry: 0,
         query: {
           target: sample.target,
           provider: sample.provider,
