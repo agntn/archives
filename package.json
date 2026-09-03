@@ -105,7 +105,8 @@
     "oxlint": "1.80.0",
     "oxlint-tsgolint": "7.0.2001",
     "typescript": "7.0.2",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "webmcp-types": "0.1.6"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",

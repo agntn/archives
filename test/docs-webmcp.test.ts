@@ -104,7 +104,6 @@ describe("docs WebMCP tools", () => {
       });
       expect(tool.annotations?.untrustedContentHint).toBe(true);
     }
-    // Every step mutates the visible caseboard, even when the archive operation itself is a read.
     expect(tools.map((tool) => tool.annotations?.readOnlyHint)).toEqual([
       false,
       false,
