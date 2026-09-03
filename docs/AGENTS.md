@@ -46,7 +46,7 @@ Resolution traps, both caused by the repo root being a separate pnpm workspace w
 ## Live data
 
 - `server/api/*.get.ts` call `snapshotArchives`, `contentArchives`, `diffArchives` and `listArchiveProviders`, the executors behind the MCP server and the agent extensions. The page shows what an agent would get, including the tool text.
-- Every route goes through `cachedAnswer` in `server/utils/query.ts`: exact parameters as the key, the full TTL for a clean answer, five minutes for one with a provider failure, nothing for a thrown one. Do not bypass it: the archives behind it are public services.
+- Every route goes through `cachedAnswer` in `server/utils/query.ts`: exact parameters as the key, the full TTL for a clean answer, five minutes for one with a provider failure, nothing for a thrown one. Do not bypass it: the archives behind it are public services. A cache miss also counts against `RATE_LIMIT` (30 new queries a minute per address, 429 past it); cache hits are free.
 - Parameters are capped in `server/utils/query.ts` below the library's ceilings (limit 50, content 8 000 chars, diff 20 000 chars). Raise them there, not per route.
 - No Perma.cc key is configured on the worker. `provider=permacc` answers with the library's own error.
 - `app/utils/landing-fixtures.ts` holds answers recorded through the library so the landing paints before the worker answers. Regenerate it through the executors; never edit the recorded text by hand.
