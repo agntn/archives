@@ -36,6 +36,7 @@ archives/
 ├── packages/omp/extensions/
 │   └── archives.ts       # OMP tool/command surface shipped via package.json omp.extensions
 ├── playground/           # Nuxt app (Cloudflare preset) for manual provider testing
+├── docs/                 # Docus site: guide, provider pages, live timeline explorer on Workers
 └── .github/workflows/    # ci.yml + autofix.yml
 ```
 
@@ -56,6 +57,7 @@ archives/
 | CDX row mapping            | `src/utils/_utils.ts` → `mapCdxRows`                              | Wayback/CommonCrawl share CDX format                                                              |
 | Test a provider            | `test/{provider}.test.ts`                                         | Uses vitest, mocks with `vi.fn()`                                                                 |
 | Manual testing             | `playground/server/api/snapshots/`                                | One Nuxt endpoint per provider                                                                    |
+| Docs / timeline UI         | `docs/`                                                           | Docus: `content/` markdown, `server/api/` over tool-operations, explorer in `app/`                |
 | Extend Pi extension        | `packages/pi/extensions/archives.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb                          |
 | Change what a tool does    | `src/tool-operations.ts`                                          | One implementation for MCP, Pi and OMP. Never fix a tool in one surface only                      |
 | Add/change an MCP tool     | `src/mcp.ts` + `test/mcp.test.ts`                                 | Executor in tool-operations first, then the TypeBox schema and annotations here                   |
@@ -150,6 +152,7 @@ pnpm test:types       # build + tsc over lib and both extension surfaces
 pnpm lint             # build + Nuxt types + type-aware oxlint + oxfmt check
 pnpm lint:fix         # build + Nuxt types + oxlint fixes + oxfmt write
 pnpm build            # obuild (build.config.ts) → dist/
+pnpm docs             # Docus site + timeline explorer on :3000 (after pnpm build)
 node dist/cli.mjs mcp # run the MCP server over stdio (bin: archives mcp)
 pnpm release          # test + changelogen + publish
 ```

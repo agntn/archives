@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agntn-archives",
+  "account_id": "6ef8d3cbe19975e93d994f25228488e7",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "NUXT_SITE_URL": "https://archives.agntn.dev"
+  },
+  "workers_dev": true,
+  "preview_urls": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "agntn-archives",
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "cache": {
+    "enabled": true
+  },
+  "routes": [{ "pattern": "archives.agntn.dev", "custom_domain": true }]
+}
