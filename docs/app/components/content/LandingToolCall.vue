@@ -26,7 +26,7 @@ const excerpt = computed(() => {
         <pre class="archives-tool"><code>{
   <span class="tok-key">"target"</span>: <span class="tok-str">"<Transition name="archives-roll" mode="out-in"><span :key="target" class="archives-roll-slot">{{ target }}</span></Transition>"</span>,
   <span class="tok-key">"provider"</span>: <span class="tok-str">"all"</span>,
-  <span class="tok-key">"limit"</span>: <span class="tok-key">12</span>
+  <span class="tok-key">"limit"</span>: <span class="tok-key">50</span>
 }</code></pre>
       </div>
       <div class="px-4 py-4">

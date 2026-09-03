@@ -12,8 +12,8 @@ export const LIMITS = {
   contentChars: 200_000,
   diffChars: 20_000,
   diffContext: 20,
-  timeout: 25_000,
-  /** Replaying one capture can take Wayback longer than listing a domain. */
+  /** A Wayback prefix listing from Cloudflare often needs more than 25 seconds. */
+  timeout: 45_000,
   bodyTimeout: 45_000,
 } as const;
 

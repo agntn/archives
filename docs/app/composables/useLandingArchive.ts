@@ -64,7 +64,7 @@ export function useLandingArchive() {
     try {
       const result = await $fetch<ApiResult<SnapshotDetails>>("/api/snapshots", {
         retry: 0,
-        query: { target: name, provider: "all", limit: 12 },
+        query: { target: name, provider: "all", limit: 50 },
       });
       if (!result.details.response.success || result.details.response.pages.length === 0) {
         return;

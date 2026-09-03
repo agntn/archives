@@ -40,7 +40,7 @@ function stateLine(bucket: ProviderBucket | undefined): string {
   if (bucket.state === "failed") {
     return /timeout/iu.test(bucket.reason ?? "") ? "timeout" : "failed";
   }
-  return bucket.state === "unsupported" ? "unsupported" : "none in the newest 12";
+  return bucket.state === "unsupported" ? "unsupported" : "none in the newest 50";
 }
 
 function curvePath(x1: number, y1: number, x2: number, y2: number) {
@@ -91,7 +91,7 @@ const rows = computed(() => props.pages.slice(0, 6));
       <text :x="TARGET.x + 18" :y="TARGET.y + 66" class="archives-flow-domain archives-flow-accent">
         <tspan :key="target" class="archives-derive">{{ target }}</tspan>
       </text>
-      <text :x="TARGET.x + 18" :y="TARGET.y + 96" class="archives-flow-mono">provider=all · limit 12</text>
+      <text :x="TARGET.x + 18" :y="TARGET.y + 96" class="archives-flow-mono">provider=all · limit 50</text>
     </g>
 
     <g v-for="provider in providers" :key="provider.slug" class="archives-flow-node" :class="{ 'archives-flow-dim': !provider.ok }">
