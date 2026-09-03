@@ -1311,3 +1311,19 @@ button:not(:disabled),
   outline: 2px solid color-mix(in oklch, var(--ui-primary) 55%, transparent);
   outline-offset: 2px;
 }
+
+.archives-snippet {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  background: var(--ui-bg-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--ui-text);
+  white-space: pre;
+}
+
+.tok-const {
+  color: var(--shiki-token-constant);
+}

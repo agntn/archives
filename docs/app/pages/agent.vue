@@ -259,7 +259,7 @@ onMounted(() => {
                   copy
                 </button>
               </div>
-              <pre class="archives-tool px-5 py-4">{{ mcpCall }}</pre>
+              <CodeSnippet :code="mcpCall" lang="json" />
             </div>
             <div class="archives-frame overflow-hidden rounded-xl">
               <div class="flex items-center justify-between gap-2 border-b border-muted px-5 py-3">
@@ -269,7 +269,7 @@ onMounted(() => {
                   copy
                 </button>
               </div>
-              <pre class="archives-tool px-5 py-4">{{ tsSnippet }}</pre>
+              <CodeSnippet :code="tsSnippet" :lang="tool === 'providers' ? 'shell' : 'ts'" />
             </div>
             <div class="archives-frame overflow-hidden rounded-xl">
               <div class="flex items-center justify-between gap-2 border-b border-muted px-5 py-3">
@@ -279,7 +279,7 @@ onMounted(() => {
                   copy
                 </button>
               </div>
-              <pre class="archives-tool px-5 py-4">{{ mcpConfig }}</pre>
+              <CodeSnippet :code="mcpConfig" lang="json" />
             </div>
           </div>
         </div>

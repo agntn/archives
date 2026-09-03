@@ -142,9 +142,9 @@ watch([provider, stamp, url], load);
                 <NuxtLink :to="{ path: '/agent', query: { tool: 'content', target: url, provider, timestamp: stamp } }" class="font-mono text-[11px] text-primary hover:underline">read it in the console →</NuxtLink>
               </div>
               <pre class="archives-body max-h-56">{{ state.text }}</pre>
-              <div class="border-t border-muted px-5 py-3">
-                <p class="archives-label">the same capture over MCP</p>
-                <pre class="archives-tool">{{ agentCall }}</pre>
+              <div class="border-t border-muted">
+                <p class="archives-label px-5 pt-3">the same capture over MCP</p>
+                <CodeSnippet :code="agentCall" lang="json" />
               </div>
             </div>
           </div>
