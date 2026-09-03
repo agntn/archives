@@ -7,7 +7,7 @@ const links = [
   { label: "Explorer", to: "/timeline" },
 ] as const;
 
-const EXPLORER = ["/timeline", "/compare", "/site", "/urls", "/history", "/agent", "/status", "/shelf", "/capture"];
+const EXPLORER = ["/timeline", "/compare", "/site", "/urls", "/history", "/evidence", "/agent", "/status", "/shelf", "/capture"];
 
 function isActive(to: string) {
   if (to === "/timeline") {

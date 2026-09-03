@@ -20,6 +20,7 @@
     "@iconify-json/lucide": "1.2.128",
     "@iconify-json/simple-icons": "1.2.94",
     "@iconify-json/vscode-icons": "1.2.76",
+    "webmcp-types": "0.1.6",
     "wrangler": "4.128.0"
   }
 }

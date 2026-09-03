@@ -17,7 +17,7 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 - ⚡ **Parallel queries** - concurrency control, batching, automatic retries, configurable timeouts
 - 🔧 **Config files** - supports `archives.config.ts`, `.archives`, and `package.json` via [c12](https://github.com/unjs/c12)
 - 🏷️ **Fully typed** - TypeScript definitions for all responses, options, and provider-specific metadata
-- 🔌 **Agent surfaces** - an MCP server plus native OMP and Pi extensions, all answering from the same executors
+- 🔌 **Agent surfaces** - an MCP server, native OMP and Pi extensions, and a WebMCP Evidence Room native to the browser
 
 ## Install
 
@@ -291,7 +291,13 @@ Commands:
 - `/archive [domain-or-url]` — search Wayback snapshots interactively and paste the selected snapshot URL into the editor.
 - `/archive-providers` — show provider availability notes.
 
-All three surfaces call the executors in `src/tool-operations.ts`, so the MCP server and the two extensions answer identically. The extensions add the structured details the harnesses render; MCP drops them and keeps the text. The extensions read the executors from source in a working tree and from `dist/` inside an installed package, so run `pnpm build` before loading an extension from a checkout.
+All three package surfaces call the executors in `src/tool-operations.ts`, so the MCP server and the two extensions answer identically. The extensions add the structured details the harnesses render; MCP drops them and keeps the text. The extensions read the executors from source in a working tree and from `dist/` inside an installed package, so run `pnpm build` before loading an extension from a checkout.
+
+## WebMCP Evidence Room
+
+The documentation site adds a fourth agent surface in the browser at [`/evidence`](https://archives.agntn.dev/evidence). It registers four experimental WebMCP tools through `document.modelContext`: scope a historical case, pair bounded capture windows, inspect one diff with pinned provenance, and pin a finding for human review. Agent calls and manual actions update the same visible caseboard.
+
+This is progressive enhancement, not a package polyfill. Browsers without WebMCP keep the complete manual workflow. Archived excerpts stay bounded, escaped, and explicitly marked as untrusted data; interpretations are stored separately from their before/after capture citations. See the [WebMCP guide](https://archives.agntn.dev/guide/webmcp) for the protocol and browser setup.
 
 ## Response format
 

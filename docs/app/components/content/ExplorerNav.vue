@@ -7,6 +7,7 @@ const links = [
   { label: "Site", to: "/site", icon: "i-lucide-map" },
   { label: "URLs", to: "/urls", icon: "i-lucide-list" },
   { label: "History", to: "/history", icon: "i-lucide-git-compare" },
+  { label: "Evidence", to: "/evidence", icon: "i-lucide-scan-search" },
   { label: "Agent", to: "/agent", icon: "i-lucide-terminal" },
   { label: "Status", to: "/status", icon: "i-lucide-activity" },
   { label: "Shelf", to: "/shelf", icon: "i-lucide-bookmark" },

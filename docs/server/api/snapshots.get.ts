@@ -1,4 +1,5 @@
 import { snapshotArchives } from "@agntn/archives/tool-operations";
+import { archiveRequestAbort } from "../utils/query";
 
 const TTL = 60 * 30;
 
@@ -13,16 +14,23 @@ export default defineEventHandler(async (event) => {
     to: readString(query, "to", LIMITS.parameter),
     collection: readString(query, "collection", LIMITS.parameter),
     user: readString(query, "user", LIMITS.parameter),
+    timeout: readInt(query, "timeout", 1_000, LIMITS.timeout) ?? LIMITS.timeout,
+    retries: readInt(query, "retries", 0, LIMITS.retries) ?? LIMITS.retries,
   };
   try {
     return await cachedAnswer(event, "snapshots", params, TTL, async () => {
-      const result = await snapshotArchives({ ...params, timeout: LIMITS.timeout });
-      const response = result.details.response;
-      const errors = response._meta?.errors;
-      return {
-        value: toolAnswer(result, !response.success),
-        degraded: Array.isArray(errors) && errors.length > 0,
-      };
+      const abort = archiveRequestAbort(event);
+      try {
+        const result = await snapshotArchives(params, abort.signal);
+        const response = result.details.response;
+        const errors = response._meta?.errors;
+        return {
+          value: toolAnswer(result, !response.success),
+          degraded: Array.isArray(errors) && errors.length > 0,
+        };
+      } finally {
+        abort.dispose();
+      }
     });
   } catch (error) {
     return toHttpError(error);

@@ -8,3 +8,6 @@ allowBuilds:
   esbuild: true
   workerd: true
   vue-demi: true
+
+minimumReleaseAgeExclude:
+  - webmcp-types@0.1.6

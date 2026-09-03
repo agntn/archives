@@ -3,6 +3,49 @@ import { hash } from "ohash";
 
 type Query = Record<string, unknown>;
 
+export interface ArchiveRequestAbort {
+  readonly signal: AbortSignal;
+  dispose(): void;
+}
+
+/** Combines a client disconnect with an optional deadline for the whole operation. */
+export function archiveRequestAbort(event: H3Event, timeout?: number): ArchiveRequestAbort {
+  const controller = new AbortController();
+  const webSignal = event.web?.request?.signal;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const abort = (reason?: unknown) => {
+    if (!controller.signal.aborted) controller.abort(reason);
+  };
+  const abortFromWeb = () => abort(webSignal?.reason);
+  const abortFromNode = () => abort(new Error("The client disconnected"));
+
+  if (webSignal) {
+    if (webSignal.aborted) abortFromWeb();
+    else webSignal.addEventListener("abort", abortFromWeb, { once: true });
+  } else {
+    event.node.req.once("aborted", abortFromNode);
+    event.node.res.once("close", abortFromNode);
+  }
+  if (timeout !== undefined) {
+    timer = setTimeout(
+      () => abort(new DOMException("The archive operation timed out", "TimeoutError")),
+      timeout,
+    );
+  }
+
+  return {
+    signal: controller.signal,
+    dispose() {
+      if (timer !== undefined) clearTimeout(timer);
+      webSignal?.removeEventListener("abort", abortFromWeb);
+      if (!webSignal) {
+        event.node.req.off("aborted", abortFromNode);
+        event.node.res.off("close", abortFromNode);
+      }
+    },
+  };
+}
+
 /** Caps every public parameter well below the library's own ceilings. */
 export const LIMITS = {
   target: 2048,
@@ -12,6 +55,8 @@ export const LIMITS = {
   contentChars: 200_000,
   diffChars: 20_000,
   diffContext: 20,
+  retries: 1,
+  operationBudget: 60_000,
   /** A Wayback prefix listing from Cloudflare often needs more than 25 seconds. */
   timeout: 45_000,
   bodyTimeout: 45_000,

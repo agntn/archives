@@ -1,4 +1,5 @@
 import { diffArchives } from "@agntn/archives/tool-operations";
+import { archiveRequestAbort } from "../utils/query";
 
 const TTL = 60 * 60 * 6;
 
@@ -16,11 +17,23 @@ export default defineEventHandler(async (event) => {
     offset: readInt(query, "offset", 0, 8_004_096) ?? 0,
     digest: readString(query, "digest", 80),
     collection: readString(query, "collection", LIMITS.parameter),
+    timeout: readInt(query, "timeout", 1_000, LIMITS.bodyTimeout) ?? LIMITS.bodyTimeout,
+    retries: readInt(query, "retries", 0, LIMITS.retries) ?? LIMITS.retries,
+    budget: readInt(query, "budget", 1_000, LIMITS.operationBudget),
   };
   try {
     return await cachedAnswer(event, "diff", params, TTL, async () => {
-      const result = await diffArchives({ ...params, timeout: LIMITS.bodyTimeout });
-      return { value: toolAnswer(result, !result.details.success), degraded: result.details.attempts.length > 0 };
+      const { budget, ...request } = params;
+      const abort = archiveRequestAbort(event, budget);
+      try {
+        const result = await diffArchives(request, abort.signal);
+        return {
+          value: toolAnswer(result, !result.details.success),
+          degraded: result.details.attempts.length > 0,
+        };
+      } finally {
+        abort.dispose();
+      }
     });
   } catch (error) {
     return toHttpError(error);
