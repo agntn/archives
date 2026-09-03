@@ -35,7 +35,7 @@ export interface Coverage {
 }
 
 const LIMIT = 100;
-const TIMEOUT = 25_000;
+const TIMEOUT = 45_000;
 
 function yearsOf(pages: readonly ArchivedPage[]): Record<string, number> {
   const years: Record<string, number> = {};

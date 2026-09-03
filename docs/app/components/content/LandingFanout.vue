@@ -43,7 +43,7 @@ function note(bucket: ProviderBucket | undefined): string {
   if (bucket.state === "failed") {
     return /timeout/iu.test(bucket.reason ?? "") ? "timed out" : "request failed";
   }
-  return bucket.state === "unsupported" ? "cannot list a domain" : "none in the newest 12";
+  return bucket.state === "unsupported" ? "cannot list a domain" : "none in the newest 50";
 }
 </script>
 
@@ -74,7 +74,7 @@ function note(bucket: ProviderBucket | undefined): string {
           <span class="archives-step-title">one call</span>
           <span class="archives-step-note">providers.all()</span>
         </div>
-        <pre class="archives-step-value archives-step-code"><code><span class="tok-kw">await</span> archive.<span class="tok-fn">snapshots</span>(<span class="tok-str">"<Transition name="archives-roll" mode="out-in"><span :key="target" class="archives-roll-slot">{{ target }}</span></Transition>"</span>, { limit: <span class="tok-key">12</span> });</code></pre>
+        <pre class="archives-step-value archives-step-code"><code><span class="tok-kw">await</span> archive.<span class="tok-fn">snapshots</span>(<span class="tok-str">"<Transition name="archives-roll" mode="out-in"><span :key="target" class="archives-roll-slot">{{ target }}</span></Transition>"</span>, { limit: <span class="tok-key">50</span> });</code></pre>
       </li>
 
       <li class="archives-step">
