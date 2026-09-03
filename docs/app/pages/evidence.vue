@@ -203,7 +203,7 @@ function downloadCase() {
           <div class="mb-4 flex flex-wrap items-center gap-2">
             <span class="signal-dot" :class="`is-${webmcp.availability}`" />
             <span class="font-mono text-xs uppercase tracking-[0.22em] text-[var(--ui-text-muted)]"
-              >WebMCP field lab</span
+              >WebMCP workspace</span
             >
             <UBadge color="neutral" variant="subtle" size="sm">Experimental</UBadge>
           </div>
@@ -243,7 +243,7 @@ function downloadCase() {
                 icon="i-lucide-circle-stop"
                 @click="cancelManual"
               >
-                Cancel manual request
+                Cancel request
               </UButton>
             </div>
           </div>
@@ -281,7 +281,7 @@ function downloadCase() {
         <form class="case-panel rounded-3xl p-6 sm:p-8" @submit.prevent="createCase">
           <div class="mb-7 flex items-start justify-between gap-4">
             <div>
-              <p class="eyebrow">01 / Brief the investigation</p>
+              <p class="eyebrow">01 / Define the question</p>
               <h2 class="mt-2 text-2xl font-semibold text-[var(--ui-text-highlighted)]">
                 What are we trying to prove?
               </h2>
@@ -345,7 +345,7 @@ function downloadCase() {
         <aside class="agent-panel rounded-3xl p-6 sm:p-8">
           <p class="eyebrow">Agent protocol</p>
           <h2 class="mt-2 text-xl font-semibold text-[var(--ui-text-highlighted)]">
-            Four tools. One accountable trail.
+            Four tools, with every result visible here.
           </h2>
           <div class="mt-6 space-y-5">
             <div
@@ -366,10 +366,10 @@ function downloadCase() {
                 <p class="mt-1 text-xs leading-5 text-[var(--ui-text-muted)]">
                   {{
                     [
-                      "Checks where evidence exists.",
-                      "Pairs captures without reading bodies.",
-                      "Returns one cited, untrusted excerpt.",
-                      "Separates interpretation from evidence.",
+                      "Checks which archives have captures.",
+                      "Pairs captures without reading archived pages.",
+                      "Shows one cited excerpt and marks it untrusted.",
+                      "Keeps your finding separate from the evidence.",
                     ][index]
                   }}
                 </p>
@@ -449,7 +449,7 @@ function downloadCase() {
               </div>
             </div>
             <p class="mt-4 text-[11px] leading-4 text-[var(--ui-text-dimmed)]">
-              Coverage is broad. Your date bounds apply to the selected change scan.
+              Coverage can include many pages. Date bounds apply when scanning the selected archive.
             </p>
             <UFormField v-if="providerItems.length" label="Archive to compare" class="mt-4">
               <USelect
@@ -473,7 +473,7 @@ function downloadCase() {
           </div>
 
           <div v-if="state.activity.length" class="case-panel rounded-2xl p-5">
-            <p class="eyebrow mb-4">Live trace</p>
+            <p class="eyebrow mb-4">Recent activity</p>
             <div class="space-y-4">
               <div v-for="entry in state.activity.slice(0, 5)" :key="entry.id" class="activity-row">
                 <span class="activity-state" :class="`is-${entry.state}`" />
@@ -496,7 +496,7 @@ function downloadCase() {
               <div>
                 <p class="eyebrow">02 / Candidate windows</p>
                 <h2 class="mt-2 text-2xl font-semibold text-[var(--ui-text-highlighted)]">
-                  Capture pairs with intact provenance
+                  Candidate changes with exact sources
                 </h2>
               </div>
               <UInput
@@ -627,7 +627,7 @@ function downloadCase() {
                   />
                 </UFormField>
                 <UFormField
-                  label="Finding bounded by evidence"
+                  label="Finding supported by this excerpt"
                   :hint="`${finding.length}/${EVIDENCE_LIMITS.finding} · ${state.findings.length}/${EVIDENCE_LIMITS.findings} pinned`"
                 >
                   <UInput
@@ -653,7 +653,7 @@ function downloadCase() {
               <div>
                 <p class="eyebrow">04 / Findings</p>
                 <h2 class="mt-2 text-2xl font-semibold text-[var(--ui-text-highlighted)]">
-                  Human review queue
+                  Pinned findings
                 </h2>
               </div>
               <div class="flex gap-2">
@@ -746,11 +746,11 @@ function downloadCase() {
               <UIcon name="i-lucide-git-compare-arrows" class="size-7 text-[var(--ui-primary)]" />
             </div>
             <h2 class="mt-5 text-xl font-semibold text-[var(--ui-text-highlighted)]">
-              The case is scoped
+              The case is ready
             </h2>
             <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--ui-text-muted)]">
-              Ask the agent to continue, or run the next bounded step from the coverage panel. The
-              board will update for both of you.
+              Ask the agent to continue, or choose an archive and find candidate windows here.
+              Either way, this board updates.
             </p>
           </section>
         </div>

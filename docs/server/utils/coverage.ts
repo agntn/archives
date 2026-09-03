@@ -141,10 +141,7 @@ function abortError(signal: Readonly<AbortSignal>): Error {
     : new DOMException("The archive request was aborted", "AbortError");
 }
 
-/**
- * Reads or writes one provider result without sharing one request's cancellation
- * between concurrent cache misses. A failed or aborted probe is never cached.
- */
+/** Keeps cancellation local to each cache miss and stores only complete provider results. */
 async function cachedProviderCoverage(
   target: string,
   provider: ProviderCoverage["provider"],

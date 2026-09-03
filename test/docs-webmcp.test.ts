@@ -214,7 +214,7 @@ describe("docs WebMCP tools", () => {
     ]);
   });
 
-  it("does not resurrect a scope request after the user resets the case", async () => {
+  it("ignores an old scope response after the user resets the case", async () => {
     const { room, fetchMock } = installEvidenceRoom();
     const response = deferred<{ providers: [] }>();
     fetchMock.mockReturnValueOnce(response.promise);
@@ -350,7 +350,7 @@ describe("docs WebMCP tools", () => {
     };
     room.state.value.inspection = priorInspection;
     fetchMock.mockResolvedValueOnce({
-      text: "a response without the archived-data fence",
+      text: "a response without the archived data fence",
       details: {
         success: true,
         attempts: [],

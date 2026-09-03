@@ -191,20 +191,19 @@ function providerNote(index: number): string {
 
     <LandingFeature
       eyebrow="WebMCP"
-      title="Investigate on the page, together"
+      title="Investigate the archive together"
       to="/evidence"
       link="Open the Evidence Room"
       :checks="[
-        'Four tools native to the browser form one evidence workflow instead of mirroring the site UI',
-        'Every agent call updates the same visible caseboard the human reviews',
-        'Interpretations stay separate from cited, explicitly untrusted archive excerpts',
+        'Four browser tools run one investigation instead of copying the page controls',
+        'Agent calls and manual actions update the same caseboard',
+        'Findings stay separate from cited archive excerpts marked as untrusted',
       ]"
       reverse
     >
-      The Evidence Room turns the docs into an active research surface. A browser agent scopes a
-      question, pairs comparable captures without downloading their bodies, inspects one diff with
-      pinned provenance and leaves its finding on the page for review. Without WebMCP, the same
-      workflow remains usable by hand.
+      The Evidence Room turns this page into a shared archive workspace. An agent scopes the
+      question, finds comparable captures without reading every page, inspects one diff and leaves
+      the finding here for review. No WebMCP? The whole workflow still works by hand.
       <template #visual>
         <div class="archives-frame overflow-hidden rounded-xl bg-default p-5">
           <div class="flex items-center justify-between border-b border-muted pb-4">

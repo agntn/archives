@@ -340,7 +340,7 @@ export function useEvidenceRoom() {
   async function scopeCase(input: Readonly<ScopeCaseInput>, signal: AbortSignal): Promise<unknown> {
     const activityId = start(
       "scope_archive_case",
-      "Asking each public archive where the history lives.",
+      "Checking each public archive for captures.",
     );
     const revision = nextRevision();
     try {
@@ -361,9 +361,9 @@ export function useEvidenceRoom() {
         first: provider.first,
         last: provider.last,
       }));
+      /** Prefer direct raw replay. Capture count only breaks ties at equal priority. */
       const candidates = coverage
         .filter(isPreferredCoverage)
-        // Prefer archives with direct raw replay that tolerate bounded automated reads; count breaks ties at equal priority.
         .sort(
           (a, b) =>
             RECOMMENDATION_ORDER.indexOf(a.provider) - RECOMMENDATION_ORDER.indexOf(b.provider) ||
@@ -390,7 +390,7 @@ export function useEvidenceRoom() {
       finish(
         activityId,
         "done",
-        `${coverage.filter((item) => item.state === "ok").length} archives hold evidence; ${recommendedProvider ?? "no reader"} selected.`,
+        `${coverage.filter((item) => item.state === "ok").length} archives have usable captures. ${recommendedProvider ?? "No reader"} selected.`,
       );
       await showRoom();
       return {
@@ -405,7 +405,7 @@ export function useEvidenceRoom() {
         })),
         recommendedProvider,
         coverageScope:
-          "Broad index sample; the case date bounds apply when finding change windows.",
+          "Coverage is a broad index sample. Case date bounds apply when finding change windows.",
         next: recommendedProvider
           ? {
               tool: "find_change_windows",
@@ -417,7 +417,7 @@ export function useEvidenceRoom() {
       finish(activityId, "error", compactMessage(error));
       return failure(
         error,
-        "Retry with one public URL or domain. A cold check across archives can take up to 45 seconds.",
+        "Try one public URL or domain. A cold coverage check can take up to 45 seconds.",
       );
     }
   }
@@ -428,7 +428,7 @@ export function useEvidenceRoom() {
   ): Promise<unknown> {
     const activityId = start(
       "find_change_windows",
-      "Pairing a bounded capture sequence without downloading archived bodies.",
+      "Looking for nearby captures without downloading archived pages.",
     );
     try {
       const archiveCase = ensureCase(input.caseId);
@@ -470,7 +470,7 @@ export function useEvidenceRoom() {
       finish(
         activityId,
         "done",
-        `${pages.length} captures produced ${windows.length} comparison windows that preserve provenance.`,
+        `Found ${windows.length} candidate windows in ${pages.length} captures, all with source links.`,
       );
       await showRoom();
       const changes = windows.map((window) => ({
@@ -489,7 +489,7 @@ export function useEvidenceRoom() {
         provider: providerValue,
         captures: pages.length,
         rankedBy:
-          "Known archive index digest changes first, then recency. Captures that are identical at byte level are omitted; archived bodies are read only during inspection.",
+          "Known index changes come first, then recent captures. Pairs with identical bytes are skipped, and archived pages are not read until inspection.",
         changes,
         next: changes[0]
           ? {
@@ -513,7 +513,7 @@ export function useEvidenceRoom() {
   ): Promise<unknown> {
     const activityId = start(
       "inspect_archive_change",
-      "Resolving the pinned pair and selecting a bounded diff excerpt.",
+      "Reading the selected pair and looking for a useful diff excerpt.",
     );
     try {
       const archiveCase = ensureCase(input.caseId);
@@ -579,7 +579,7 @@ export function useEvidenceRoom() {
       finish(
         activityId,
         "done",
-        `Pinned ${pinnedChange.before.timestamp.slice(0, 10)} → ${pinnedChange.after.timestamp.slice(0, 10)} with exact archive provenance.`,
+        `Inspected ${pinnedChange.before.timestamp.slice(0, 10)} → ${pinnedChange.after.timestamp.slice(0, 10)} using the cited archive captures.`,
       );
       await showRoom();
       return {
@@ -649,7 +649,7 @@ export function useEvidenceRoom() {
       finish(
         activityId,
         "done",
-        `Pinned as ${relation}; the room now holds ${state.value.findings.length} finding${state.value.findings.length === 1 ? "" : "s"}.`,
+        `Pinned as ${relation}. This case now has ${state.value.findings.length} finding${state.value.findings.length === 1 ? "" : "s"}.`,
       );
       await showRoom();
       return {

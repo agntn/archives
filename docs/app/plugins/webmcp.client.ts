@@ -1,6 +1,6 @@
 import { createEvidenceTools, EVIDENCE_TOOL_NAMES } from "../utils/webmcp";
 
-/** Registers the archive investigation workflow when the browser exposes the experimental WebMCP API. */
+/** Registers evidence tools when the experimental browser API exists. */
 export default defineNuxtPlugin(() => {
   const room = useEvidenceRoom();
   const modelContext = document.modelContext;

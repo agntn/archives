@@ -1,7 +1,7 @@
 import type { ArchivedContentSummary } from "@agntn/archives";
 import type { WebMCP } from "webmcp-types";
 
-/** Archives in the shared provider registry that this workflow can read without extra credentials or coordinates. */
+/** Readable public archives available to the evidence workflow. */
 export const EVIDENCE_PROVIDER_SLUGS = [
   "wayback",
   "arquivo",
@@ -173,7 +173,7 @@ export interface PinFindingInput {
   readonly finding: string;
 }
 
-/** Operations behind the WebMCP descriptors, separated so schemas can be tested without a browser implementation. */
+/** Browser operations behind the testable WebMCP descriptors. */
 export interface EvidenceToolActions {
   readonly scopeCase: (input: Readonly<ScopeCaseInput>, signal: AbortSignal) => Promise<unknown>;
   readonly findChanges: (
@@ -208,7 +208,7 @@ export function createEvidenceTools(actions: Readonly<EvidenceToolActions>) {
     name: EVIDENCE_TOOL_NAMES[1],
     title: "Find change windows",
     description:
-      "Find bounded consecutive capture windows for the active case without downloading page bodies. Returns change IDs that preserve provenance and updates the shared Evidence Room.",
+      "Pair consecutive captures for the active case without downloading page bodies. Returns change IDs with their source details and updates the shared Evidence Room.",
     inputSchema: findChangesSchema,
     annotations: { readOnlyHint: false, untrustedContentHint: true },
     execute: (input, { signal }) => actions.findChanges(input, signal),
@@ -227,7 +227,7 @@ export function createEvidenceTools(actions: Readonly<EvidenceToolActions>) {
   const pinFinding: WebMCP.ModelContextToolFromSchema<typeof pinFindingSchema> = {
     name: EVIDENCE_TOOL_NAMES[3],
     title: "Pin archive finding",
-    description: `Pin an interpretation of an inspected archive change as support, contradiction, or context. Keeps the agent's claim separate from the cited archived evidence for human review; one case holds at most ${EVIDENCE_LIMITS.findings} findings.`,
+    description: `Pin an interpretation of an inspected archive change as support, contradiction, or context. The claim stays separate from cited archive evidence. One case holds at most ${EVIDENCE_LIMITS.findings} findings.`,
     inputSchema: pinFindingSchema,
     annotations: { readOnlyHint: false, untrustedContentHint: true },
     execute: (input) => actions.pinFinding(input),
