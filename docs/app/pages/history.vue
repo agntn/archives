@@ -109,8 +109,8 @@ onMounted(() => {
               </select>
             </label>
             <label>
-              <span class="archives-label">captures · up to 9</span>
-              <input v-model.number="form.limit" type="number" min="2" max="9" class="archives-field font-mono" />
+              <span class="archives-label">captures · up to 7</span>
+              <input v-model.number="form.limit" type="number" min="2" max="7" class="archives-field font-mono" />
             </label>
             <label><span class="archives-label">from</span><input v-model="form.from" type="text" class="archives-field font-mono" placeholder="2010" /></label>
             <div class="flex items-end">

@@ -47,7 +47,7 @@ function persist() {
  * a footnote list without going back to the archive.
  */
 export function useShelf() {
-  load();
+  onMounted(load);
 
   function has(page: ArchivedPage): boolean {
     return items.value.some((item) => item.key === pageKey(page));

@@ -6,42 +6,26 @@ const TTL = 60 * 60 * 6;
  * Archived URLs under a domain: one row per distinct URL, from the providers whose
  * index can collapse on the URL key. Others answer with their plain listing.
  */
-export default defineCachedEventHandler(
-  async (event) => {
-    const query = getQuery(event);
-    const provider = readString(query, "provider", LIMITS.parameter) ?? "wayback";
-    const params = {
-      target: requireString(query, "target", LIMITS.target),
-      provider,
-      limit: readInt(query, "limit", 1, 100) ?? 100,
-      from: readString(query, "from", LIMITS.parameter),
-      to: readString(query, "to", LIMITS.parameter),
-      collection: readString(query, "collection", LIMITS.parameter),
-      timeout: LIMITS.timeout,
-      ...(provider === "wayback" || provider === "archiveIt" ? { collapse: "urlkey" } : {}),
-    };
-    try {
-      const result = await snapshotArchives(params);
-      const answer = toolAnswer(result, !result.details.response.success);
-      markPublic(event, TTL);
-      return answer;
-    } catch (error) {
-      return toHttpError(error);
-    }
-  },
-  {
-    maxAge: TTL,
-    swr: true,
-    getKey: (event) => {
-      const query = getQuery(event);
-      return cacheKey("urls", {
-        target: readString(query, "target", LIMITS.target)?.toLowerCase(),
-        provider: readString(query, "provider", LIMITS.parameter) ?? "wayback",
-        limit: readInt(query, "limit", 1, 100) ?? 100,
-        from: readString(query, "from", LIMITS.parameter),
-        to: readString(query, "to", LIMITS.parameter),
-        collection: readString(query, "collection", LIMITS.parameter),
-      });
-    },
-  },
-);
+export default defineEventHandler(async (event) => {
+  const query = getQuery(event);
+  const provider = readString(query, "provider", LIMITS.parameter) ?? "wayback";
+  const params = {
+    target: requireString(query, "target", LIMITS.target),
+    provider,
+    limit: readInt(query, "limit", 1, 100) ?? 100,
+    from: readString(query, "from", LIMITS.parameter),
+    to: readString(query, "to", LIMITS.parameter),
+    collection: readString(query, "collection", LIMITS.parameter),
+    ...(provider === "wayback" || provider === "archiveIt" ? { collapse: "urlkey" } : {}),
+  };
+  try {
+    return await cachedAnswer(event, "urls", params, TTL, async () => {
+      const result = await snapshotArchives({ ...params, timeout: LIMITS.timeout });
+      const response = result.details.response;
+      const errors = response._meta?.errors;
+      return { value: toolAnswer(result, !response.success), degraded: Array.isArray(errors) && errors.length > 0 };
+    });
+  } catch (error) {
+    return toHttpError(error);
+  }
+});

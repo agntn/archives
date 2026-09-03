@@ -1,4 +1,5 @@
 import type { H3Event } from "h3";
+import { hash } from "ohash";
 
 type Query = Record<string, unknown>;
 
@@ -107,4 +108,41 @@ export function toolAnswer<TDetails>(
     throw createError({ statusCode: 502, statusMessage: "The archive query did not produce a usable answer", data: answer });
   }
   return answer;
+}
+
+/** How long an answer with a failed provider stays cached; long enough to absorb a burst, short enough to forget an outage. */
+export const DEGRADED_TTL = 60 * 5;
+
+interface CachedEntry<T> {
+  value: T;
+  expires: number;
+}
+
+/**
+ * Serves an answer from the cache or produces and stores it.
+ *
+ * A produced answer that carries a provider failure is kept for {@link DEGRADED_TTL}
+ * only, so a transient outage never pins a bad listing for the full window, and a
+ * thrown failure is not stored at all. The key is the exact parameter set: URL paths
+ * are case sensitive, so nothing is lowercased on the way in.
+ */
+export async function cachedAnswer<T>(
+  event: H3Event,
+  prefix: string,
+  params: Readonly<Record<string, unknown>>,
+  ttl: number,
+  produce: () => Promise<{ value: T; degraded: boolean }>,
+): Promise<T> {
+  const storage = useStorage("cache");
+  const key = `docs:${prefix}:${hash(cacheKey(prefix, params))}`;
+  const hit = await storage.getItem<CachedEntry<T>>(key).catch(() => null);
+  if (hit && typeof hit.expires === "number" && hit.expires > Date.now()) {
+    markPublic(event, Math.max(1, Math.floor((hit.expires - Date.now()) / 1000)));
+    return hit.value;
+  }
+  const { value, degraded } = await produce();
+  const seconds = degraded ? DEGRADED_TTL : ttl;
+  await storage.setItem(key, { value, expires: Date.now() + seconds * 1000 }).catch(() => undefined);
+  markPublic(event, seconds);
+  return value;
 }

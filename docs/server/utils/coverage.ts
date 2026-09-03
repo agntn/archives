@@ -118,16 +118,40 @@ async function providerCoverage(target: string, provider: ProviderCoverage["prov
   }
 }
 
-/** Coverage of one target across every provider that can answer unaided; cached for six hours, shared with the warm up task. */
-export const coverage = defineCachedFunction(
-  async (target: string): Promise<Coverage> => {
-    const providers = await Promise.all(COVERAGE_PROVIDERS.map((provider) => providerCoverage(target, provider)));
-    return { target, providers, fetchedAt: new Date().toISOString() };
+/** One provider's coverage, cached for six hours; a failed probe throws so it is never pinned into the cache. */
+const cachedProviderCoverage = defineCachedFunction(
+  async (target: string, provider: ProviderCoverage["provider"]): Promise<ProviderCoverage> => {
+    const result = await providerCoverage(target, provider);
+    if (result.state === "failed") {
+      throw new Error(result.reason ?? `${provider} failed`);
+    }
+    return result;
   },
   {
     name: "coverage",
     maxAge: 60 * 60 * 6,
     swr: true,
-    getKey: (target: string) => target.toLowerCase(),
+    getKey: (target: string, provider: string) => `${provider}:${target}`,
   },
 );
+
+/** Coverage of one target across every provider that can answer unaided; shared with the warm up task. */
+export async function coverage(target: string): Promise<Coverage> {
+  const settled = await Promise.allSettled(COVERAGE_PROVIDERS.map((provider) => cachedProviderCoverage(target, provider)));
+  const providers = settled.map((outcome, index): ProviderCoverage => {
+    const provider = COVERAGE_PROVIDERS[index]!;
+    if (outcome.status === "fulfilled") {
+      return outcome.value;
+    }
+    return {
+      provider,
+      state: "failed",
+      count: 0,
+      years: {},
+      reason: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+      ms: 0,
+      sample: [],
+    };
+  });
+  return { target, providers, fetchedAt: new Date().toISOString() };
+}

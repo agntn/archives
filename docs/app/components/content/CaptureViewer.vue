@@ -96,7 +96,7 @@ const sourceDocument = computed(() => {
   const head = `<meta http-equiv="Content-Security-Policy" content="${policy}"><base href="${base.replace(/"/gu, "%22")}" target="_blank">`;
   const cleaned = body.value
     .replace(/<script[\s\S]*?<\/script\s*>/giu, "")
-    .replace(/<meta[^>]+http-equiv=["']?refresh[^>]*>/giu, "")
+    .replace(/<meta\b[^>]*http-equiv\s*=\s*["']?\s*refresh[^>]*>/giu, "")
     .replace(/<base[^>]*>/giu, "");
   return /<head[^>]*>/iu.test(cleaned) ? cleaned.replace(/<head[^>]*>/iu, (match) => `${match}${head}`) : `${head}${cleaned}`;
 });

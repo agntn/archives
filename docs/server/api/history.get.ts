@@ -2,7 +2,7 @@ import { diffArchives, snapshotArchives } from "@agntn/archives/tool-operations"
 import type { ArchivedPage } from "@agntn/archives";
 
 const TTL = 60 * 60 * 6;
-const MAX_STEPS = 8;
+const MAX_STEPS = 6;
 
 export interface HistoryStep {
   before: ArchivedPage;
@@ -20,16 +20,19 @@ export interface HistoryStep {
  * also brings neighbours and URL variants; only the requested resource stays.
  * The pairs run one after another so a throttling archive sees one reader.
  */
-export default defineCachedEventHandler(
-  async (event) => {
-    const query = getQuery(event);
-    const target = requireString(query, "target", LIMITS.target);
-    const provider = readString(query, "provider", LIMITS.parameter) ?? "wayback";
-    const limit = readInt(query, "limit", 2, MAX_STEPS + 1) ?? 6;
-    const from = readString(query, "from", LIMITS.parameter);
-    const to = readString(query, "to", LIMITS.parameter);
-    try {
-      const listing = await snapshotArchives({ target, provider, limit, from, to, timeout: LIMITS.timeout });
+export default defineEventHandler(async (event) => {
+  const query = getQuery(event);
+  const params = {
+    target: requireString(query, "target", LIMITS.target),
+    provider: readString(query, "provider", LIMITS.parameter) ?? "wayback",
+    limit: readInt(query, "limit", 2, MAX_STEPS + 1) ?? 6,
+    from: readString(query, "from", LIMITS.parameter),
+    to: readString(query, "to", LIMITS.parameter),
+  };
+  const { target, provider } = params;
+  try {
+    return await cachedAnswer(event, "history", params, TTL, async () => {
+      const listing = await snapshotArchives({ ...params, timeout: LIMITS.timeout });
       const seen = new Set<string>();
       const pages = [...listing.details.response.pages]
         .filter((page) => sameResource(page.url, target))
@@ -78,24 +81,12 @@ export default defineCachedEventHandler(
           });
         }
       }
-      markPublic(event, TTL);
-      return { target, provider, pages, steps, text: listing.content[0]?.text ?? "", fetchedAt: new Date().toISOString() };
-    } catch (error) {
-      return toHttpError(error);
-    }
-  },
-  {
-    maxAge: TTL,
-    swr: true,
-    getKey: (event) => {
-      const query = getQuery(event);
-      return cacheKey("history", {
-        target: readString(query, "target", LIMITS.target),
-        provider: readString(query, "provider", LIMITS.parameter) ?? "wayback",
-        limit: readInt(query, "limit", 2, MAX_STEPS + 1) ?? 6,
-        from: readString(query, "from", LIMITS.parameter),
-        to: readString(query, "to", LIMITS.parameter),
-      });
-    },
-  },
-);
+      return {
+        value: { target, provider, pages, steps, text: listing.content[0]?.text ?? "", fetchedAt: new Date().toISOString() },
+        degraded: steps.some((step) => Boolean(step.error)),
+      };
+    });
+  } catch (error) {
+    return toHttpError(error);
+  }
+});
