@@ -86,9 +86,9 @@ describe("Perma.cc Platform", () => {
       "/v1/archives/",
       objectContaining({
         baseURL: "https://api.perma.cc",
-        headers: {
+        headers: objectContaining({
           Authorization: "ApiKey test_key",
-        },
+        }),
         params: {
           limit: 100,
           url: "https://example.com/",

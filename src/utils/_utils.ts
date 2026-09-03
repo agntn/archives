@@ -1,4 +1,5 @@
 import { FetchOptions } from "ofetch";
+import { version } from "../version";
 import { hasProtocol, withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
 import { consola } from "consola";
 import type {
@@ -402,7 +403,40 @@ export async function createFetchOptions(
       );
     },
     ...options,
+    headers: withUserAgent(
+      options.headers as Readonly<Record<string, string>> | Headers | undefined,
+    ),
   };
+}
+
+/** How every request introduces itself; the Wayback CDX API answers 400 to a request without one. */
+export const USER_AGENT = `@agntn/archives/${version} (+https://github.com/agntn/archives)`;
+
+/**
+ * Adds the package User-Agent to a header set unless the caller chose one.
+ *
+ * Node and browsers send a default User-Agent; Cloudflare Workers and other
+ * fetch runtimes send none, and some archives refuse such requests outright.
+ * Caller keys keep their spelling, so a provider's `Authorization` stays as written.
+ *
+ * @param headers - Headers the caller already set
+ * @returns {Record<string, string>} The same headers with a User-Agent guaranteed
+ */
+export function withUserAgent(
+  headers?: Readonly<Record<string, string>> | Headers,
+): Record<string, string> {
+  const merged: Record<string, string> = {};
+  if (headers instanceof Headers) {
+    headers.forEach((value, key) => {
+      merged[key] = value;
+    });
+  } else if (headers) {
+    Object.assign(merged, headers);
+  }
+  if (!Object.keys(merged).some((key) => key.toLowerCase() === "user-agent")) {
+    merged["user-agent"] = USER_AGENT;
+  }
+  return merged;
 }
 
 /**

@@ -45,7 +45,15 @@ export default defineConfig({
           // Platform and dependency contracts are not owned by this package.
           {
             from: "lib",
-            name: ["AbortSignal", "ReadableStream", "ReadonlyMap", "RegExp", "Uint8Array", "URL"],
+            name: [
+              "AbortSignal",
+              "Headers",
+              "ReadableStream",
+              "ReadonlyMap",
+              "RegExp",
+              "Uint8Array",
+              "URL",
+            ],
           },
           {
             from: "package",
@@ -68,5 +76,5 @@ export default defineConfig({
       },
     ],
   },
-  ignorePatterns: ["dist", "coverage", ".nuxt", ".output"],
+  ignorePatterns: ["dist", "coverage", ".nuxt", ".output", "docs"],
 });

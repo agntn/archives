@@ -1,11 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
+  USER_AGENT,
+  createFetchOptions,
   createSuccessResponse,
   mapCdxRows,
   normalizeDomain,
   processInParallel,
   waybackTimestampToISO,
+  withUserAgent,
 } from "../src/utils";
+import { version } from "../src/version";
 
 describe("processInParallel", () => {
   it("preserves input order regardless of completion order", async () => {
@@ -47,6 +51,28 @@ describe("processInParallel", () => {
     });
 
     expect(result).toEqual([2, 4]);
+  });
+});
+
+describe("withUserAgent", () => {
+  it("names the package and its version", () => {
+    expect(USER_AGENT).toBe(`@agntn/archives/${version} (+https://github.com/agntn/archives)`);
+  });
+
+  it("adds the User-Agent to every request; runtimes without a default one are refused by the CDX API", async () => {
+    const options = await createFetchOptions("https://web.archive.org", { url: "example.com" });
+    expect(options.headers).toEqual({ "user-agent": USER_AGENT });
+  });
+
+  it("keeps caller headers and a caller-chosen User-Agent", () => {
+    expect(withUserAgent({ Authorization: "ApiKey secret", "User-Agent": "custom/1.0" })).toEqual({
+      Authorization: "ApiKey secret",
+      "User-Agent": "custom/1.0",
+    });
+    expect(withUserAgent(new Headers({ Range: "bytes=0-9" }))).toEqual({
+      range: "bytes=0-9",
+      "user-agent": USER_AGENT,
+    });
   });
 });
 
