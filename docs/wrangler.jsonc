@@ -12,13 +12,13 @@
     {
       "binding": "DB",
       "database_name": "agntn-archives",
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "14865f91-e069-4e3a-8970-29a9f43163b5"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "CACHE",
-      "id": "00000000000000000000000000000000"
+      "id": "06c8056b5d1c4d8ca16b3969ff8fbb92"
     }
   ],
   "triggers": {
