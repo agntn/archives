@@ -38,12 +38,12 @@ function note(bucket: ProviderBucket | undefined): string {
     return "waiting";
   }
   if (bucket.state === "ok") {
-    return `${bucket.count} · ${bucket.first?.slice(0, 4)} – ${bucket.last?.slice(0, 4)}`;
+    return `${bucket.count} · ${bucket.first?.slice(0, 4)} to ${bucket.last?.slice(0, 4)}`;
   }
   if (bucket.state === "failed") {
     return /timeout/iu.test(bucket.reason ?? "") ? "timed out" : "request failed";
   }
-  return bucket.state === "unsupported" ? "no list-by-domain API" : "none in the newest 12";
+  return bucket.state === "unsupported" ? "cannot list a domain" : "none in the newest 12";
 }
 </script>
 
@@ -80,7 +80,7 @@ function note(bucket: ProviderBucket | undefined): string {
       <li class="archives-step">
         <div class="archives-step-head">
           <span class="archives-step-index">2</span>
-          <span class="archives-step-title">fan-out</span>
+          <span class="archives-step-title">every archive</span>
           <span class="archives-step-note">every provider answers, or says why not</span>
         </div>
         <ul class="archives-rows">

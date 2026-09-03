@@ -94,7 +94,7 @@ function providerNote(index: number): string {
       to="/timeline"
       link="Open the timeline"
       :checks="[
-        'Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl in one fan-out',
+        'Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl in one call',
         'A provider with no endpoint says so, instead of returning nothing',
         'Merged newest first, one page shape, a from/to window that holds across sources',
       ]"

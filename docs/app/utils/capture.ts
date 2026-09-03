@@ -72,7 +72,7 @@ export function errorText(error: unknown): string {
 export function citation(page: ArchivedPage): string {
   const provider = providerInfo(providerArgument(page))?.label ?? providerArgument(page);
   const digest = typeof page._meta.digest === "string" ? ` · digest ${page._meta.digest}` : "";
-  return `${page.url} — archived by ${provider} on ${page.timestamp} — ${page.snapshot}${digest}`;
+  return `${page.url} - archived by ${provider} on ${page.timestamp} - ${page.snapshot}${digest}`;
 }
 
 export function sortChronological(pages: readonly ArchivedPage[]): ArchivedPage[] {

@@ -113,7 +113,7 @@ onMounted(() => {
                 <tr v-for="page in rows" :key="pageKey(page)">
                   <td class="font-mono text-xs break-all text-highlighted" :title="page.url">{{ shortUrl(page.url, 90) }}</td>
                   <td class="font-mono text-xs whitespace-nowrap text-muted">{{ shortStamp(page.timestamp) }}</td>
-                  <td class="font-mono text-xs text-dimmed">{{ page._meta.status ?? "—" }}</td>
+                  <td class="font-mono text-xs text-dimmed">{{ page._meta.status ?? "n/a" }}</td>
                   <td class="text-end whitespace-nowrap">
                     <NuxtLink :to="{ path: '/timeline', query: { target: page.url, provider: form.provider, limit: '50' } }" class="archives-btn h-7 px-2 text-xs" title="All captures of this URL">
                       <UIcon name="i-lucide-history" class="size-3.5" />

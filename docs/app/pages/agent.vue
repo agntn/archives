@@ -132,6 +132,7 @@ async function run() {
   }
 }
 
+/** Copies a snippet; a blocked clipboard is not an error, the text is on screen anyway. */
 async function copy(kind: string, text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -140,7 +141,7 @@ async function copy(kind: string, text: string) {
       copied.value = undefined;
     }, 1200);
   } catch {
-    // Clipboard blocked; the text is on screen.
+    return;
   }
 }
 

@@ -59,6 +59,7 @@ export function useLandingArchive() {
     }, INTERVAL);
   }
 
+  /** Swaps a panel to the live answer; a failed fetch leaves the recorded sample and its label in place. */
   async function refreshSnapshots(name: string) {
     try {
       const result = await $fetch<ApiResult<SnapshotDetails>>("/api/snapshots", {
@@ -73,10 +74,11 @@ export function useLandingArchive() {
         [name]: { target: name, text: result.text, details: result.details, fetchedAt: result.fetchedAt, live: true },
       };
     } catch {
-      // The sample stays on screen; the label keeps saying so.
+      return;
     }
   }
 
+  /** Same as {@link refreshSnapshots} for one recorded read. */
   async function refreshContent(sample: ContentSample, position: number) {
     try {
       const result = await $fetch<ApiResult<ContentDetails>>("/api/content", {
@@ -90,10 +92,11 @@ export function useLandingArchive() {
       next[position] = { ...sample, text: result.text, details: result.details, fetchedAt: result.fetchedAt, live: true };
       contents.value = next;
     } catch {
-      // Keep the recorded sample.
+      return;
     }
   }
 
+  /** Same as {@link refreshSnapshots} for the recorded diff. */
   async function refreshDiff() {
     try {
       const sample = diff.value;
@@ -112,7 +115,7 @@ export function useLandingArchive() {
       }
       diff.value = { ...sample, text: result.text, details: result.details, fetchedAt: result.fetchedAt, live: true };
     } catch {
-      // Keep the recorded sample.
+      return;
     }
   }
 

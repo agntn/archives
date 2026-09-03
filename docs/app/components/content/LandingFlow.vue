@@ -34,7 +34,7 @@ function stateLine(bucket: ProviderBucket | undefined): string {
   if (bucket.state === "ok") {
     const first = bucket.first?.slice(0, 4);
     const last = bucket.last?.slice(0, 4);
-    const span = first === last ? first : `${first}–${last}`;
+    const span = first === last ? first : `${first} to ${last}`;
     return `${bucket.count} capture${bucket.count === 1 ? "" : "s"} · ${span}`;
   }
   if (bucket.state === "failed") {
@@ -70,7 +70,7 @@ const rows = computed(() => props.pages.slice(0, 6));
     :viewBox="`0 0 ${W} ${H}`"
     class="archives-flow"
     role="img"
-    aria-label="One target fans out to six archive providers and merges into one list of captures"
+    aria-label="One target goes to six archive providers and comes back as one list of captures"
   >
     <g class="archives-flow-wires">
       <path v-for="(path, index) in trunkPaths" :key="`t${index}`" :d="path.d" :class="{ 'archives-flow-wire-dim': !path.ok }" />

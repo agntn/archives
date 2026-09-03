@@ -118,7 +118,7 @@ async function providerCoverage(target: string, provider: ProviderCoverage["prov
   }
 }
 
-/** Coverage of one target across every provider that can answer unaided; cached for six hours, shared with the warm-up task. */
+/** Coverage of one target across every provider that can answer unaided; cached for six hours, shared with the warm up task. */
 export const coverage = defineCachedFunction(
   async (target: string): Promise<Coverage> => {
     const providers = await Promise.all(COVERAGE_PROVIDERS.map((provider) => providerCoverage(target, provider)));

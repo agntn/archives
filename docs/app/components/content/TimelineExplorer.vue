@@ -203,7 +203,7 @@ async function compare(format: "text" | "raw" = comparison.format) {
 
 function bucketNote(bucket: (typeof buckets.value)[number]): string {
   if (bucket.state === "ok") {
-    return `${bucket.count} · ${dateOnly(bucket.first ?? "")} – ${dateOnly(bucket.last ?? "")}`;
+    return `${bucket.count} · ${dateOnly(bucket.first ?? "")} to ${dateOnly(bucket.last ?? "")}`;
   }
   if (bucket.state === "failed") {
     return bucket.reason ?? "request failed";
@@ -390,7 +390,7 @@ onMounted(() => {
                 </td>
                 <td class="font-mono text-xs whitespace-nowrap text-highlighted">{{ shortStamp(page.timestamp) }}</td>
                 <td class="text-xs whitespace-nowrap">{{ providerLabel(String(page._meta.provider ?? "")) }}</td>
-                <td class="font-mono text-xs text-dimmed">{{ page._meta.status ?? "—" }}</td>
+                <td class="font-mono text-xs text-dimmed">{{ page._meta.status ?? "n/a" }}</td>
                 <td class="font-mono text-xs text-muted" :title="page.url">{{ shortUrl(page.url, 40) }}</td>
                 <td>
                   <a :href="page.snapshot" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline" :title="page.snapshot">

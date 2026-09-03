@@ -16,9 +16,9 @@ export interface HistoryStep {
 
 /**
  * How a page changed capture by capture: consecutive pairs from one provider,
- * each compared with the diff executor. Bodies are read at most twice thanks to
- * the library's own content cache, and the pairs run one after another so a
- * throttling archive sees one reader, not eight.
+ * each compared with the diff executor. The listing is a prefix search, so it
+ * also brings neighbours and URL variants; only the requested resource stays.
+ * The pairs run one after another so a throttling archive sees one reader.
  */
 export default defineCachedEventHandler(
   async (event) => {
@@ -30,7 +30,6 @@ export default defineCachedEventHandler(
     const to = readString(query, "to", LIMITS.parameter);
     try {
       const listing = await snapshotArchives({ target, provider, limit, from, to, timeout: LIMITS.timeout });
-      // The archive's prefix listing also brings neighbours and URL variants; a history follows one resource.
       const seen = new Set<string>();
       const pages = [...listing.details.response.pages]
         .filter((page) => sameResource(page.url, target))

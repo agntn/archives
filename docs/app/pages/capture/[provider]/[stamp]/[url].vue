@@ -79,6 +79,8 @@ const agentCall = computed(() =>
 );
 
 const copied = ref(false);
+
+/** Copies the citation; a blocked clipboard is not an error, the text stays on screen. */
 async function copy(text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -87,7 +89,7 @@ async function copy(text: string) {
       copied.value = false;
     }, 1200);
   } catch {
-    // Clipboard blocked; the text stays on screen.
+    return;
   }
 }
 

@@ -131,11 +131,11 @@ watch(domain, load);
               <dt class="mt-1 font-mono text-[11px] tracking-[0.12em] text-dimmed uppercase">captures listed</dt>
             </div>
             <div class="border-t border-muted px-5 py-5 text-center sm:border-t-0 sm:border-l">
-              <dd class="font-mono text-2xl text-highlighted">{{ span ? span.first.slice(0, 4) : "—" }}</dd>
+              <dd class="font-mono text-2xl text-highlighted">{{ span ? span.first.slice(0, 4) : "n/a" }}</dd>
               <dt class="mt-1 font-mono text-[11px] tracking-[0.12em] text-dimmed uppercase">first seen</dt>
             </div>
             <div class="border-t border-l border-muted px-5 py-5 text-center sm:border-t-0">
-              <dd class="font-mono text-2xl text-highlighted">{{ span ? span.last.slice(0, 4) : "—" }}</dd>
+              <dd class="font-mono text-2xl text-highlighted">{{ span ? span.last.slice(0, 4) : "n/a" }}</dd>
               <dt class="mt-1 font-mono text-[11px] tracking-[0.12em] text-dimmed uppercase">last seen</dt>
             </div>
           </dl>
@@ -177,7 +177,7 @@ watch(domain, load);
               <div v-if="provider.state === 'ok'" class="px-5 py-4">
                 <p class="font-mono text-xs text-muted">
                   <span class="text-highlighted">{{ provider.count }}</span> captures ·
-                  {{ dateOnly(provider.first ?? "") }} – {{ dateOnly(provider.last ?? "") }}
+                  {{ dateOnly(provider.first ?? "") }} to {{ dateOnly(provider.last ?? "") }}
                 </p>
                 <ul class="mt-3 space-y-1.5">
                   <li v-for="page in provider.sample" :key="page.snapshot" class="flex items-center justify-between gap-3 font-mono text-xs">

@@ -49,9 +49,9 @@ Resolution traps, both caused by the repo root being a separate pnpm workspace w
 - Every route is a `defineCachedEventHandler` with a key built from the normalized parameters. Do not bypass the cache: the archives behind it are public services.
 - Parameters are capped in `server/utils/query.ts` below the library's ceilings (limit 50, content 8 000 chars, diff 20 000 chars). Raise them there, not per route.
 - No Perma.cc key is configured on the worker. `provider=permacc` answers with the library's own error.
-- `app/utils/landing-fixtures.ts` holds answers recorded through the library so the landing paints before the worker answers. Regenerate it through the executors; never hand-edit the recorded text.
-- In production the cache lives in the KV binding `CACHE` (`$production.nitro.storage.cache`); locally it is in memory. `coverage()` in `server/utils/coverage.ts` is a `defineCachedFunction` shared by the API route and the cron task, so the warm-up fills the same entries the page reads.
-- Every explorer page applies its deep link through a one-shot `watch(route.query)`: a prerendered page hydrates with an empty query and Nuxt restores the address after mount.
+- `app/utils/landing-fixtures.ts` holds answers recorded through the library so the landing paints before the worker answers. Regenerate it through the executors; never edit the recorded text by hand.
+- In production the cache lives in the KV binding `CACHE` (`$production.nitro.storage.cache`); locally it is in memory. `coverage()` in `server/utils/coverage.ts` is a `defineCachedFunction` shared by the API route and the cron task, so warming fills the same entries the page reads.
+- Every explorer page applies its deep link through a `watch(route.query)` that fires once: a prerendered page hydrates with an empty query and Nuxt restores the address after mount.
 - `CaptureViewer.vue` is the only place archived bodies are rendered. Pages pass it a page and, when they have one, the chronological list around it.
 
 ## Constraints

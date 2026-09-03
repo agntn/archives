@@ -71,8 +71,8 @@ onMounted(load);
                       {{ providerLabel(probe.provider) }}
                     </NuxtLink>
                   </td>
-                  <td><span class="archives-state" :class="`archives-state-${probe.state === 'needs-config' ? 'unsupported' : probe.state}`">{{ probe.state }}</span></td>
-                  <td class="font-mono text-xs text-muted">{{ probe.ms ? `${(probe.ms / 1000).toFixed(1)} s` : "—" }}</td>
+                  <td><span class="archives-state" :class="`archives-state-${probe.state === 'needs-config' ? 'unsupported' : probe.state}`">{{ probe.state === 'needs-config' ? 'needs config' : probe.state }}</span></td>
+                  <td class="font-mono text-xs text-muted">{{ probe.ms ? `${(probe.ms / 1000).toFixed(1)} s` : "n/a" }}</td>
                   <td class="text-xs text-muted">{{ probe.reason ?? probe.note }}</td>
                 </tr>
               </tbody>

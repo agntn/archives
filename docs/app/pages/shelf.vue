@@ -11,6 +11,7 @@ const format = ref<"markdown" | "json">("markdown");
 const exported = computed(() => (format.value === "markdown" ? exportMarkdown() : exportJson()));
 const copied = ref(false);
 
+/** Copies the export; a blocked clipboard is not an error, the textarea holds the same text. */
 async function copy() {
   try {
     await navigator.clipboard.writeText(exported.value);
@@ -19,7 +20,7 @@ async function copy() {
       copied.value = false;
     }, 1200);
   } catch {
-    // Clipboard blocked; the export is in the textarea.
+    return;
   }
 }
 </script>

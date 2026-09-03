@@ -146,6 +146,7 @@ function step(delta: -1 | 1) {
   }
 }
 
+/** Copies a citation or the permalink; a blocked clipboard is not an error, the citation sits in the button's title. */
 async function copy(kind: "cite" | "link") {
   const text = kind === "cite" ? citation(props.page) : `${window.location.origin}${captureLink(props.page)}`;
   try {
@@ -155,7 +156,7 @@ async function copy(kind: "cite" | "link") {
       copied.value = undefined;
     }, 1200);
   } catch {
-    // Clipboard can be blocked; the citation stays visible in the bar's title.
+    return;
   }
 }
 

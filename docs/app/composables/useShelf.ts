@@ -31,11 +31,12 @@ function load() {
   }
 }
 
+/** Writes the shelf; when storage is full or blocked the shelf lives for the session only. */
 function persist() {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items.value));
   } catch {
-    // Storage can be full or blocked; the shelf then lives for the session only.
+    return;
   }
 }
 
@@ -101,7 +102,7 @@ export function useShelf() {
   }
 
   function exportMarkdown(): string {
-    const lines = items.value.map((item, index) => `${index + 1}. ${citation(toPage(item))}${item.note ? ` — ${item.note}` : ""}`);
+    const lines = items.value.map((item, index) => `${index + 1}. ${citation(toPage(item))}${item.note ? ` - ${item.note}` : ""}`);
     return `# Archived captures\n\n${lines.join("\n")}\n`;
   }
 
