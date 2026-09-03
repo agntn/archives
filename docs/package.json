@@ -1,0 +1,25 @@
+{
+  "name": "docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --extends docus",
+    "build": "NUXT_SITE_URL=https://archives.agntn.dev nuxt build --extends docus",
+    "generate": "NUXT_SITE_URL=https://archives.agntn.dev nuxt generate --extends docus",
+    "preview": "nuxt preview --extends docus",
+    "deploy": "pnpm build && wrangler deploy"
+  },
+  "dependencies": {
+    "@agntn/archives": "file:..",
+    "better-sqlite3": "12.11.1",
+    "docus": "5.13.0",
+    "nuxt": "4.5.2"
+  },
+  "packageManager": "pnpm@11.24.0",
+  "devDependencies": {
+    "@iconify-json/lucide": "1.2.128",
+    "@iconify-json/simple-icons": "1.2.94",
+    "@iconify-json/vscode-icons": "1.2.76",
+    "wrangler": "4.128.0"
+  }
+}

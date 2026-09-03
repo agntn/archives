@@ -21,7 +21,7 @@
     "wayback",
     "web-archive"
   ],
-  "homepage": "https://github.com/agntn/archives",
+  "homepage": "https://archives.agntn.dev",
   "bugs": {
     "url": "https://github.com/agntn/archives/issues"
   },
@@ -75,7 +75,9 @@
     "test:types": "pnpm build && tsc --noEmit --skipLibCheck && tsc --noEmit --skipLibCheck -p tsconfig.extensions.json",
     "build": "obuild",
     "prepack": "pnpm build",
-    "release": "pnpm test && changelogen --release --push"
+    "release": "pnpm test && changelogen --release --push",
+    "docs": "pnpm --dir docs dev",
+    "docs:build": "pnpm --dir docs build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

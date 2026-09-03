@@ -1,5 +1,6 @@
 import { FetchOptions } from "ofetch";
-import { hasProtocol, withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
+import { version } from "../version";
+import { withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
 import { consola } from "consola";
 import type {
   ArchiveContentResponse,
@@ -165,6 +166,12 @@ export function waybackTimestampToISO(timestamp: string): string {
   return sameUtcDate(parsed, numbers) ? iso : "";
 }
 
+/** A real URL scheme; ufo's `hasProtocol` also accepts `host:port`, which would lose the host. */
+const SCHEME = /^[a-z][a-z0-9+.-]*:\/\//iu;
+
+/** `host:80` or `host:443` in front of the path, the ports every archive index drops. */
+const DEFAULT_PORT = /^([^/?#:]+):(?:80|443)(?=[/?#]|$)/u;
+
 /**
  * Normalizes a domain string for search queries
  * @param domain The domain or URL to normalize
@@ -172,8 +179,13 @@ export function waybackTimestampToISO(timestamp: string): string {
  * @returns {string} Normalized domain string
  */
 export function normalizeDomain(domain: string, appendWildcard = true): string {
-  // Normalize domain input using ufo
-  const normalizedDomain = hasProtocol(domain) ? withoutProtocol(domain) : domain;
+  // Normalize domain input using ufo. A default port survives the protocol
+  // strip, and `host:80/` matches nothing in a CDX index that canonicalizes
+  // it away, so the port goes with the protocol.
+  const normalizedDomain = (SCHEME.test(domain) ? withoutProtocol(domain) : domain).replace(
+    DEFAULT_PORT,
+    "$1",
+  );
 
   // Create URL pattern for search if requested
   if (!appendWildcard || domain.includes("*")) {
@@ -402,7 +414,40 @@ export async function createFetchOptions(
       );
     },
     ...options,
+    headers: withUserAgent(
+      options.headers as Readonly<Record<string, string>> | Headers | undefined,
+    ),
   };
+}
+
+/** How every request introduces itself; the Wayback CDX API answers 400 to a request without one. */
+export const USER_AGENT = `@agntn/archives/${version} (+https://github.com/agntn/archives)`;
+
+/**
+ * Adds the package User-Agent to a header set unless the caller chose one.
+ *
+ * Node and browsers send a default User-Agent; Cloudflare Workers and other
+ * fetch runtimes send none, and some archives refuse such requests outright.
+ * Caller keys keep their spelling, so a provider's `Authorization` stays as written.
+ *
+ * @param headers - Headers the caller already set
+ * @returns {Record<string, string>} The same headers with a User-Agent guaranteed
+ */
+export function withUserAgent(
+  headers?: Readonly<Record<string, string>> | Headers,
+): Record<string, string> {
+  const merged: Record<string, string> = {};
+  if (headers instanceof Headers) {
+    headers.forEach((value, key) => {
+      merged[key] = value;
+    });
+  } else if (headers) {
+    Object.assign(merged, headers);
+  }
+  if (!Object.keys(merged).some((key) => key.toLowerCase() === "user-agent")) {
+    merged["user-agent"] = USER_AGENT;
+  }
+  return merged;
 }
 
 /**

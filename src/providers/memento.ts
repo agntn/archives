@@ -19,6 +19,7 @@ import {
   toWaybackTimestamp,
   unwrapSnapshotUrl,
   waybackTimestampToISO,
+  withUserAgent,
 } from "../utils";
 import { BaseProvider } from "./base-provider";
 
@@ -424,6 +425,7 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
         signal: options.signal,
         retry: options.retries ?? 1,
         timeout: options.timeout ?? 10000,
+        headers: withUserAgent(),
       });
     } catch (error) {
       if (isNotFound(error)) return { pages: [] };

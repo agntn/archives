@@ -25,6 +25,8 @@ Unified TypeScript interface for querying web archive providers. One API, multip
 pnpm add @agntn/archives
 ```
 
+Docs and the live timeline explorer: [archives.agntn.dev](https://archives.agntn.dev). The source lives in [`docs/`](./docs); run `pnpm docs` after `pnpm build` for a local copy.
+
 ## Usage
 
 ```ts

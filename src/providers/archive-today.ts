@@ -19,6 +19,7 @@ import {
   resolveRequestedTimestamp,
   selectCapture,
   waybackTimestampToISO,
+  withUserAgent,
 } from "../utils";
 import { BaseProvider } from "./base-provider";
 
@@ -236,6 +237,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
       retry: options.retries ?? 5,
       timeout: options.timeout ?? 60000,
       responseType: "text",
+      headers: withUserAgent(),
     });
 
     // Memento link header format:

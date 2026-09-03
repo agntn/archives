@@ -1,11 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
+  USER_AGENT,
+  createFetchOptions,
   createSuccessResponse,
   mapCdxRows,
   normalizeDomain,
   processInParallel,
   waybackTimestampToISO,
+  withUserAgent,
 } from "../src/utils";
+import { version } from "../src/version";
 
 describe("processInParallel", () => {
   it("preserves input order regardless of completion order", async () => {
@@ -50,6 +54,28 @@ describe("processInParallel", () => {
   });
 });
 
+describe("withUserAgent", () => {
+  it("names the package and its version", () => {
+    expect(USER_AGENT).toBe(`@agntn/archives/${version} (+https://github.com/agntn/archives)`);
+  });
+
+  it("adds the User-Agent to every request; runtimes without a default one are refused by the CDX API", async () => {
+    const options = await createFetchOptions("https://web.archive.org", { url: "example.com" });
+    expect(options.headers).toEqual({ "user-agent": USER_AGENT });
+  });
+
+  it("keeps caller headers and a caller-chosen User-Agent", () => {
+    expect(withUserAgent({ Authorization: "ApiKey secret", "User-Agent": "custom/1.0" })).toEqual({
+      Authorization: "ApiKey secret",
+      "User-Agent": "custom/1.0",
+    });
+    expect(withUserAgent(new Headers({ Range: "bytes=0-9" }))).toEqual({
+      range: "bytes=0-9",
+      "user-agent": USER_AGENT,
+    });
+  });
+});
+
 describe("createSuccessResponse", () => {
   it("uses the response source as each page provider", () => {
     const response = createSuccessResponse(
@@ -79,6 +105,13 @@ describe("normalizeDomain", () => {
   it("keeps paths and queries exact", () => {
     expect(normalizeDomain("https://example.com/page")).toBe("example.com/page");
     expect(normalizeDomain("https://example.com/?q=1")).toBe("example.com/?q=1");
+  });
+
+  it("drops a default port, which the CDX index cannot match", () => {
+    expect(normalizeDomain("http://www.example.com:80/", false)).toBe("www.example.com/");
+    expect(normalizeDomain("https://example.com:443/about", false)).toBe("example.com/about");
+    expect(normalizeDomain("example.com:80")).toBe("example.com/*");
+    expect(normalizeDomain("http://example.com:8080/", false)).toBe("example.com:8080/");
   });
 
   it("keeps a caller-supplied wildcard", () => {
