@@ -1,4 +1,5 @@
 import type { ContentDetails, DiffDetails, SnapshotDetails } from "@agntn/archives/tool-operations";
+import type { ApiResult } from "../utils/capture";
 import {
   LANDING_CONTENT,
   LANDING_DIFF,
@@ -9,13 +10,6 @@ import {
   type SnapshotSample,
 } from "../utils/landing-fixtures";
 
-
-/** One executor answer as the docs API returns it. */
-export interface ApiResult<TDetails> {
-  readonly text: string;
-  readonly details: TDetails;
-  readonly fetchedAt: string;
-}
 
 const INTERVAL = 3600;
 

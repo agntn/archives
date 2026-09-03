@@ -9,6 +9,7 @@ const NAV_ICONS: Record<string, string> = {
   "/guide/configuration": "i-lucide-settings-2",
   "/guide/agents": "i-lucide-bot",
   "/guide/custom": "i-lucide-plus",
+  "/guide/explorer": "i-lucide-history",
   "/providers": "i-lucide-library",
   "/timeline": "i-lucide-history",
   ...Object.fromEntries(PROVIDERS.map((provider) => [provider.to, provider.icon])),

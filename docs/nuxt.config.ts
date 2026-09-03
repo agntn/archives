@@ -38,6 +38,18 @@ export default defineNuxtConfig({
         "lucide:globe",
         "lucide:history",
         "lucide:landmark",
+        "lucide:activity",
+        "lucide:bookmark",
+        "lucide:bookmark-check",
+        "lucide:columns-2",
+        "lucide:git-compare",
+        "lucide:list",
+        "lucide:map",
+        "lucide:quote",
+        "lucide:terminal",
+        "lucide:link",
+        "lucide:trash-2",
+        "lucide:clipboard-copy",
         "lucide:layers",
         "lucide:library",
         "lucide:link",
@@ -73,6 +85,13 @@ export default defineNuxtConfig({
       c12: fileURLToPath(new URL("./server/stubs/c12.ts", import.meta.url)),
     },
     compatibilityDate: "2026-09-03",
+    /** The warm-up task runs from the cron trigger in wrangler.jsonc. */
+    experimental: {
+      tasks: true,
+    },
+    scheduledTasks: {
+      "17 */6 * * *": ["warm:demo"],
+    },
     prerender: {
       crawlLinks: true,
       routes: ["/", "/sitemap.xml", "/robots.txt", "/llms.txt", "/llms-full.txt"],
@@ -84,6 +103,17 @@ export default defineNuxtConfig({
     },
   },
   compatibilityDate: "2026-09-03",
+  /** In production the response cache lives in KV, so it survives isolates and the cron can warm it. */
+  $production: {
+    nitro: {
+      storage: {
+        cache: {
+          driver: "cloudflare-kv-binding",
+          binding: "CACHE",
+        },
+      },
+    },
+  },
   fonts: {
     families: [
       { name: "Space Grotesk", weights: [400, 500, 600] },

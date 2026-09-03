@@ -27,6 +27,7 @@ useSeoMeta({
           never executed. Queries hit public archives; be gentle with them.
         </span>
       </p>
+      <ExplorerNav />
     </header>
 
     <section class="archives-section">
