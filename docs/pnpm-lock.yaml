@@ -30,6 +30,9 @@ importers:
       '@iconify-json/vscode-icons':
         specifier: 1.2.76
         version: 1.2.76
+      webmcp-types:
+        specifier: 0.1.6
+        version: 0.1.6
       wrangler:
         specifier: 4.128.0
         version: 4.128.0
@@ -7165,6 +7168,9 @@ packages:
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
+
+  webmcp-types@0.1.6:
+    resolution: {integrity: sha512-vWYNhhBXQhP4flPIk3sJuzsonPGSTdDyhWgpmPYCNdpIcLHJgjHE51lU0S7gi+UtdxO84FsCnvSJaMfLGWP+3Q==}
 
   webpack-virtual-modules@0.6.2:
     resolution: {integrity: sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==}
@@ -15538,6 +15544,8 @@ snapshots:
   web-namespaces@2.0.1: {}
 
   webidl-conversions@3.0.1: {}
+
+  webmcp-types@0.1.6: {}
 
   webpack-virtual-modules@0.6.2: {}
 

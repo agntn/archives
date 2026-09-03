@@ -7,8 +7,8 @@ const { targets, target, tick, paused, current, content, diff, step } = useLandi
 const stats = [
   { value: "10", label: "providers" },
   { value: "4", label: "MCP tools" },
-  { value: "3", label: "agent surfaces" },
-  { value: "1", label: "response shape" },
+  { value: "4", label: "agent surfaces" },
+  { value: "1", label: "archive core" },
 ] as const;
 
 const buckets = computed(() => (current.value ? groupByProvider(current.value.details.response) : []));
@@ -46,7 +46,7 @@ function providerNote(index: number): string {
       </h1>
       <p class="archives-enter archives-enter-2 mx-auto mt-6 max-w-xl text-base leading-7 text-muted">
         One TypeScript interface over ten web archives. List captures, read what a page said,
-        diff two versions, and hand the same four tools to an agent over MCP.
+        diff two versions, and investigate with agents over MCP or directly in the browser.
       </p>
       <div class="archives-enter archives-enter-3 mt-8 flex flex-wrap items-center justify-center gap-2">
         <UButton to="/guide" color="primary" trailing-icon="i-lucide-arrow-right">
@@ -190,6 +190,56 @@ function providerNote(index: number): string {
     </LandingFeature>
 
     <LandingFeature
+      eyebrow="WebMCP"
+      title="Investigate the archive together"
+      to="/evidence"
+      link="Open the Evidence Room"
+      :checks="[
+        'Four browser tools run one investigation instead of copying the page controls',
+        'Agent calls and manual actions update the same caseboard',
+        'Findings stay separate from cited archive excerpts marked as untrusted',
+      ]"
+      reverse
+    >
+      The Evidence Room turns this page into a shared archive workspace. An agent scopes the
+      question, finds comparable captures without reading every page, inspects one diff and leaves
+      the finding here for review. No WebMCP? The whole workflow still works by hand.
+      <template #visual>
+        <div class="archives-frame overflow-hidden rounded-xl bg-default p-5">
+          <div class="flex items-center justify-between border-b border-muted pb-4">
+            <span class="font-mono text-[10px] tracking-[0.16em] text-primary uppercase"
+              >Shared case trace</span
+            >
+            <span class="inline-flex items-center gap-2 text-[11px] text-muted"
+              ><span class="size-1.5 rounded-full bg-emerald-500" /> agent connected</span
+            >
+          </div>
+          <div class="mt-5 space-y-3">
+            <div
+              v-for="(item, index) in [
+                'scope_archive_case',
+                'find_change_windows',
+                'inspect_archive_change',
+                'pin_archive_finding',
+              ]"
+              :key="item"
+              class="flex items-center gap-3 rounded-lg border border-muted px-3 py-2.5"
+            >
+              <span
+                class="grid size-5 place-items-center rounded-full bg-elevated font-mono text-[9px] text-primary"
+                >✓</span
+              >
+              <code class="text-[11px] text-highlighted">{{ item }}</code>
+              <span v-if="index === 2" class="ml-auto font-mono text-[9px] text-amber-500"
+                >untrusted</span
+              >
+            </div>
+          </div>
+        </div>
+      </template>
+    </LandingFeature>
+
+    <LandingFeature
       eyebrow="Agents"
       title="Four tools over MCP"
       to="/guide/agents"
@@ -220,8 +270,8 @@ function providerNote(index: number): string {
           <UButton to="/guide" color="primary" trailing-icon="i-lucide-arrow-right">
             Read the guide
           </UButton>
-          <UButton to="/timeline" color="neutral" variant="outline">
-            Open the timeline
+          <UButton to="/evidence" color="neutral" variant="outline">
+            Open the Evidence Room
           </UButton>
         </div>
       </div>

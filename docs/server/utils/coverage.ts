@@ -1,5 +1,6 @@
 import { snapshotArchives } from "@agntn/archives/tool-operations";
 import type { ArchivedPage } from "@agntn/archives";
+import { hash } from "ohash";
 
 /** Providers that can list a domain without a collection, a user, or a key. */
 export const COVERAGE_PROVIDERS = [
@@ -46,8 +47,13 @@ function yearsOf(pages: readonly ArchivedPage[]): Record<string, number> {
   return years;
 }
 
-async function listing(target: string, provider: ProviderCoverage["provider"], extra: Record<string, string> = {}) {
-  return snapshotArchives({ target, provider, limit: LIMIT, timeout: TIMEOUT, ...extra });
+async function listing(
+  target: string,
+  provider: ProviderCoverage["provider"],
+  signal?: Readonly<AbortSignal>,
+  extra: Readonly<Record<string, string>> = {},
+) {
+  return snapshotArchives({ target, provider, limit: LIMIT, timeout: TIMEOUT, ...extra }, signal);
 }
 
 /**
@@ -57,13 +63,17 @@ async function listing(target: string, provider: ProviderCoverage["provider"], e
  * second, recent window is asked for so `last` is the archive's last capture and
  * not the end of the first hundred rows.
  */
-async function providerCoverage(target: string, provider: ProviderCoverage["provider"]): Promise<ProviderCoverage> {
+async function providerCoverage(
+  target: string,
+  provider: ProviderCoverage["provider"],
+  signal?: Readonly<AbortSignal>,
+): Promise<ProviderCoverage> {
   const started = Date.now();
   try {
-    const calls = [listing(target, provider)];
+    const calls = [listing(target, provider, signal)];
     if (provider === "wayback") {
       const recent = String(new Date().getUTCFullYear() - 1);
-      calls.push(listing(target, provider, { from: recent, collapse: "timestamp:6" }));
+      calls.push(listing(target, provider, signal, { from: recent, collapse: "timestamp:6" }));
     }
     const settled = await Promise.allSettled(calls);
     const pages = new Map<string, ArchivedPage>();
@@ -118,26 +128,47 @@ async function providerCoverage(target: string, provider: ProviderCoverage["prov
   }
 }
 
-/** One provider's coverage, cached for six hours; a failed probe throws so it is never pinned into the cache. */
-const cachedProviderCoverage = defineCachedFunction(
-  async (target: string, provider: ProviderCoverage["provider"]): Promise<ProviderCoverage> => {
-    const result = await providerCoverage(target, provider);
-    if (result.state === "failed") {
-      throw new Error(result.reason ?? `${provider} failed`);
-    }
-    return result;
-  },
-  {
-    name: "coverage",
-    maxAge: 60 * 60 * 6,
-    swr: true,
-    getKey: (target: string, provider: string) => `${provider}:${target}`,
-  },
-);
+const CACHE_SECONDS = 60 * 60 * 6;
+
+interface CachedProviderCoverage {
+  readonly value: ProviderCoverage;
+  readonly expires: number;
+}
+
+function abortError(signal: Readonly<AbortSignal>): Error {
+  return signal.reason instanceof Error
+    ? signal.reason
+    : new DOMException("The archive request was aborted", "AbortError");
+}
+
+/** Keeps cancellation local to each cache miss and stores only complete provider results. */
+async function cachedProviderCoverage(
+  target: string,
+  provider: ProviderCoverage["provider"],
+  signal?: Readonly<AbortSignal>,
+): Promise<ProviderCoverage> {
+  if (signal?.aborted) throw abortError(signal);
+  const storage = useStorage("cache");
+  const key = `docs:coverage:${provider}:${hash(target)}`;
+  const cached = await storage.getItem<CachedProviderCoverage>(key).catch(() => null);
+  if (signal?.aborted) throw abortError(signal);
+  if (cached && cached.expires > Date.now()) return cached.value;
+
+  const value = await providerCoverage(target, provider, signal);
+  if (signal?.aborted) throw abortError(signal);
+  if (value.state === "failed") throw new Error(value.reason ?? `${provider} failed`);
+  await storage
+    .setItem(key, { value, expires: Date.now() + CACHE_SECONDS * 1000 }, { ttl: CACHE_SECONDS })
+    .catch(() => undefined);
+  return value;
+}
 
 /** Coverage of one target across every provider that can answer unaided; shared with the warm up task. */
-export async function coverage(target: string): Promise<Coverage> {
-  const settled = await Promise.allSettled(COVERAGE_PROVIDERS.map((provider) => cachedProviderCoverage(target, provider)));
+export async function coverage(target: string, signal?: Readonly<AbortSignal>): Promise<Coverage> {
+  const settled = await Promise.allSettled(
+    COVERAGE_PROVIDERS.map((provider) => cachedProviderCoverage(target, provider, signal)),
+  );
+  if (signal?.aborted) throw abortError(signal);
   const providers = settled.map((outcome, index): ProviderCoverage => {
     const provider = COVERAGE_PROVIDERS[index]!;
     if (outcome.status === "fulfilled") {
