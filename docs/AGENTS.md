@@ -6,7 +6,7 @@ Docus site for `@agntn/archives`. Markdown lives in `content/`. The timeline exp
 
 ```
 docs/
-├── nuxt.config.ts                 # extends: ['docus'], cloudflare_module preset
+├── nuxt.config.ts                 # extends: ['docus'], cloudflare_module preset (Workers)
 ├── app/app.config.ts              # title, github, theme
 ├── app/app.css                    # theme tokens (light + .dark), shared `archives-*` classes
 ├── app/components/                # Docus overrides: AppHeaderLogo, AppHeaderCTA (nav), AppFooterLeft
@@ -33,7 +33,7 @@ pnpm deploy           # build, then wrangler deploy to archives.agntn.dev
 pnpm generate         # static output only; the /api routes need the worker
 ```
 
-Deployment: Nitro preset `cloudflare_module`. Nuxt Content needs a D1 binding named `DB`; `wrangler.jsonc` carries the binding and the `NUXT_SITE_URL` var, Nitro merges it into the generated `.output/server/wrangler.json`. Create the database once with `wrangler d1 create agntn-archives` and put its id in `wrangler.jsonc`.
+Deployment: Nitro preset `cloudflare_module`, which is the Cloudflare Workers preset in Nitro 2.13 (its standard name `cloudflare_workers` is not resolvable from the config and og-image does not know it). Nuxt Content needs a D1 binding named `DB`; `wrangler.jsonc` carries the binding and the `NUXT_SITE_URL` var, Nitro merges it into the generated `.output/server/wrangler.json`. Create the database once with `wrangler d1 create agntn-archives` and put its id in `wrangler.jsonc`.
 
 The site imports `@agntn/archives` from `file:..`. Build the parent package first.
 
