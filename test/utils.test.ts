@@ -107,6 +107,13 @@ describe("normalizeDomain", () => {
     expect(normalizeDomain("https://example.com/?q=1")).toBe("example.com/?q=1");
   });
 
+  it("drops a default port, which the CDX index cannot match", () => {
+    expect(normalizeDomain("http://www.example.com:80/", false)).toBe("www.example.com/");
+    expect(normalizeDomain("https://example.com:443/about", false)).toBe("example.com/about");
+    expect(normalizeDomain("example.com:80")).toBe("example.com/*");
+    expect(normalizeDomain("http://example.com:8080/", false)).toBe("example.com:8080/");
+  });
+
   it("keeps a caller-supplied wildcard", () => {
     expect(normalizeDomain("https://example.com/pages/*")).toBe("example.com/pages/*");
   });

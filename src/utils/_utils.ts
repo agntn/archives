@@ -1,6 +1,6 @@
 import { FetchOptions } from "ofetch";
 import { version } from "../version";
-import { hasProtocol, withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
+import { withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
 import { consola } from "consola";
 import type {
   ArchiveContentResponse,
@@ -166,6 +166,12 @@ export function waybackTimestampToISO(timestamp: string): string {
   return sameUtcDate(parsed, numbers) ? iso : "";
 }
 
+/** A real URL scheme; ufo's `hasProtocol` also accepts `host:port`, which would lose the host. */
+const SCHEME = /^[a-z][a-z0-9+.-]*:\/\//iu;
+
+/** `host:80` or `host:443` in front of the path, the ports every archive index drops. */
+const DEFAULT_PORT = /^([^/?#:]+):(?:80|443)(?=[/?#]|$)/u;
+
 /**
  * Normalizes a domain string for search queries
  * @param domain The domain or URL to normalize
@@ -173,8 +179,13 @@ export function waybackTimestampToISO(timestamp: string): string {
  * @returns {string} Normalized domain string
  */
 export function normalizeDomain(domain: string, appendWildcard = true): string {
-  // Normalize domain input using ufo
-  const normalizedDomain = hasProtocol(domain) ? withoutProtocol(domain) : domain;
+  // Normalize domain input using ufo. A default port survives the protocol
+  // strip, and `host:80/` matches nothing in a CDX index that canonicalizes
+  // it away, so the port goes with the protocol.
+  const normalizedDomain = (SCHEME.test(domain) ? withoutProtocol(domain) : domain).replace(
+    DEFAULT_PORT,
+    "$1",
+  );
 
   // Create URL pattern for search if requested
   if (!appendWildcard || domain.includes("*")) {
