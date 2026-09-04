@@ -29,6 +29,22 @@ interface ArchiveTodayCapture {
   timestamp: string;
 }
 
+const ARCHIVE_TODAY_HOST = /^archive\.(?:fo|is|li|md|ph|today|vn)$/iu;
+const ARCHIVE_TODAY_CAPTURE_PATH = /^\/\d{8,14}\/[^/]/u;
+const ARCHIVE_TODAY_PLAYBACK_POLICY = {
+  assertURL(url: URL) {
+    if (
+      (url.protocol !== "http:" && url.protocol !== "https:") ||
+      url.username ||
+      url.password ||
+      !ARCHIVE_TODAY_HOST.test(url.hostname) ||
+      !ARCHIVE_TODAY_CAPTURE_PATH.test(url.pathname)
+    ) {
+      throw new Error("Archive.today playback left its capture endpoint");
+    }
+  },
+} as const;
+
 function selectArchiveTodayCapture(
   pages: readonly ArchivedPage[],
   requestedUrl: string,
@@ -171,6 +187,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
         snapshotUrl.origin,
         `${snapshotUrl.pathname}${snapshotUrl.search}`,
         options,
+        ARCHIVE_TODAY_PLAYBACK_POLICY,
       );
       if (!body.capturedAt) {
         throw new Error(

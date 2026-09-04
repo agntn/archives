@@ -226,7 +226,7 @@ describe("Webarchiv Österreich", () => {
     expect(secondOptions.params).not.toHaveProperty("reverse");
   });
 
-  it("does not follow a replay redirect outside Webarchiv Österreich", async () => {
+  it("returns a recorded redirect outside Webarchiv Österreich without following it", async () => {
     fetchMock.mockResolvedValueOnce(cdx("20200203040506"));
     rawMock.mockResolvedValueOnce(
       rawResponse("", {
@@ -240,12 +240,12 @@ describe("Webarchiv Österreich", () => {
       timestamp: "20200203040506",
     });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toBe("Webarchiv Österreich replay left its raw playback endpoint");
+    expect(result.success).toBe(true);
+    expect(result.content?._meta.status).toBe(302);
     expect(rawMock).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects a redirect on the same origin when it leaves the replay endpoint", async () => {
+  it("returns a redirect that leaves the replay path without following it", async () => {
     fetchMock.mockResolvedValueOnce(cdx("20200203040506"));
     rawMock
       .mockResolvedValueOnce(
@@ -265,8 +265,8 @@ describe("Webarchiv Österreich", () => {
       timestamp: "20200203040506",
     });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toBe("Webarchiv Österreich replay left its raw playback endpoint");
+    expect(result.success).toBe(true);
+    expect(result.content?._meta.status).toBe(302);
     expect(rawMock).toHaveBeenCalledTimes(1);
   });
 
