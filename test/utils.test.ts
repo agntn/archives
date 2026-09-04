@@ -52,6 +52,24 @@ describe("processInParallel", () => {
 
     expect(result).toEqual([2, 4]);
   });
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects invalid concurrency %s",
+    async (concurrency) => {
+      await expect(processInParallel([1, 2], async (n) => n, { concurrency })).rejects.toThrow(
+        "concurrency must be a positive integer",
+      );
+    },
+  );
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects invalid batch size %s",
+    async (batchSize) => {
+      await expect(
+        processInParallel([1, 2], async (n) => n, { concurrency: 1, batchSize }),
+      ).rejects.toThrow("batchSize must be a positive integer");
+    },
+  );
 });
 
 describe("withUserAgent", () => {
@@ -154,6 +172,20 @@ describe("waybackTimestampToISO", () => {
 });
 
 describe("mapCdxRows", () => {
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects invalid batch size %s",
+    async (batchSize) => {
+      await expect(
+        mapCdxRows(
+          [["https://example.com/", "20220101120000", "200"]],
+          "https://archive.test",
+          "test",
+          { batchSize },
+        ),
+      ).rejects.toThrow("batchSize must be a positive integer");
+    },
+  );
+
   it("returns empty array for empty input", async () => {
     const pages = await mapCdxRows([], "https://web.archive.org/web", "wayback", { batchSize: 50 });
     expect(pages).toEqual([]);

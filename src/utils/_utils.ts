@@ -15,6 +15,13 @@ import { getConfig } from "../config";
 
 const ALLOWED_WAYBACK_TIMESTAMP_LENGTHS = new Set([4, 6, 8, 10, 12, 14]);
 
+function requirePositiveInteger(value: unknown, name: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new RangeError(`${name} must be a positive integer`);
+  }
+  return value;
+}
+
 // Utility for parallel processing with concurrency control
 export async function processInParallel<T, R>(
   items: readonly T[],
@@ -22,8 +29,14 @@ export async function processInParallel<T, R>(
   options: Readonly<{ concurrency?: number; batchSize?: number }> = {},
 ): Promise<R[]> {
   const config = await getConfig();
-  const concurrency = options.concurrency ?? config.performance.concurrency ?? 3;
-  const batchSize = options.batchSize ?? config.performance.batchSize ?? 20;
+  const concurrency = requirePositiveInteger(
+    options.concurrency ?? config.performance.concurrency ?? 3,
+    "concurrency",
+  );
+  const batchSize = requirePositiveInteger(
+    options.batchSize ?? config.performance.batchSize ?? 20,
+    "batchSize",
+  );
 
   // Process small datasets directly
   if (items.length <= concurrency) {
@@ -471,11 +484,16 @@ export async function mergeOptions<T extends ArchiveOptions>(
   };
 
   // Create merged options with all properties preserved
-  return {
+  const merged = {
     ...defaultOptions,
     ...initOptions,
     ...reqOptions,
   } as T;
+
+  requirePositiveInteger(merged.concurrency ?? config.performance.concurrency ?? 3, "concurrency");
+  requirePositiveInteger(merged.batchSize ?? config.performance.batchSize ?? 20, "batchSize");
+
+  return merged;
 }
 
 /**
@@ -494,7 +512,10 @@ export async function mapCdxRows(
 ): Promise<ArchivedPage[]> {
   const config = await getConfig();
 
-  const batchSize = options.batchSize ?? config.performance.batchSize ?? 20;
+  const batchSize = requirePositiveInteger(
+    options.batchSize ?? config.performance.batchSize ?? 20,
+    "batchSize",
+  );
 
   // For small datasets, process directly without batching
   if (dataRows.length <= batchSize) {

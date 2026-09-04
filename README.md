@@ -430,16 +430,16 @@ Returns:
 
 All methods accept `ArchiveOptions`:
 
-| Option        | Type      | Default     | Description                          |
-| ------------- | --------- | ----------- | ------------------------------------ |
-| `limit`       | `number`  | `1000`      | Maximum results to return            |
-| `cache`       | `boolean` | `true`      | Enable/disable caching               |
-| `ttl`         | `number`  | `604800000` | Cache TTL in milliseconds (7 days)   |
-| `concurrency` | `number`  | `3`         | Max parallel requests                |
-| `batchSize`   | `number`  | `20`        | Items per processing batch           |
-| `timeout`     | `number`  | `10000`     | Request timeout in ms                |
-| `retries`     | `number`  | `1`         | Retry attempts on failure            |
-| `apiKey`      | `string`  | -           | API key for providers that need auth |
+| Option        | Type      | Default     | Description                             |
+| ------------- | --------- | ----------- | --------------------------------------- |
+| `limit`       | `number`  | `1000`      | Maximum results to return               |
+| `cache`       | `boolean` | `true`      | Enable/disable caching                  |
+| `ttl`         | `number`  | `604800000` | Cache TTL in milliseconds (7 days)      |
+| `concurrency` | `number`  | `3`         | Positive integer; max parallel requests |
+| `batchSize`   | `number`  | `20`        | Positive integer; items per batch       |
+| `timeout`     | `number`  | `10000`     | Request timeout in ms                   |
+| `retries`     | `number`  | `1`         | Retry attempts on failure               |
+| `apiKey`      | `string`  | -           | API key for providers that need auth    |
 
 `content()` takes two more, in `ArchiveContentOptions`:
 
