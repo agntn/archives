@@ -325,6 +325,8 @@ export interface FetchedBody {
 export interface FetchBodyPolicy {
   assertURL(url: URL): void;
   maxRedirects?: number;
+  /** Return the redirect response itself when its destination fails validation. */
+  returnRejectedRedirect?: boolean;
 }
 
 type FetchBodyOptions = Readonly<ArchiveContentOptions> & {
@@ -337,12 +339,38 @@ type PlaybackCaptureRequest = Readonly<{
   original: string;
   stamp: string;
   provider: string;
+  captureStatus?: number;
   options: Readonly<ArchiveContentOptions>;
   meta?: Readonly<Record<string, unknown>>;
   policy?: Readonly<FetchBodyPolicy>;
 }>;
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const RAW_CAPTURE_PATH = /^\d{4,14}id_\/https?:\/\//iu;
+
+function rawPlaybackPolicy(baseURL: string, prefix: string): FetchBodyPolicy {
+  const origin = new URL(baseURL).origin;
+  const pathPrefix = `${prefix.replace(/\/$/u, "")}/`;
+
+  return {
+    assertURL(url: URL) {
+      const capturePath = url.pathname.startsWith(pathPrefix)
+        ? url.pathname.slice(pathPrefix.length)
+        : "";
+      if (
+        url.origin !== origin ||
+        url.username ||
+        url.password ||
+        !RAW_CAPTURE_PATH.test(capturePath)
+      ) {
+        throw new Error("Archive playback left its raw capture endpoint");
+      }
+    },
+    // A redirect outside the playback endpoint is the response the archived
+    // site sent. Return that historical stub instead of visiting it today.
+    returnRejectedRedirect: true,
+  };
+}
 
 /* Converts one final raw response into the bounded body contract. */
 async function decodeFetchedResponse(
@@ -364,7 +392,7 @@ async function decodeFetchedResponse(
   };
 }
 
-async function fetchUncheckedBody(
+async function fetchUnredirectedBody(
   baseURL: string,
   path: string,
   options: Readonly<FetchBodyOptions>,
@@ -375,6 +403,7 @@ async function fetchUncheckedBody(
     {},
     {
       responseType: "stream",
+      redirect: "manual",
       retries: options.retries,
       signal: options.signal,
       timeout: options.timeout,
@@ -385,18 +414,13 @@ async function fetchUncheckedBody(
   return decodeFetchedResponse(response, maxBytes, `${baseURL}${path}`);
 }
 
-async function redirectDestination(
-  response: FetchResponse<unknown>,
-  current: URL,
-  redirectCount: number,
-  maxRedirects: number,
-): Promise<URL> {
+async function cancelResponseBody(response: FetchResponse<unknown>): Promise<void> {
   if (isReadableStream(response._data)) {
     await response._data.cancel().catch(() => undefined);
   }
-  if (redirectCount >= maxRedirects) {
-    throw new Error(`Archive playback exceeded ${maxRedirects} redirects`);
-  }
+}
+
+function redirectDestination(response: FetchResponse<unknown>, current: URL): URL {
   const location = headerValue(response.headers, "location");
   if (!location) throw new Error("Archive playback redirected without a Location header");
   return new URL(location, current);
@@ -429,7 +453,24 @@ async function fetchPolicyBody(
     if (!REDIRECT_STATUSES.has(response.status)) {
       return decodeFetchedResponse(response, maxBytes, current.href);
     }
-    current = await redirectDestination(response, current, redirectCount, maxRedirects);
+    if (redirectCount >= maxRedirects) {
+      await cancelResponseBody(response);
+      throw new Error(`Archive playback exceeded ${maxRedirects} redirects`);
+    }
+
+    let destination: URL;
+    try {
+      destination = redirectDestination(response, current);
+      policy.assertURL(destination);
+    } catch (error) {
+      if (policy.returnRejectedRedirect) {
+        return decodeFetchedResponse(response, maxBytes, current.href);
+      }
+      await cancelResponseBody(response);
+      throw error;
+    }
+    await cancelResponseBody(response);
+    current = destination;
   }
 }
 
@@ -438,8 +479,9 @@ async function fetchPolicyBody(
  *
  * The body is streamed rather than buffered so the cap is a real one: an
  * archived 60 MB video must not be pulled into memory to be thrown away.
- * A policy switches redirects to manual handling so every destination can be
- * checked before the network request rather than only after it has happened.
+ * Redirects are never followed implicitly. Without a policy the recorded
+ * redirect response is returned; with one, every destination is checked before
+ * its network request.
  *
  * @param baseURL - Origin of the archive endpoint
  * @param path - Path to request, already URL-shaped
@@ -458,7 +500,7 @@ export async function fetchBody(
   const maxBytes = resolveMaxBytes(options);
   return policy
     ? fetchPolicyBody(baseURL, path, options, policy, maxBytes)
-    : fetchUncheckedBody(baseURL, path, options, maxBytes);
+    : fetchUnredirectedBody(baseURL, path, options, maxBytes);
 }
 
 /**
@@ -477,12 +519,12 @@ export async function readPlaybackCapture(
   params: PlaybackCaptureRequest,
 ): Promise<ArchivedContent> {
   const { baseURL, prefix, original, stamp, provider, options } = params;
-  const body = await fetchBody(
-    baseURL,
-    `${prefix}/${stamp}id_/${original}`,
-    options,
-    params.policy,
-  );
+  const capturedRedirect =
+    params.captureStatus !== undefined && REDIRECT_STATUSES.has(params.captureStatus);
+  const policy = capturedRedirect
+    ? undefined
+    : (params.policy ?? rawPlaybackPolicy(baseURL, prefix));
+  const body = await fetchBody(baseURL, `${prefix}/${stamp}id_/${original}`, options, policy);
 
   // A playback request for a timestamp the archive does not hold redirects to
   // the capture it does hold, so the served URL is the honest one to report.

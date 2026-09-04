@@ -189,6 +189,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
         original: capture.original,
         stamp: capture.timestamp,
         provider: "archive-it",
+        captureStatus: capture.status,
         options,
         meta: { collection },
       });

@@ -34,6 +34,7 @@ const REPLAY_POLICY = {
       throw new Error("Webarchiv Österreich replay left its raw playback endpoint");
     }
   },
+  returnRejectedRedirect: true,
 } satisfies FetchBodyPolicy;
 
 interface WebarchivCapture {
@@ -226,6 +227,7 @@ export class WebarchivProvider extends BaseProvider<WebarchivOptions> {
         original: capture.url,
         stamp: capture.timestamp,
         provider: "webarchiv",
+        captureStatus: capture.status,
         options,
         policy: REPLAY_POLICY,
       });

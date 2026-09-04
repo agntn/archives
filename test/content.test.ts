@@ -9,7 +9,7 @@ import createCommonCrawl from "../src/providers/commoncrawl";
 import createArchiveToday from "../src/providers/archive-today";
 import createWebcite from "../src/providers/webcite";
 import createArchiveIt from "../src/providers/archive-it";
-import { htmlToText, unwrapSnapshotUrl } from "../src/utils";
+import { fetchBody, htmlToText, unwrapSnapshotUrl } from "../src/utils";
 
 vi.mock("ofetch", () => {
   const raw = vi.fn();
@@ -73,6 +73,25 @@ beforeEach(async () => {
   vi.resetAllMocks();
 });
 
+describe("bounded body fetches", () => {
+  it("returns a redirect response instead of following it without a policy", async () => {
+    rawMock.mockResolvedValueOnce(
+      rawResponse("", {
+        status: 302,
+        url: "https://archive.example/capture",
+        headers: { location: "http://127.0.0.1/private" },
+      }),
+    );
+
+    const body = await fetchBody("https://archive.example", "/capture");
+
+    expect(body.status).toBe(302);
+    expect(body.url).toBe("https://archive.example/capture");
+    expect(rawMock).toHaveBeenCalledTimes(1);
+    expect(rawMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "manual" });
+  });
+});
+
 describe("wayback content", () => {
   it("reads the newest capture through the id_ playback modifier", async () => {
     fetchMock.mockResolvedValueOnce(
@@ -110,6 +129,63 @@ describe("wayback content", () => {
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       params: objectContaining({ limit: "-5", url: "example.com" }),
     });
+  });
+
+  it.each([
+    ["another host", "http://127.0.0.1/private"],
+    ["a non-capture path", "https://web.archive.org/private"],
+    [
+      "a rewritten raw destination",
+      "https://web.archive.org/web/20200202000000id_/https://destination.example/",
+    ],
+    [
+      "URL credentials",
+      "https://user:secret@web.archive.org/web/20200202000000id_/https://example.com/",
+    ],
+  ])("does not follow an archived redirect to %s", async (_case, location) => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20200202000000", "302"]]));
+    rawMock.mockResolvedValueOnce(
+      rawResponse("", {
+        status: 302,
+        url: "https://web.archive.org/web/20200202000000id_/https://example.com/",
+        headers: { location },
+      }),
+    );
+
+    const response = await createArchive(createWayback()).content("example.com", {
+      timestamp: "20200202000000",
+    });
+
+    expect(response.success).toBe(true);
+    expect(response.content?._meta.status).toBe(302);
+    expect(rawMock).toHaveBeenCalledTimes(1);
+    expect(rawMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "manual" });
+  });
+
+  it("follows a playback redirect that stays on the archive's raw endpoint", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20200202000000", "200"]]));
+    rawMock
+      .mockResolvedValueOnce(
+        rawResponse("", {
+          status: 302,
+          url: "https://web.archive.org/web/20200202000000id_/https://example.com/",
+          headers: {
+            location: "/web/20200303000000id_/https://example.com/",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        rawResponse("redirected capture", {
+          url: "https://web.archive.org/web/20200303000000id_/https://example.com/",
+        }),
+      );
+
+    const response = await createArchive(createWayback()).content("example.com");
+
+    expect(response.success).toBe(true);
+    expect(response.content?.content).toBe("redirected capture");
+    expect(response.content?.timestamp).toBe("2020-03-03T00:00:00Z");
+    expect(rawMock).toHaveBeenCalledTimes(2);
   });
 
   it("skips a failed capture in favour of the nearest successful one", async () => {
@@ -588,6 +664,56 @@ describe("archive-today content", () => {
     expect(response.content?.snapshot).toBe(
       "http://archive.md/20200606060606/https://example.com/",
     );
+  });
+
+  it("follows a capture redirect between Archive.today aliases", async () => {
+    fetchMock.mockResolvedValueOnce(timemap);
+    rawMock
+      .mockResolvedValueOnce(
+        rawResponse("", {
+          status: 302,
+          url: "http://archive.md/20210326214327/https://example.com/",
+          headers: {
+            location: "https://archive.fo/20210326214327/https://example.com/",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        rawResponse("<html>aliased capture</html>", {
+          url: "https://archive.fo/20210326214327/https://example.com/",
+          headers: { "memento-datetime": "Fri, 26 Mar 2021 21:43:27 GMT" },
+        }),
+      );
+
+    const response = await createArchive(createArchiveToday()).content("example.com");
+
+    expect(response.success).toBe(true);
+    expect(response.content?.content).toBe("<html>aliased capture</html>");
+    expect(rawMock.mock.calls[1]?.[1]).toMatchObject({
+      baseURL: "https://archive.fo",
+      redirect: "manual",
+    });
+  });
+
+  it.each([
+    ["another host", "http://127.0.0.1/private"],
+    ["a deceptive hostname", "https://archive.is.evil.example/20210326214327/example.com"],
+    ["a non-capture path", "https://archive.is/error/403"],
+  ])("refuses an Archive.today redirect to %s", async (_case, location) => {
+    fetchMock.mockResolvedValueOnce(timemap);
+    rawMock.mockResolvedValueOnce(
+      rawResponse("", {
+        status: 302,
+        url: "http://archive.md/20210326214327/https://example.com/",
+        headers: { location },
+      }),
+    );
+
+    const response = await createArchive(createArchiveToday()).content("example.com");
+
+    expect(response.success).toBe(false);
+    expect(response.error).toBe("Archive.today playback left its capture endpoint");
+    expect(rawMock).toHaveBeenCalledTimes(1);
   });
 
   it("refuses a body that arrives without a Memento-Datetime header", async () => {
