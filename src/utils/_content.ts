@@ -339,6 +339,7 @@ type PlaybackCaptureRequest = Readonly<{
   original: string;
   stamp: string;
   provider: string;
+  captureStatus?: number;
   options: Readonly<ArchiveContentOptions>;
   meta?: Readonly<Record<string, unknown>>;
   policy?: Readonly<FetchBodyPolicy>;
@@ -518,12 +519,12 @@ export async function readPlaybackCapture(
   params: PlaybackCaptureRequest,
 ): Promise<ArchivedContent> {
   const { baseURL, prefix, original, stamp, provider, options } = params;
-  const body = await fetchBody(
-    baseURL,
-    `${prefix}/${stamp}id_/${original}`,
-    options,
-    params.policy ?? rawPlaybackPolicy(baseURL, prefix),
-  );
+  const capturedRedirect =
+    params.captureStatus !== undefined && REDIRECT_STATUSES.has(params.captureStatus);
+  const policy = capturedRedirect
+    ? undefined
+    : (params.policy ?? rawPlaybackPolicy(baseURL, prefix));
+  const body = await fetchBody(baseURL, `${prefix}/${stamp}id_/${original}`, options, policy);
 
   // A playback request for a timestamp the archive does not hold redirects to
   // the capture it does hold, so the served URL is the honest one to report.

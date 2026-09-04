@@ -227,7 +227,9 @@ describe("Webarchiv Österreich", () => {
   });
 
   it("returns a recorded redirect outside Webarchiv Österreich without following it", async () => {
-    fetchMock.mockResolvedValueOnce(cdx("20200203040506"));
+    fetchMock.mockResolvedValueOnce(
+      cdx("20200203040506", "https://www.onb.ac.at/", { status: "302" }),
+    );
     rawMock.mockResolvedValueOnce(
       rawResponse("", {
         status: 302,
@@ -246,7 +248,9 @@ describe("Webarchiv Österreich", () => {
   });
 
   it("returns a redirect that leaves the replay path without following it", async () => {
-    fetchMock.mockResolvedValueOnce(cdx("20200203040506"));
+    fetchMock.mockResolvedValueOnce(
+      cdx("20200203040506", "https://www.onb.ac.at/", { status: "302" }),
+    );
     rawMock
       .mockResolvedValueOnce(
         rawResponse("", {

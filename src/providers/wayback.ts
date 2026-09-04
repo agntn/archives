@@ -167,6 +167,7 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
         original: capture.original,
         stamp: capture.timestamp,
         provider: "wayback",
+        captureStatus: capture.status,
         options,
       });
 

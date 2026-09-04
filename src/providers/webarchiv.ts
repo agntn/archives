@@ -227,6 +227,7 @@ export class WebarchivProvider extends BaseProvider<WebarchivOptions> {
         original: capture.url,
         stamp: capture.timestamp,
         provider: "webarchiv",
+        captureStatus: capture.status,
         options,
         policy: REPLAY_POLICY,
       });

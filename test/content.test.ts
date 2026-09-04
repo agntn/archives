@@ -135,6 +135,10 @@ describe("wayback content", () => {
     ["another host", "http://127.0.0.1/private"],
     ["a non-capture path", "https://web.archive.org/private"],
     [
+      "a rewritten raw destination",
+      "https://web.archive.org/web/20200202000000id_/https://destination.example/",
+    ],
+    [
       "URL credentials",
       "https://user:secret@web.archive.org/web/20200202000000id_/https://example.com/",
     ],

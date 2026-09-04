@@ -246,6 +246,7 @@ export class ArquivoProvider extends BaseProvider<ArquivoOptions> {
         original: capture.url,
         stamp: capture.timestamp,
         provider: "arquivo",
+        captureStatus: capture.status,
         options,
       });
       return createContentResponse(decoratePlayback(playback, capture), "arquivo", {
