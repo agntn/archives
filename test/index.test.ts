@@ -111,6 +111,19 @@ describe("createArchive", () => {
     );
   });
 
+  it.each([
+    ["concurrency", { concurrency: 0 }],
+    ["batchSize", { batchSize: 0 }],
+  ] as const)("rejects invalid %s before calling a single provider", async (name, options) => {
+    const provider = successProvider("unused", []);
+    const archive = createArchive(provider, options);
+
+    await expect(archive.snapshots("example.com")).rejects.toThrow(
+      `${name} must be a positive integer`,
+    );
+    expect(provider.snapshots).not.toHaveBeenCalled();
+  });
+
   it("keeps snapshots callable when passed as a callback", async () => {
     const archive = createArchive(successProvider("callback", []), { cache: false });
     /* oxlint-disable-next-line typescript/unbound-method -- extraction is the behavior under test; Archive binds this method. */
