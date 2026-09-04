@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.5.4
+
+[compare changes](https://github.com/agntn/archives/compare/v0.5.3...v0.5.4)
+
+### 🚀 Enhancements
+
+- Add archived content pagination ([#65](https://github.com/agntn/archives/pull/65))
+- Compare archived captures ([#68](https://github.com/agntn/archives/pull/68))
+- **docs:** Explorer site on Cloudflare Workers ([#69](https://github.com/agntn/archives/pull/69))
+- **docs:** Investigate archives with WebMCP ([#71](https://github.com/agntn/archives/pull/71))
+
+### 🩹 Fixes
+
+- Keep query URLs distinct in content cache ([#67](https://github.com/agntn/archives/pull/67))
+- **docs:** Give Wayback listings time to answer ([#70](https://github.com/agntn/archives/pull/70))
+
+### ❤️ Contributors
+
+- Ori ([@oritwoen](https://github.com/oritwoen))
+- Aeitwoen ([@aeitwoen](https://github.com/aeitwoen))
+
 ## v0.5.3
 
 [compare changes](https://github.com/agntn/archives/compare/v0.5.2...v0.5.3)
