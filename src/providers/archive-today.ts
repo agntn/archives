@@ -1,5 +1,6 @@
 import { consola } from "consola";
 import { $fetch } from "ofetch";
+import { withRequestTimeout } from "../utils/_fetch";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -248,14 +249,17 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
     const fullUrl = target.includes("://") ? target : `http://${target}`;
     const timemapUrl = `/timemap/${fullUrl}`;
 
-    const timemapResponse = await $fetch(timemapUrl, {
-      baseURL,
-      signal: options.signal,
-      retry: options.retries ?? 5,
-      timeout: options.timeout ?? 60000,
-      responseType: "text",
-      headers: withUserAgent(),
-    });
+    const timemapResponse = await $fetch(
+      timemapUrl,
+      withRequestTimeout({
+        baseURL,
+        signal: options.signal,
+        retry: options.retries ?? 5,
+        timeout: options.timeout ?? 60000,
+        responseType: "text",
+        headers: withUserAgent(),
+      }),
+    );
 
     // Memento link header format:
     // <http://archive.md/20140101030405/https://example.com/>; rel="memento"; datetime="Wed, 01 Jan 2014 03:04:05 GMT"

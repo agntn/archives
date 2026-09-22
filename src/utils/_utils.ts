@@ -12,6 +12,7 @@ import type {
   ResponseMetadata,
 } from "../types";
 import { getConfig } from "../config";
+import { withRequestTimeout } from "./_fetch";
 
 const ALLOWED_WAYBACK_TIMESTAMP_LENGTHS = new Set([4, 6, 8, 10, 12, 14]);
 
@@ -412,12 +413,11 @@ export async function createFetchOptions(
 ): Promise<FetchOptions> {
   const config = await getConfig();
 
-  return {
+  return withRequestTimeout({
     method: "GET",
     baseURL,
     params,
     retry: options.retries ?? config.performance.retries,
-    timeout: options.timeout ?? config.performance.timeout,
     signal: options.signal,
     retryDelay: 300, // Add delay between retries
     retryStatusCodes: [408, 409, 425, 429, 500, 502, 503, 504], // Standard retry status codes
@@ -427,10 +427,11 @@ export async function createFetchOptions(
       );
     },
     ...options,
+    timeout: options.timeout ?? config.performance.timeout,
     headers: withUserAgent(
       options.headers as Readonly<Record<string, string>> | Headers | undefined,
     ),
-  };
+  });
 }
 
 /** How every request introduces itself; the Wayback CDX API answers 400 to a request without one. */
