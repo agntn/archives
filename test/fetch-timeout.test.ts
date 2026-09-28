@@ -253,7 +253,9 @@ describe("request timeouts with cancellation", () => {
       arguments: {
         target: "https://example.com/",
         provider: "wayback",
-        timestamp: "20200101000000",
+        // A full timestamp is replayed without the index, so only a year keeps
+        // the index timeout in the path.
+        timestamp: "2020",
         cache: false,
         retries: 0,
         timeout: 20,

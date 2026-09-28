@@ -19,6 +19,7 @@ import {
   readPlaybackCapture,
   resolveRequestedTimestamp,
   selectCapture,
+  unwrapSnapshotUrl,
   toWaybackTimestamp,
 } from "../utils";
 import { BaseProvider } from "./base-provider";
@@ -129,7 +130,9 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
    *
    * Two steps, because the archive answers them at different endpoints: CDX says
    * which capture exists at the requested instant, and the playback endpoint
-   * replays that capture's original bytes.
+   * replays that capture's original bytes. A full URL with a full timestamp
+   * already names its capture, so the replay still runs when CDX is down and
+   * `_meta.selection` reads `pinned`.
 
    *
    * @param url - Url.
@@ -148,7 +151,13 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
       }
 
       const wanted = resolveRequestedTimestamp(options.timestamp);
-      const captures = await this.findCaptures(target, wanted, options);
+      let captures: CdxCapture[];
+      try {
+        captures = await this.findCaptures(target, wanted, options);
+      } catch (error) {
+        return await this.readPinned(url, wanted, options, error);
+      }
+
       const capture = selectCapture(
         preferSameUrl(captures, url, (candidate) => candidate.original),
         wanted,
@@ -177,6 +186,42 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
     } catch (error) {
       return createContentErrorResponse(error, "wayback");
     }
+  }
+
+  /*
+   * A full timestamp on a full URL names one capture, so an index that cannot
+   * answer is not needed to read it, provided the archive serves that very
+   * stamp. Anything less precise, or a substituted capture, still needs the
+   * index to choose, and its failure stays the answer.
+   */
+  private async readPinned(
+    url: string,
+    wanted: string,
+    options: Readonly<ArchiveContentOptions>,
+    indexError: unknown,
+  ): Promise<ArchiveContentResponse> {
+    const pinned = pinnedCapture(url, wanted);
+    if (!pinned || options.signal?.aborted) throw indexError;
+
+    const content = await readPlaybackCapture({
+      baseURL: BASE_URL,
+      prefix: "/web",
+      original: pinned.original,
+      stamp: pinned.stamp,
+      provider: "wayback",
+      options,
+      meta: { selection: "pinned" },
+    });
+    // The archive redirects a stamp it never captured, or a URL it keeps under
+    // another spelling, to the nearest capture it holds. Choosing that capture is
+    // the index's job, so a replay that moved leaves the index failure as the answer.
+    const { rawSnapshot } = content._meta;
+    const served = unwrapSnapshotUrl(typeof rawSnapshot === "string" ? rawSnapshot : "");
+    if (served.timestamp && (served.timestamp !== pinned.stamp || served.url !== pinned.original)) {
+      throw indexError;
+    }
+
+    return createContentResponse(content, "wayback", { requestedTimestamp: wanted });
   }
 
   /**
@@ -244,6 +289,16 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
 
     return captures;
   }
+}
+
+/* The capture a full URL and a full 14-digit timestamp name without the index. */
+function pinnedCapture(
+  url: string,
+  wanted: string,
+): { original: string; stamp: string } | undefined {
+  const original = url.trim();
+  if (!/^\d{14}$/u.test(wanted) || !/^https?:\/\//iu.test(original)) return undefined;
+  return { original, stamp: wanted };
 }
 
 export default function wayback(initOptions: Readonly<WaybackOptions> = {}): WaybackProvider {
