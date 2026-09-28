@@ -602,6 +602,21 @@ describe("archive-today content", () => {
     );
   });
 
+  it("reports a never-captured URL as a missing capture, not a timemap failure", async () => {
+    fetchMock.mockRejectedValueOnce(
+      Object.assign(new Error("404 Not Found"), {
+        statusCode: 404,
+        data: "TimeMap does not exists. The archive has no Mementos for the requested URI\n",
+      }),
+    );
+
+    const response = await createArchive(createArchiveToday()).content("example.com/never");
+
+    expect(response.success).toBe(false);
+    expect(response.error).toBe("No Archive.today capture for example.com/never");
+    expect(rawMock).not.toHaveBeenCalled();
+  });
+
   it("picks the capture the requested instant means, not the newest one", async () => {
     fetchMock.mockResolvedValueOnce(timemap);
     rawMock.mockResolvedValueOnce(

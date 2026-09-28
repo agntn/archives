@@ -15,6 +15,7 @@ import {
   createContentErrorResponse,
   createContentResponse,
   fetchBody,
+  isNoCaptureError,
   normalizeDomain,
   preferSameUrl,
   resolveRequestedTimestamp,
@@ -30,6 +31,8 @@ interface ArchiveTodayCapture {
   timestamp: string;
 }
 
+/** What the timemap answers, as a 404, for a URL Archive.today never captured. */
+const NO_MEMENTOS = "no Mementos for the requested URI";
 const ARCHIVE_TODAY_HOST = /^archive\.(?:fo|is|li|md|ph|today|vn)$/iu;
 const ARCHIVE_TODAY_CAPTURE_PATH = /^\/\d{8,14}\/[^/]/u;
 const ARCHIVE_TODAY_PLAYBACK_POLICY = {
@@ -234,6 +237,10 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
    * listing. Fully qualified URLs stay exactly as the timemap recorded them:
    * scheme, duplicate path separators, and a trailing slash can all distinguish
    * one archived resource from another.
+   *
+   * A URL that was never captured has no timemap, and the endpoint says so with
+   * a 404 and a fixed sentence. That answer is an empty list, not an outage;
+   * any other failure still throws.
 
    *
    * @param target - Target.
@@ -249,17 +256,23 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
     const fullUrl = target.includes("://") ? target : `http://${target}`;
     const timemapUrl = `/timemap/${fullUrl}`;
 
-    const timemapResponse = await $fetch(
-      timemapUrl,
-      withRequestTimeout({
-        baseURL,
-        signal: options.signal,
-        retry: options.retries ?? 5,
-        timeout: options.timeout ?? 60000,
-        responseType: "text",
-        headers: withUserAgent(),
-      }),
-    );
+    let timemapResponse: string;
+    try {
+      timemapResponse = await $fetch(
+        timemapUrl,
+        withRequestTimeout({
+          baseURL,
+          signal: options.signal,
+          retry: options.retries ?? 5,
+          timeout: options.timeout ?? 60000,
+          responseType: "text",
+          headers: withUserAgent(),
+        }),
+      );
+    } catch (error) {
+      if (!isNoCaptureError(error, NO_MEMENTOS)) throw error;
+      return [];
+    }
 
     // Memento link header format:
     // <http://archive.md/20140101030405/https://example.com/>; rel="memento"; datetime="Wed, 01 Jan 2014 03:04:05 GMT"

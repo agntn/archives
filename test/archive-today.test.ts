@@ -168,19 +168,34 @@ describe("archive.today", () => {
     expect($fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("handles empty results from Memento API", async () => {
-    const mockEmptyResponse =
-      "TimeMap does not exists. The archive has no Mementos for the requested URI";
+  it("lists nothing for a URL the timemap answers 404 as never captured", async () => {
+    const noMementos = Object.assign(new Error("404 Not Found"), {
+      statusCode: 404,
+      data: "TimeMap does not exists. The archive has no Mementos for the requested URI\n",
+    });
+    vi.mocked($fetch).mockRejectedValueOnce(noMementos);
 
-    vi.mocked($fetch).mockResolvedValueOnce(mockEmptyResponse);
-
-    const archiveInstance = createArchiveToday();
-    const archive = createArchiveClient(archiveInstance);
+    const archive = createArchiveClient(createArchiveToday());
     const result = await archive.snapshots("nonexistent-domain.com");
 
     expect(result.success).toBe(true);
+    expect(result.error).toBeUndefined();
     expect(result.pages).toHaveLength(0);
     expect(result._meta?.source).toBe("archive-today");
+  });
+
+  it("keeps other 404 responses as errors", async () => {
+    const notFound = Object.assign(new Error("404 Not Found"), {
+      statusCode: 404,
+      data: "<html>Not Found</html>",
+    });
+    vi.mocked($fetch).mockRejectedValueOnce(notFound);
+
+    const archive = createArchiveClient(createArchiveToday());
+    const result = await archive.snapshots("example.com");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("404 Not Found");
   });
 
   it("handles empty response from both APIs", async () => {

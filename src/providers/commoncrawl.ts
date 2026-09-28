@@ -22,6 +22,7 @@ import {
   decodeArchivedBody,
   decodeContentEncoding,
   decompress,
+  isNoCaptureError,
   parseHttpHeaders,
   preferSameUrl,
   resolveMaxBytes,
@@ -36,6 +37,8 @@ import { BaseProvider } from "./base-provider";
 
 const BASE_URL = "https://index.commoncrawl.org";
 const DATA_BASE_URL = "https://data.commoncrawl.org";
+/** What the CDX index answers, as a 404, for a URL it never captured. */
+const NO_CAPTURES = "No Captures found";
 
 /**
  * Captures pulled for one URL before the closest is picked locally.
@@ -242,7 +245,7 @@ async function fetchIndexRecords(
     const raw: unknown = await $fetch(`/${path}`, fetchOptions);
     return { records: parseIndexRecords(raw), queryParams: fetchOptions.params };
   } catch (error) {
-    if (!isNoCapturesError(error)) throw error;
+    if (!isNoCaptureError(error, NO_CAPTURES)) throw error;
     return { records: [], queryParams: fetchOptions.params };
   }
 }
@@ -506,24 +509,6 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       contentType,
     );
   }
-}
-
-/*
- * Whether a thrown index error is the CDX way of saying the URL was never
- * captured: the endpoint answers 404 with a JSON `No Captures found` message
- * instead of an empty body, so a missing page would otherwise read as an
- * outage. Every other 404 keeps meaning failure.
- */
-function isNoCapturesError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const { status, statusCode, data } = error as {
-    status?: unknown;
-    statusCode?: unknown;
-    data?: unknown;
-  };
-  if (status !== 404 && statusCode !== 404) return false;
-  const body = typeof data === "string" ? data : data ? JSON.stringify(data) : "";
-  return body.includes("No Captures found");
 }
 
 /* Parses the newline-delimited JSON the CDX index answers with. */

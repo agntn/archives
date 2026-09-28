@@ -309,6 +309,28 @@ export function toErrorMessage(error: unknown): string {
 }
 
 /**
+ * Whether a thrown request error is an archive's way of saying the URL was
+ * never captured. Some indexes answer 404 with a fixed message instead of an
+ * empty list, so a missing page would otherwise read as an outage. Only the
+ * archive's own wording counts: every other 404 keeps meaning failure.
+ *
+ * @param error - Error thrown by the request.
+ * @param marker - Text the archive puts in its no-capture body.
+ * @returns {boolean} True for a 404 whose body carries the marker.
+ */
+export function isNoCaptureError(error: unknown, marker: string): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { status, statusCode, data } = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    data?: unknown;
+  };
+  if (status !== 404 && statusCode !== 404) return false;
+  const body = typeof data === "string" ? data : data ? JSON.stringify(data) : "";
+  return body.includes(marker);
+}
+
+/**
  * Creates a standardized success response for a read archived body.
  *
  * @param content - The capture that was read
