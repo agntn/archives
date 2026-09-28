@@ -1,4 +1,4 @@
-import { objectContaining, rangeDescription, stringContaining } from "./_matchers";
+import { objectContaining, rangeDescription } from "./_matchers";
 import type {
   AgentToolResult,
   ExtensionAPI,
@@ -26,6 +26,7 @@ import {
   SNAPSHOT_TO_HINT,
   normalizeFormat,
   normalizeProvider,
+  snapshotArchives,
 } from "../src/tool-operations";
 import type { ArchiveContentResponse, ArchiveResponse } from "../src/types";
 
@@ -296,6 +297,45 @@ describe("Pi extension", () => {
     );
   });
 
+  // Pi ignores a returned `isError`; only a throw marks the tool result failed.
+  it("throws a failed read so Pi records it as an error", async () => {
+    archivesMock.content.mockRejectedValue(new Error("fixture CDX 503"));
+    const tool = getExecutableTool(loadExtension().tools, "archives_content");
+
+    await expect(
+      tool.execute(
+        "test",
+        { target: "https://example.com/old", provider: "wayback", cache: false },
+        undefined,
+        undefined,
+        {} as ExtensionContext,
+      ),
+    ).rejects.toThrow(
+      '[provider=wayback] no capture read for "https://example.com/old"\n\nError: fixture CDX 503',
+    );
+  });
+
+  it("throws when no capture pair can be compared", async () => {
+    archivesMock.content.mockRejectedValue(new Error("fixture CDX 503"));
+    const tool = getExecutableTool(loadExtension().tools, "archives_diff");
+
+    await expect(
+      tool.execute(
+        "test",
+        {
+          target: "https://example.com/old",
+          provider: "wayback",
+          before: "2019",
+          after: "2021",
+          cache: false,
+        },
+        undefined,
+        undefined,
+        {} as ExtensionContext,
+      ),
+    ).rejects.toThrow('no comparable capture pair for "https://example.com/old"');
+  });
+
   it("rejects an offset beyond the shared executor bound", async () => {
     const tool = getExecutableTool(loadExtension().tools, "archives_content");
 
@@ -363,14 +403,14 @@ describe("Pi extension", () => {
     );
     controller.abort(new Error("cancelled by test"));
 
-    const result = await execution;
-    expect(result.isError).toBe(true);
-    expect(result.content[0]).toEqual(
-      objectContaining({ type: "text", text: stringContaining("cancelled by test") }),
+    await expect(execution).rejects.toThrow("cancelled by test");
+    // OMP still receives the failed result itself, so its details must not carry the signal.
+    const failed = await snapshotArchives(
+      { target: "example.com", provider: "wayback", cache: false },
+      controller.signal,
     );
-    expect((result.details as { options: Record<string, unknown> }).options).not.toHaveProperty(
-      "signal",
-    );
+    expect(failed.isError).toBe(true);
+    expect(failed.details.options).not.toHaveProperty("signal");
   });
   it("declares the schema bounds the shared executors enforce", () => {
     const tool = getExecutableTool(loadExtension().tools, "archives");
