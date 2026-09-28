@@ -1453,6 +1453,21 @@ function formatContinuation(continuation: Readonly<ContentContinuation>): string
   return `continue: target=${JSON.stringify(sanitizeField(continuation.target))}; provider=${sanitizeField(continuation.provider)}; timestamp=${JSON.stringify(sanitizeField(continuation.timestamp))}; format=${continuation.format}${collection}; offset=${continuation.offset}`;
 }
 
+/*
+ * What the archived site answered, and for a redirect where it pointed. The
+ * destination is recorded text: it is quoted here and never fetched.
+ */
+function captureStatusLine(meta: Readonly<Record<string, unknown>>): string[] {
+  const { status, location } = meta;
+  if (typeof status !== "number") return [];
+
+  const redirectNote =
+    typeof location === "string" && location
+      ? `; redirects to: ${JSON.stringify(sanitizeField(location))} (recorded, not followed)`
+      : "";
+  return [`status: ${status}${redirectNote}`];
+}
+
 function buildContentHeader(
   provider: ProviderName,
   target: string,
@@ -1477,6 +1492,7 @@ function buildContentHeader(
     `url: ${sanitizeField(capture.url)}`,
     `captured: ${sanitizeField(capture.timestamp)}`,
     `snapshot: ${sanitizeField(capture.snapshot)}`,
+    ...captureStatusLine(capture._meta),
     `type: ${sanitizeField(capture.mime ?? "unknown")}; ${capture.bytes} bytes read${truncatedNote}${sliceNote}`,
     ...continuationLine,
   ].join("\n");

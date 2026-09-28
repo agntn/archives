@@ -319,6 +319,8 @@ export interface FetchedBody {
   url: string;
   /** Capture date from the `Memento-Datetime` header, when the archive sends one. */
   capturedAt?: string;
+  /** Destination the archived site named in a redirect response, kept as data and never visited. */
+  redirect?: string;
 }
 
 /** Optional validation for each URL in a playback redirect chain. */
@@ -346,6 +348,8 @@ type PlaybackCaptureRequest = Readonly<{
 }>;
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+/** Longest archived redirect destination kept; the header is a hint, not a copy of the response. */
+const MAX_REDIRECT_LENGTH = 2048;
 const RAW_CAPTURE_PATH = /^\d{4,14}id_\/https?:\/\//iu;
 
 function rawPlaybackPolicy(baseURL: string, prefix: string): FetchBodyPolicy {
@@ -380,15 +384,18 @@ async function decodeFetchedResponse(
 ): Promise<FetchedBody> {
   const contentType = headerValue(response.headers, "content-type");
   const { bytes, truncated } = await readCappedBytes(response._data, maxBytes);
+  const status = typeof response.status === "number" ? response.status : 200;
+  const location = REDIRECT_STATUSES.has(status) ? headerValue(response.headers, "location") : "";
 
   return {
     text: decodeBytes(bytes, charsetOf(contentType, bytes)),
     bytes: bytes.byteLength,
     truncated,
     mime: baseMime(contentType),
-    status: typeof response.status === "number" ? response.status : 200,
+    status,
     url: typeof response.url === "string" && response.url ? response.url : fallbackURL,
     capturedAt: parseMementoDatetime(headerValue(response.headers, "memento-datetime")),
+    ...(location ? { redirect: location.slice(0, MAX_REDIRECT_LENGTH) } : {}),
   };
 }
 
@@ -547,6 +554,7 @@ export async function readPlaybackCapture(
       status: body.status,
       provider,
       rawSnapshot: body.url,
+      ...(body.redirect ? { location: body.redirect } : {}),
       ...params.meta,
     },
   };

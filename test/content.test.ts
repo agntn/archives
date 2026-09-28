@@ -162,6 +162,95 @@ describe("wayback content", () => {
     expect(rawMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "manual" });
   });
 
+  it("keeps the destination a captured redirect recorded, without visiting it", async () => {
+    fetchMock.mockResolvedValue(cdxRows([["https://example.com/old", "20200202000000", "301"]]));
+    rawMock.mockResolvedValue(
+      rawResponse("<h1>301 Moved Permanently</h1>", {
+        status: 301,
+        url: "https://web.archive.org/web/20200202000000id_/https://example.com/old",
+        headers: { "content-type": "text/html", location: "https://example.org/new" },
+      }),
+    );
+    const { contentArchives } = await import("../src/tool-operations");
+
+    const library = await createArchive(createWayback()).content("example.com/old", {
+      cache: false,
+    });
+    const tool = await contentArchives({
+      target: "example.com/old",
+      provider: "wayback",
+      cache: false,
+    });
+
+    expect(library.content?._meta).toMatchObject({
+      status: 301,
+      location: "https://example.org/new",
+    });
+    expect(tool.content[0]?.text).toContain("status: 301");
+    expect(tool.content[0]?.text).toContain('redirects to: "https://example.org/new"');
+    // The destination is provenance: each of the two reads made one raw request
+    // for the capture and none for the destination.
+    expect(rawMock).toHaveBeenCalledTimes(2);
+    expect(rawMock.mock.calls.map(([path]) => path)).toEqual([
+      "/web/20200202000000id_/https://example.com/old",
+      "/web/20200202000000id_/https://example.com/old",
+    ]);
+  });
+
+  it("keeps the Location of a redirect the raw endpoint policy refused", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20200202000000", "200"]]));
+    rawMock.mockResolvedValueOnce(
+      rawResponse("", {
+        status: 302,
+        url: "https://web.archive.org/web/20200202000000id_/https://example.com/",
+        headers: { location: "http://127.0.0.1/private" },
+      }),
+    );
+
+    const response = await createArchive(createWayback()).content("example.com");
+
+    expect(response.content?._meta.location).toBe("http://127.0.0.1/private");
+    expect(rawMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Location on a capture that is not a redirect", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20200202000000", "200"]]));
+    rawMock.mockResolvedValueOnce(
+      rawResponse("page", {
+        url: "https://web.archive.org/web/20200202000000id_/https://example.com/",
+        headers: { location: "https://example.org/elsewhere" },
+      }),
+    );
+
+    const response = await createArchive(createWayback()).content("example.com");
+
+    expect(response.content?._meta).not.toHaveProperty("location");
+  });
+
+  it("bounds and sanitizes a hostile Location before it reaches a header", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20200202000000", "301"]]));
+    rawMock.mockResolvedValueOnce(
+      rawResponse("", {
+        status: 301,
+        url: "https://web.archive.org/web/20200202000000id_/https://example.com/",
+        headers: { location: `https://example.org/${"a".repeat(5000)}\u001B[31m` },
+      }),
+    );
+    const { contentArchives } = await import("../src/tool-operations");
+
+    const tool = await contentArchives({
+      target: "example.com",
+      provider: "wayback",
+      cache: false,
+    });
+
+    const location = (tool.details.response.content?._meta.location as string | undefined) ?? "";
+    // Control: the destination was kept, so the bounds below are about it.
+    expect(location.length).toBeGreaterThan(0);
+    expect(location.length).toBeLessThanOrEqual(2048);
+    expect(tool.content[0]?.text).not.toContain("\u001B");
+  });
+
   it("follows a playback redirect that stays on the archive's raw endpoint", async () => {
     fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20200202000000", "200"]]));
     rawMock
