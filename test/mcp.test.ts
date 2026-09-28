@@ -511,6 +511,32 @@ describe("archives MCP server", () => {
     expect(widest).toBe(2);
   });
 
+  it("keeps provider requests of a fanned-out batch within the requested concurrency", async () => {
+    let running = 0;
+    let widest = 0;
+    const snapshots = vi.fn(async () => {
+      running += 1;
+      widest = Math.max(widest, running);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      running -= 1;
+      return success([page()]);
+    });
+    const fake = (slug: string) => ({ name: slug, slug, snapshots });
+    providersMock.all.mockResolvedValue([fake("wayback"), fake("arquivo"), fake("commoncrawl")]);
+    const client = await connectTestClient();
+
+    const targets = ["a.example", "b.example", "c.example", "d.example"];
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: targets, concurrency: 3, cache: false },
+    });
+
+    expect(response.isError).toBeUndefined();
+    expect(snapshots).toHaveBeenCalledTimes(targets.length * 3);
+    // One target at a time, its three providers in parallel: never 3 × 3.
+    expect(widest).toBe(3);
+  });
+
   it("rejects a batch that is empty, too long or holds a blank target", async () => {
     const client = await connectTestClient();
 

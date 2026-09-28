@@ -383,7 +383,7 @@ export async function snapshotArchives(
  * Looks up snapshots for one target or a batch of them, as the snapshot tool does.
  *
  * A single target answers exactly like {@link snapshotArchives}. A batch shares one
- * provider and one set of options, runs the targets through `concurrency`, and
+ * provider and one set of options, keeps provider requests within `concurrency`, and
  * answers with one block per target in input order, so a target no provider
  * answered costs its own block and not the call. The call is marked failed only
  * when no target got an answer.
@@ -408,6 +408,11 @@ export async function snapshotBatchArchives(
   const options = { ...buildSnapshotOptions(params, provider), signal };
   const archiveProvider = await createProvider(provider, options);
   const archive = createArchive(archiveProvider, options);
+  // `concurrency` caps provider requests, and each lookup already fans out to
+  // up to that many providers on its own, so targets share what is left.
+  const providerCount = Array.isArray(archiveProvider) ? archiveProvider.length : 1;
+  const limit = options.concurrency ?? (await getConfig()).performance.concurrency ?? 3;
+  const targetConcurrency = Math.max(1, Math.floor(limit / Math.min(providerCount, limit)));
   // processInParallel logs a rejection and drops its item, which would shift
   // every later block onto the wrong target. What throws here (an inverted
   // window, a provider that fails to load) is the same for every target, so it
@@ -419,7 +424,7 @@ export async function snapshotBatchArchives(
         (response): SnapshotBatchItem => ({ target, count: response.pages.length, response }),
         (error: unknown) => ({ error }),
       ),
-    { concurrency: options.concurrency },
+    { concurrency: targetConcurrency },
   );
   const items = settled.map((item) => {
     if ("error" in item) throw item.error;
