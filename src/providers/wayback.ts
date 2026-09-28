@@ -215,7 +215,8 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
     // The archive redirects a stamp it never captured, or a URL it keeps under
     // another spelling, to the nearest capture it holds. Choosing that capture is
     // the index's job, so a replay that moved leaves the index failure as the answer.
-    const served = unwrapSnapshotUrl(String(content._meta.rawSnapshot ?? ""));
+    const { rawSnapshot } = content._meta;
+    const served = unwrapSnapshotUrl(typeof rawSnapshot === "string" ? rawSnapshot : "");
     if (served.timestamp && (served.timestamp !== pinned.stamp || served.url !== pinned.original)) {
       throw indexError;
     }
