@@ -2,8 +2,8 @@ import { homedir } from "node:os";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { defineCommand } from "citty";
 import { consola, LogLevels } from "consola";
-import { setConfigCwd } from "../config";
-import { createMcpServer } from "../mcp";
+import { setConfigCwd } from "../config.ts";
+import { createMcpServer } from "../mcp.ts";
 
 export default defineCommand({
   meta: {

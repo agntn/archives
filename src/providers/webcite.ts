@@ -3,10 +3,10 @@ import type {
   ArchiveContentResponse,
   ArchiveProvider,
   ArchiveResponse,
-} from "../types";
-import type { WebCiteOptions } from "../_providers";
-import { createUnsupportedContentResponse, createUnsupportedResponse } from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../types.ts";
+import type { WebCiteOptions } from "../_providers.ts";
+import { createUnsupportedContentResponse, createUnsupportedResponse } from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 const UNSUPPORTED_LIST_REASON =
   "WebCite has no list-by-domain API. Existing snapshots can be fetched directly via webcitation.org/<id>; new archives have not been accepted since ~2019.";

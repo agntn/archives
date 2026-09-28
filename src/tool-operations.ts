@@ -11,10 +11,10 @@ import { createHash } from "node:crypto";
  * surface never reaches past `providers` into a provider module.
  */
 
-import { createArchive } from "./archive";
-import { getConfig } from "./config";
-import { diffArchivedContent } from "./diff";
-import { providers } from "./providers";
+import { createArchive } from "./archive.ts";
+import { getConfig } from "./config.ts";
+import { diffArchivedContent } from "./diff.ts";
+import { providers } from "./providers/index.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -26,7 +26,7 @@ import type {
   ArchivedContentDiff,
   ArchivedContentSummary,
   ArchivedPage,
-} from "./types";
+} from "./types.ts";
 import {
   htmlToText,
   isTextualMime,
@@ -34,7 +34,7 @@ import {
   resolveRequestedTimestamp,
   timestampLowerBound,
   timestampUpperBound,
-} from "./utils";
+} from "./utils/index.ts";
 
 /** One text block plus the details a harness renders next to it. */
 export interface ToolResult<TDetails> {

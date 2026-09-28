@@ -1,14 +1,14 @@
 import { consola } from "consola";
 import { $fetch } from "ofetch";
-import { withRequestTimeout } from "../utils/_fetch";
+import { withRequestTimeout } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
   ArchiveResponse,
   ArchivedPage,
   ArchiveTodayMetadata,
-} from "../types";
-import type { ArchiveTodayOptions } from "../_providers";
+} from "../types.ts";
+import type { ArchiveTodayOptions } from "../_providers.ts";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -22,8 +22,8 @@ import {
   selectCapture,
   waybackTimestampToISO,
   withUserAgent,
-} from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 interface ArchiveTodayCapture {
   url: string;

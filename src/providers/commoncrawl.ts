@@ -8,8 +8,8 @@ import type {
   ArchiveResponse,
   ArchivedPage,
   CommonCrawlMetadata,
-} from "../types";
-import type { CommonCrawlOptions } from "../_providers";
+} from "../types.ts";
+import type { CommonCrawlOptions } from "../_providers.ts";
 import {
   waybackTimestampToISO,
   normalizeDomain,
@@ -32,8 +32,8 @@ import {
   timestampUpperBound,
   toWaybackTimestamp,
   withHeaderSlack,
-} from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 const BASE_URL = "https://index.commoncrawl.org";
 const DATA_BASE_URL = "https://data.commoncrawl.org";

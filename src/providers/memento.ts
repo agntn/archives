@@ -1,12 +1,12 @@
 import { $fetch } from "ofetch";
-import { withRequestTimeout } from "../utils/_fetch";
+import { withRequestTimeout } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
   ArchiveResponse,
   ArchivedPage,
-} from "../types";
-import type { MementoOptions } from "../_providers";
+} from "../types.ts";
+import type { MementoOptions } from "../_providers.ts";
 import {
   createContentErrorResponse,
   createContentResponse,
@@ -21,8 +21,8 @@ import {
   unwrapSnapshotUrl,
   waybackTimestampToISO,
   withUserAgent,
-} from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 const DEFAULT_BASE_URL = "https://memgator.cs.odu.edu";
 /** Keeps ordinary clock skew while dropping captures dated years in the future. */

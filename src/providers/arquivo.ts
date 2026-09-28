@@ -8,8 +8,8 @@ import type {
   ArchivedContent,
   ArchivedPage,
   ArquivoMetadata,
-} from "../types";
-import type { ArquivoOptions } from "../_providers";
+} from "../types.ts";
+import type { ArquivoOptions } from "../_providers.ts";
 import {
   createContentErrorResponse,
   createContentResponse,
@@ -23,8 +23,8 @@ import {
   selectCapture,
   toWaybackTimestamp,
   waybackTimestampToISO,
-} from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 const BASE_URL = "https://arquivo.pt";
 const CDX_FIELDS = "url,timestamp,status,mime,digest,length";

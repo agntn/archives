@@ -1,4 +1,4 @@
-import type { ArchiveOptions } from "./types";
+import type { ArchiveOptions } from "./types.ts";
 
 export interface WaybackOptions extends ArchiveOptions {
   collapse?: string;

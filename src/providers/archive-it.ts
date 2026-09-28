@@ -4,8 +4,8 @@ import type {
   ArchiveContentResponse,
   ArchiveOptions,
   ArchiveResponse,
-} from "../types";
-import type { ArchiveItOptions } from "../_providers";
+} from "../types.ts";
+import type { ArchiveItOptions } from "../_providers.ts";
 import {
   createContentErrorResponse,
   createContentResponse,
@@ -20,8 +20,8 @@ import {
   selectCapture,
   timestampUpperBound,
   toWaybackTimestamp,
-} from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 const BASE_URL = "https://wayback.archive-it.org";
 

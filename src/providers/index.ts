@@ -1,4 +1,4 @@
-import type { ArchiveOptions, ArchiveProvider } from "../types";
+import type { ArchiveOptions, ArchiveProvider } from "../types.ts";
 import type {
   WaybackOptions,
   ArquivoOptions,
@@ -10,19 +10,19 @@ import type {
   PermaccOptions,
   CommonCrawlOptions,
   WebCiteOptions,
-} from "../_providers";
-import { createRetryableLazyImport } from "./_lazy-import";
+} from "../_providers.ts";
+import { createRetryableLazyImport } from "./_lazy-import.ts";
 
-const loadWaybackModule = createRetryableLazyImport(() => import("./wayback"));
-const loadArquivoModule = createRetryableLazyImport(() => import("./arquivo"));
-const loadWebarchivModule = createRetryableLazyImport(() => import("./webarchiv"));
-const loadArchiveItModule = createRetryableLazyImport(() => import("./archive-it"));
-const loadConiferModule = createRetryableLazyImport(() => import("./conifer"));
-const loadArchiveTodayModule = createRetryableLazyImport(() => import("./archive-today"));
-const loadMementoModule = createRetryableLazyImport(() => import("./memento"));
-const loadPermaccModule = createRetryableLazyImport(() => import("./permacc"));
-const loadCommonCrawlModule = createRetryableLazyImport(() => import("./commoncrawl"));
-const loadWebCiteModule = createRetryableLazyImport(() => import("./webcite"));
+const loadWaybackModule = createRetryableLazyImport(() => import("./wayback.ts"));
+const loadArquivoModule = createRetryableLazyImport(() => import("./arquivo.ts"));
+const loadWebarchivModule = createRetryableLazyImport(() => import("./webarchiv.ts"));
+const loadArchiveItModule = createRetryableLazyImport(() => import("./archive-it.ts"));
+const loadConiferModule = createRetryableLazyImport(() => import("./conifer.ts"));
+const loadArchiveTodayModule = createRetryableLazyImport(() => import("./archive-today.ts"));
+const loadMementoModule = createRetryableLazyImport(() => import("./memento.ts"));
+const loadPermaccModule = createRetryableLazyImport(() => import("./permacc.ts"));
+const loadCommonCrawlModule = createRetryableLazyImport(() => import("./commoncrawl.ts"));
+const loadWebCiteModule = createRetryableLazyImport(() => import("./webcite.ts"));
 
 /**
  * Provider factory with lazy-loading for optimized tree-shaking.
@@ -184,4 +184,4 @@ export const providers = {
 };
 
 // Export provider types
-export type * from "../_providers";
+export type * from "../_providers.ts";

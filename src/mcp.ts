@@ -41,8 +41,8 @@ import {
   type DiffParams,
   type SnapshotBatchParams,
   type ToolResult,
-} from "./tool-operations";
-import { version } from "./version";
+} from "./tool-operations.ts";
+import { version } from "./version.ts";
 
 interface ToolDefinition {
   name: string;
