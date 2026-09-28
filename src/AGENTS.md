@@ -12,7 +12,7 @@ Core public API, archive orchestration, shared tool executors, configuration, st
 - Treat archived bodies and provider fields as untrusted input. Bound network reads, expensive transforms, and rendered output.
 - Preserve provider and capture provenance in every derived result.
 - `diff.ts` requires provider provenance and one underlying archive host for Memento pairs; it also owns chronology, textual MIME, newline, time, and edit distance validation.
-- Derived diff pagination belongs in `tool-operations.ts`. A continuation pins the complete patch SHA-256, and a nonzero offset without that digest is invalid.
+- Derived diff pagination belongs in `tool-operations.ts`. A continuation pins the complete patch SHA-256, and a nonzero offset without that digest is invalid. Offset 0 ignores `digest`, and every schema accepts it blank, because OMP and strict MCP clients send every property and have no real value for a first slice.
 
 ## Verification
 

@@ -4,7 +4,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMcpServer } from "../src/mcp";
 import { storage } from "../src/storage";
-import { MAX_CONTENT_OFFSET, MAX_DIFF_OFFSET } from "../src/tool-operations";
+import { MAX_CONTENT_OFFSET, MAX_DIFF_OFFSET, diffArchives } from "../src/tool-operations";
 import type {
   ArchiveContentResponse,
   ArchiveResponse,
@@ -171,10 +171,10 @@ describe("archives MCP server", () => {
     const diffProperties = diff.inputSchema.properties as Record<string, Record<string, unknown>>;
     expect(diffProperties["offset"]).toMatchObject({ maximum: MAX_DIFF_OFFSET });
     expect(diffProperties["digest"]).toMatchObject({
-      minLength: 64,
       maxLength: 64,
-      pattern: "^[a-f0-9]{64}$",
+      pattern: "^(?:[a-f0-9]{64})?$",
     });
+    expect(diffProperties["digest"]).not.toHaveProperty("minLength");
     expect(diff.annotations).toMatchObject({
       readOnlyHint: true,
       openWorldHint: true,
@@ -740,6 +740,68 @@ describe("archives MCP server", () => {
 
     expect(second.isError).toBe(true);
     expect(text(second.content)).toContain("Archived diff changed since the previous slice");
+  });
+
+  it("reads the first slice whatever digest a host fills in", async () => {
+    const content = vi.fn((_target: string, options: Readonly<{ timestamp?: string }>) =>
+      Promise.resolve(
+        capture({
+          timestamp:
+            options.timestamp === "20240105" ? "2024-01-05T00:00:00Z" : "2024-05-19T00:00:00Z",
+          content: options.timestamp === "20240105" ? "old clue" : "new clue",
+          mime: "text/plain",
+        }),
+      ),
+    );
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    // OMP sends every property, so a first call carries a placeholder or a blank digest.
+    const omp = {
+      target: "https://example.com/",
+      before: "20240105",
+      after: "20240519",
+      provider: "wayback",
+      format: "raw",
+      context: 1,
+      maxChars: 14_000,
+      offset: 0,
+      cache: false,
+      ttl: 86_400_000,
+      timeout: 45_000,
+      retries: 0,
+      collection: "CC-MAIN-latest",
+      user: "-",
+    };
+    const client = await connectTestClient();
+
+    const placeholder = await client.callTool({
+      name: "archives_diff",
+      arguments: { ...omp, digest: "0".repeat(64) },
+    });
+    const blank = await client.callTool({
+      name: "archives_diff",
+      arguments: { ...omp, digest: "" },
+    });
+    const continuation = await client.callTool({
+      name: "archives_diff",
+      arguments: { ...omp, offset: 5, digest: "" },
+    });
+
+    expect(placeholder.isError).toBeUndefined();
+    expect(text(placeholder.content)).toContain("+new clue");
+    expect(blank.isError).toBeUndefined();
+    expect(text(blank.content)).toContain("+new clue");
+    expect(continuation.isError).toBe(true);
+    expect(text(continuation.content)).toContain(
+      "digest from the prior continue line is required when offset is greater than 0",
+    );
+    await expect(diffArchives({ ...omp, offset: 5, digest: " " }, undefined)).rejects.toThrow(
+      "digest from the prior continue line is required when offset is greater than 0",
+    );
   });
 
   it("continues valid patches beyond the single capture offset ceiling", async () => {

@@ -235,7 +235,7 @@ export interface DiffParams {
   retries?: number;
   collection?: string;
   user?: string;
-  /** SHA-256 from a prior continuation, used to reject a changed recomputation. */
+  /** SHA-256 from a prior continuation, used to reject a changed recomputation. Ignored at offset 0. */
   digest?: string;
 }
 
@@ -494,8 +494,10 @@ function resolveDiffPosition(params: Readonly<DiffParams>): {
   digest: string | undefined;
 } {
   const offset = params.offset ?? 0;
+  // A first slice has no earlier patch to match, and OMP fills `digest` in anyway.
+  if (offset === 0) return { offset, digest: undefined };
   const digest = normalizeDiffDigest(params.digest);
-  if (offset > 0 && !digest) {
+  if (!digest) {
     throw new Error(
       "digest from the prior continue line is required when offset is greater than 0",
     );
@@ -860,7 +862,7 @@ function checkText(name: keyof typeof TEXT_BOUNDS, value: string | undefined): v
 }
 
 function normalizeDiffDigest(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined;
+  if (value === undefined || value.trim() === "") return undefined;
   if (!/^[a-f\d]{64}$/.test(value)) {
     throw new TypeError("digest must be a lowercase SHA-256 hexadecimal string");
   }

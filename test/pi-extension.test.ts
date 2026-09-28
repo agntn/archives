@@ -211,7 +211,7 @@ describe("Pi extension", () => {
       maximum: MAX_DIFF_CONTEXT,
     });
     expect(properties["offset"]).toMatchObject({ maximum: MAX_DIFF_OFFSET });
-    expect(properties["digest"]).toMatchObject({ minLength: 64, maxLength: 64 });
+    expect(properties["digest"]).toMatchObject({ maxLength: 64, pattern: "^(?:[a-f0-9]{64})?$" });
     expect(properties).not.toHaveProperty("timestamp");
     expectRangeDescriptions(properties, [
       "context",
