@@ -136,6 +136,16 @@ describe("archives OMP extension", () => {
         digest: "not-a-digest",
       }),
     ).toBe(false);
+    // OMP fills every property, so a first slice arrives with the digest left blank.
+    expect(
+      accepts(tool, {
+        target: "example.com",
+        before: "2019",
+        after: "2020",
+        offset: 0,
+        digest: "",
+      }),
+    ).toBe(true);
     expect(properties).not.toHaveProperty("timestamp");
     for (const name of ["context", "maxChars", "offset", "ttl", "timeout", "retries"]) {
       expect(properties[name]?.["description"]).toContain(rangeDescription(properties[name]));

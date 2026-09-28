@@ -398,7 +398,7 @@ const diffParameters = Type.Object({
   digest: Type.Optional(
     Type.String({
       description:
-        "Lowercase SHA-256 of the complete patch from a prior continue line. A mismatch aborts instead of slicing changed data.",
+        "Lowercase SHA-256 of the complete patch from a prior continue line. Required when offset is above 0 and ignored on the first slice. A mismatch aborts instead of slicing changed data.",
       minLength: 64,
       maxLength: 64,
       pattern: "^[a-f0-9]{64}$",
