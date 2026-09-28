@@ -20,9 +20,11 @@ import {
   MAX_DIFF_CONTEXT,
   MAX_DIFF_OFFSET,
   MAX_LIMIT,
+  MAX_SNAPSHOT_TARGETS,
   PROVIDER_HINT,
   PROVIDER_INPUTS,
   SNAPSHOT_FROM_HINT,
+  SNAPSHOT_TARGET_HINT,
   SNAPSHOT_TO_HINT,
   normalizeFormat,
   normalizeProvider,
@@ -412,6 +414,39 @@ describe("Pi extension", () => {
     expect(failed.isError).toBe(true);
     expect(failed.details.options).not.toHaveProperty("signal");
   });
+  it("looks up a batch of targets and throws only when none of them answered", async () => {
+    archivesMock.snapshots.mockImplementation((target: string) =>
+      Promise.resolve<ArchiveResponse>(
+        target === "down.example"
+          ? { success: false, pages: [], error: "HTTP 503", _meta: { provider: "wayback" } }
+          : { success: true, pages: [], _meta: { provider: "wayback" } },
+      ),
+    );
+    const tool = getExecutableTool(loadExtension().tools, "archives");
+
+    const mixed = await tool.execute(
+      "test",
+      { target: ["example.com", "down.example"], provider: "wayback", cache: false },
+      undefined,
+      undefined,
+      {} as ExtensionContext,
+    );
+    expect(mixed.details).toMatchObject({
+      mode: "snapshots-batch",
+      items: [{ target: "example.com" }, { target: "down.example" }],
+    });
+
+    await expect(
+      tool.execute(
+        "test",
+        { target: ["down.example", "down.example"], provider: "wayback", cache: false },
+        undefined,
+        undefined,
+        {} as ExtensionContext,
+      ),
+    ).rejects.toThrow('0 snapshot(s) for "down.example"; error=HTTP 503');
+  });
+
   it("declares the schema bounds the shared executors enforce", () => {
     const tool = getExecutableTool(loadExtension().tools, "archives");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
@@ -428,6 +463,10 @@ describe("Pi extension", () => {
       "timeout",
       "retries",
     ]);
+    expect(properties["target"]?.["description"]).toBe(SNAPSHOT_TARGET_HINT);
+    expect(properties["target"]?.["anyOf"]).toContainEqual(
+      objectContaining({ type: "array", minItems: 1, maxItems: MAX_SNAPSHOT_TARGETS }),
+    );
     expect(properties["provider"]?.["description"]).toBe(PROVIDER_HINT);
     expect(properties["from"]?.["description"]).toBe(SNAPSHOT_FROM_HINT);
     expect(properties["to"]?.["description"]).toBe(SNAPSHOT_TO_HINT);
@@ -509,7 +548,11 @@ describe("Pi extension", () => {
     const tool = getExecutableTool(loadExtension().tools, "archives");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
     expect(properties["limit"]?.["type"]).toBe("integer");
-    expect(properties["target"]).toMatchObject({ minLength: 1 });
+    // A lone target and every batch entry alike.
+    expect(properties["target"]?.["anyOf"]).toEqual([
+      objectContaining({ type: "string", minLength: 1 }),
+      objectContaining({ items: objectContaining({ type: "string", minLength: 1 }) }),
+    ]);
 
     // The schema is the first line, not the only one: a host that skips
     // validation must not reach Wayback with `&limit=10.5`, which hangs.
