@@ -189,8 +189,9 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
 
   /*
    * A full timestamp on a full URL names one capture, so an index that cannot
-   * answer is not needed to read it. Anything less precise still needs the index
-   * to choose, and its failure stays the answer.
+   * answer is not needed to read it, provided the archive serves that very
+   * stamp. Anything less precise, or a substituted capture, still needs the
+   * index to choose, and its failure stays the answer.
    */
   private async readPinned(
     url: string,
@@ -210,6 +211,10 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
       options,
       meta: { selection: "pinned" },
     });
+    // The archive redirects a stamp it never captured to the nearest capture it
+    // holds. That choice is the index's job, so the index failure stays the answer.
+    if (content._meta.timestamp !== pinned.stamp) throw indexError;
+
     return createContentResponse(content, "wayback", { requestedTimestamp: wanted });
   }
 
