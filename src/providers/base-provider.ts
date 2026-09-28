@@ -4,8 +4,8 @@ import type {
   ArchiveOptions,
   ArchiveProvider,
   ArchiveResponse,
-} from "../types";
-import { mergeOptions } from "../utils";
+} from "../types.ts";
+import { mergeOptions } from "../utils/index.ts";
 
 /**
  * Abstract base class for archive providers.

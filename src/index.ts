@@ -1,24 +1,24 @@
-export type * from "./types";
-export type * from "./_providers";
+export type * from "./types.ts";
+export type * from "./_providers.ts";
 export {
   createArchive,
   Archive,
   UnsupportedOperationError,
   combineResults,
   combineContentResults,
-} from "./archive";
-export { diffArchivedContent } from "./diff";
-export { BaseProvider } from "./providers/base-provider";
-export { WaybackProvider } from "./providers/wayback";
-export { ArquivoProvider } from "./providers/arquivo";
-export { WebarchivProvider } from "./providers/webarchiv";
-export { ArchiveItProvider } from "./providers/archive-it";
-export { ConiferProvider } from "./providers/conifer";
-export { ArchiveTodayProvider } from "./providers/archive-today";
-export { MementoProvider } from "./providers/memento";
-export { PermaccProvider } from "./providers/permacc";
-export { CommonCrawlProvider } from "./providers/commoncrawl";
-export { WebCiteProvider } from "./providers/webcite";
-export { providers } from "./providers";
-export { configureStorage, clearProviderStorage, storage } from "./storage";
-export { getConfig, resolveConfig, resetConfig } from "./config";
+} from "./archive.ts";
+export { diffArchivedContent } from "./diff.ts";
+export { BaseProvider } from "./providers/base-provider.ts";
+export { WaybackProvider } from "./providers/wayback.ts";
+export { ArquivoProvider } from "./providers/arquivo.ts";
+export { WebarchivProvider } from "./providers/webarchiv.ts";
+export { ArchiveItProvider } from "./providers/archive-it.ts";
+export { ConiferProvider } from "./providers/conifer.ts";
+export { ArchiveTodayProvider } from "./providers/archive-today.ts";
+export { MementoProvider } from "./providers/memento.ts";
+export { PermaccProvider } from "./providers/permacc.ts";
+export { CommonCrawlProvider } from "./providers/commoncrawl.ts";
+export { WebCiteProvider } from "./providers/webcite.ts";
+export { providers } from "./providers/index.ts";
+export { configureStorage, clearProviderStorage, storage } from "./storage.ts";
+export { getConfig, resolveConfig, resetConfig } from "./config.ts";

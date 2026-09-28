@@ -5,8 +5,8 @@ import type {
   ArchivedContent,
   ArchivedContentDiff,
   ArchivedContentSummary,
-} from "./types";
-import { htmlToText, isTextualMime } from "./utils";
+} from "./types.ts";
+import { htmlToText, isTextualMime } from "./utils/index.ts";
 
 const DEFAULT_CONTEXT = 3;
 const DEFAULT_TIMEOUT = 1000;

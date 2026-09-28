@@ -109,12 +109,14 @@ archives/
 
 - **Underscore prefix** = internal module (`_utils.ts`, `_providers.ts`). Not for direct import by consumers.
 - **Provider pattern**: default export factory fn → returns `{ name, slug, snapshots() }`. Always async via `Promise<ArchiveProvider>`.
-- **Lazy loading**: providers loaded via `await import('./provider')` in `providers/index.ts`. Enables tree-shaking.
+- **Lazy loading**: providers loaded via `await import('./provider.ts')` in `providers/index.ts`. Enables tree-shaking.
 - **Response normalization**: all providers must return `ArchiveResponse` via `createSuccessResponse` / `createErrorResponse` / `createUnsupportedResponse` helpers — never construct a raw object.
 - **Unsupported operations are first-class**: when an operation is outside a provider's API surface (e.g. WebCite has no list-by-domain endpoint), return `createUnsupportedResponse(reason, slug)`, not a fake page or a fake error. `combineResults` propagates these into `_meta.unsupportedProviders`. `getPages()` throws `UnsupportedOperationError` (with `.providers`) when the whole call is unsupported, so callers can distinguish structural mismatches from runtime failures.
 - **Timestamp format**: providers convert native timestamps to ISO 8601. Raw format preserved in `_meta`.
 - **Option merging**: three-level cascade: config defaults → init options → request options. Via `mergeOptions()`.
 - **Quality config**: `oxlint` and `oxfmt` spread the shared `@agntn/ox` policies. Linting is type-aware; ESLint was removed intentionally.
+- **`src/` runs under plain Node type stripping**: relative imports end in `.ts` (a directory as `./dir/index.ts`), type-only imports use `import type`, and no `enum`, `namespace` or parameter properties. `erasableSyntaxOnly` and `verbatimModuleSyntax` enforce the syntax, `test/cli.test.ts` the imports. `moduleResolution` stays `Bundler`: under `NodeNext` the `unstorage` driver types import a directory and `Driver` turns into an error type.
+- **A local MCP server serves `src/`**: inside a checkout, `dist/cli.mjs mcp` loads the command from `src/`, like the Pi and OMP extensions, so a change needs a server restart, not `pnpm build`. The npm package, a copy under `node_modules` and a Node that does not strip types keep the bundle; `ARCHIVES_DIST=1` forces it. A change to `src/cli.ts` itself still needs `pnpm build`.
 - **Build**: `obuild` reads `build.config.ts` → `dist/`. Four inputs in **one** bundle entry so the entrypoint, the CLI, the MCP server and the executors share chunks instead of each carrying a private copy of the provider factory.
 - **One executor per operation**: MCP, Pi and OMP all call `src/tool-operations.ts`. A surface owns only its schema, its call rendering and its result envelope. Schema metadata (`PROVIDER_HINT`, limits) is restated per surface because parameters are declared before the executors can be loaded — the extension tests guard it against drift.
 - **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tool-operations.ts")` and `import("../../../dist/tool-operations.mjs")`. Never `import(url.href)`. `tsc` resolves that dist specifier, so `test:types` builds before it type-checks.
@@ -154,7 +156,7 @@ pnpm lint             # build + Nuxt types + type-aware oxlint + oxfmt check
 pnpm lint:fix         # build + Nuxt types + oxlint fixes + oxfmt write
 pnpm build            # obuild (build.config.ts) → dist/
 pnpm docs             # Docus site + timeline explorer on :3000
-node dist/cli.mjs mcp # run the MCP server over stdio (bin: archives mcp)
+node dist/cli.mjs mcp # run the MCP server over stdio (bin: archives mcp); serves src/ in a checkout
 pnpm release          # test + changelogen + publish
 ```
 

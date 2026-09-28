@@ -7,8 +7,8 @@ import type {
   ArchiveContentResponse,
   ArchiveOptions,
   ArchiveResponse,
-} from "./types";
-import { getConfig } from "./config";
+} from "./types.ts";
+import { getConfig } from "./config.ts";
 
 export const storage: Storage = createStorage({
   driver: memoryDriver(),

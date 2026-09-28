@@ -1,14 +1,14 @@
 import { $fetch } from "ofetch";
-import type { ConiferOptions } from "../_providers";
-import type { ArchiveOptions, ArchiveResponse, ArchivedPage } from "../types";
+import type { ConiferOptions } from "../_providers.ts";
+import type { ArchiveOptions, ArchiveResponse, ArchivedPage } from "../types.ts";
 import {
   createErrorResponse,
   createFetchOptions,
   createSuccessResponse,
   normalizeDomain,
   waybackTimestampToISO,
-} from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 interface ConiferResult {
   id?: string;

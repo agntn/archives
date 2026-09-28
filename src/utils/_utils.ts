@@ -1,5 +1,5 @@
-import { FetchOptions } from "ofetch";
-import { version } from "../version";
+import type { FetchOptions } from "ofetch";
+import { version } from "../version.ts";
 import { withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
 import { consola } from "consola";
 import type {
@@ -10,9 +10,9 @@ import type {
   ArchivedPage,
   WaybackMetadata,
   ResponseMetadata,
-} from "../types";
-import { getConfig } from "../config";
-import { withRequestTimeout } from "./_fetch";
+} from "../types.ts";
+import { getConfig } from "../config.ts";
+import { withRequestTimeout } from "./_fetch.ts";
 
 const ALLOWED_WAYBACK_TIMESTAMP_LENGTHS = new Set([4, 6, 8, 10, 12, 14]);
 

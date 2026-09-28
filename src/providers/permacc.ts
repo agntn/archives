@@ -1,21 +1,21 @@
 import { createHash } from "node:crypto";
 import { $fetch } from "ofetch";
 import { hasProtocol } from "ufo";
-import type { PermaccOptions } from "../_providers";
+import type { PermaccOptions } from "../_providers.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
   ArchiveOptions,
   ArchiveResponse,
   ArchivedPage,
-} from "../types";
+} from "../types.ts";
 import {
   createSuccessResponse,
   createErrorResponse,
   createFetchOptions,
   createUnsupportedContentResponse,
-} from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 const UNSUPPORTED_CONTENT_REASON =
   "Perma.cc's API returns capture metadata only. The archived bytes are served through its playback UI or an account-scoped WARC download, neither of which this provider performs.";

@@ -1,2 +1,2 @@
-export * from "./_utils";
-export * from "./_content";
+export * from "./_utils.ts";
+export * from "./_content.ts";

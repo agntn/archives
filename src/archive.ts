@@ -10,8 +10,8 @@ import type {
   ArchiveInterface,
   ProviderReference,
   UnsupportedProviderRecord,
-} from "./types";
-import { getStoredContent, getStoredResponse, storeContent, storeResponse } from "./storage";
+} from "./types.ts";
+import { getStoredContent, getStoredResponse, storeContent, storeResponse } from "./storage.ts";
 import {
   mergeOptions,
   processInParallel,
@@ -22,7 +22,7 @@ import {
   toWaybackTimestamp,
   unreadableTargetReason,
   unwrapSnapshotUrl,
-} from "./utils";
+} from "./utils/index.ts";
 
 /**
  * Thrown by `archive.getPages()` when the only-or-all-queried providers do not

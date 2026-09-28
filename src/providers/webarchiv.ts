@@ -6,8 +6,8 @@ import type {
   ArchiveResponse,
   ArchivedPage,
   WebarchivMetadata,
-} from "../types";
-import type { WebarchivOptions } from "../_providers";
+} from "../types.ts";
+import type { WebarchivOptions } from "../_providers.ts";
 import {
   createContentErrorResponse,
   createContentResponse,
@@ -22,8 +22,8 @@ import {
   selectCapture,
   toWaybackTimestamp,
   waybackTimestampToISO,
-} from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 const BASE_URL = "https://webarchiv.onb.ac.at";
 const CONTENT_CAPTURE_LIMIT = 5;

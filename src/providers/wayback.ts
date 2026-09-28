@@ -5,8 +5,8 @@ import type {
   ArchiveOptions,
   ArchiveResponse,
   ArchivedPage,
-} from "../types";
-import type { WaybackOptions } from "../_providers";
+} from "../types.ts";
+import type { WaybackOptions } from "../_providers.ts";
 import {
   normalizeDomain,
   createContentErrorResponse,
@@ -21,8 +21,8 @@ import {
   selectCapture,
   unwrapSnapshotUrl,
   toWaybackTimestamp,
-} from "../utils";
-import { BaseProvider } from "./base-provider";
+} from "../utils/index.ts";
+import { BaseProvider } from "./base-provider.ts";
 
 /** One capture as the CDX index describes it. */
 interface CdxCapture {

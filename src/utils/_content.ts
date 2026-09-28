@@ -11,8 +11,8 @@
 
 import { consola } from "consola";
 import { $fetch, type FetchResponse } from "ofetch";
-import type { ArchiveContentOptions, ArchivedContent } from "../types";
-import { createFetchOptions, waybackTimestampToISO } from "./_utils";
+import type { ArchiveContentOptions, ArchivedContent } from "../types.ts";
+import { createFetchOptions, waybackTimestampToISO } from "./_utils.ts";
 
 /** Bytes read from one archived body when the caller sets no cap. */
 export const DEFAULT_MAX_CONTENT_BYTES = 2 * 1024 * 1024;
