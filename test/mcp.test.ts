@@ -171,10 +171,10 @@ describe("archives MCP server", () => {
     const diffProperties = diff.inputSchema.properties as Record<string, Record<string, unknown>>;
     expect(diffProperties["offset"]).toMatchObject({ maximum: MAX_DIFF_OFFSET });
     expect(diffProperties["digest"]).toMatchObject({
-      minLength: 64,
       maxLength: 64,
-      pattern: "^[a-f0-9]{64}$",
+      pattern: "^(?:[a-f0-9]{64})?$",
     });
+    expect(diffProperties["digest"]).not.toHaveProperty("minLength");
     expect(diff.annotations).toMatchObject({
       readOnlyHint: true,
       openWorldHint: true,
@@ -782,12 +782,23 @@ describe("archives MCP server", () => {
       name: "archives_diff",
       arguments: { ...omp, digest: "0".repeat(64) },
     });
-    const blank = await diffArchives({ ...omp, digest: "" }, undefined);
+    const blank = await client.callTool({
+      name: "archives_diff",
+      arguments: { ...omp, digest: "" },
+    });
+    const continuation = await client.callTool({
+      name: "archives_diff",
+      arguments: { ...omp, offset: 5, digest: "" },
+    });
 
     expect(placeholder.isError).toBeUndefined();
     expect(text(placeholder.content)).toContain("+new clue");
     expect(blank.isError).toBeUndefined();
     expect(text(blank.content)).toContain("+new clue");
+    expect(continuation.isError).toBe(true);
+    expect(text(continuation.content)).toContain(
+      "digest from the prior continue line is required when offset is greater than 0",
+    );
     await expect(diffArchives({ ...omp, offset: 5, digest: " " }, undefined)).rejects.toThrow(
       "digest from the prior continue line is required when offset is greater than 0",
     );
