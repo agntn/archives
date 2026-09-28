@@ -98,14 +98,14 @@
     "@oh-my-pi/omptype": "17.3.0",
     "@oh-my-pi/pi-coding-agent": "17.3.0",
     "@types/node": "26.2.0",
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "5.0.2",
     "changelogen": "0.6.2",
     "obuild": "0.4.38",
     "oxfmt": "0.65.0",
     "oxlint": "1.80.0",
     "oxlint-tsgolint": "7.0.2001",
     "typescript": "7.0.2",
-    "vitest": "4.1.10",
+    "vitest": "5.0.2",
     "webmcp-types": "0.1.6"
   },
   "peerDependencies": {
