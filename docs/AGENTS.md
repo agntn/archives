@@ -26,7 +26,7 @@ docs/
 ## Commands
 
 ```bash
-pnpm install          # from docs/, after pnpm build in the repo root
+pnpm install          # from docs/
 pnpm dev              # http://localhost:3000
 pnpm build            # Cloudflare Workers output in .output/, content routes prerendered
 pnpm deploy           # build, then wrangler deploy to archives.agntn.dev
@@ -35,7 +35,7 @@ pnpm generate         # static output only; the /api routes need the worker
 
 Deployment: Nitro preset `cloudflare_module`, which is the Cloudflare Workers preset in Nitro 2.13 (its standard name `cloudflare_workers` is not resolvable from the config and og-image does not know it). Nuxt Content needs a D1 binding named `DB`; `wrangler.jsonc` carries the binding and the `NUXT_SITE_URL` var, Nitro merges it into the generated `.output/server/wrangler.json`. Create the database once with `wrangler d1 create agntn-archives` and put its id in `wrangler.jsonc`.
 
-The site imports `@agntn/archives` from `file:..`. Build the parent package first.
+The site bundles `@agntn/archives` from `../src` through the aliases in `nuxt.config.ts`, so it needs neither `dist/` nor a build of the parent package. Workers Builds installs only `docs/`, so every npm package the executors import (`consola`, `diff`, `ofetch`, `ohash`, `ufo`, `unstorage`) is a dependency here, pinned to the root version. A new package import under `src/` needs the same entry, or the deploy fails while a local build still passes.
 
 Resolution traps, both caused by the repo root being a separate pnpm workspace with its own Nuxt playground:
 
