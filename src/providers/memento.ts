@@ -1,4 +1,5 @@
 import { $fetch } from "ofetch";
+import { withRequestTimeout } from "../utils/_fetch";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -420,13 +421,16 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
     const baseURL = this.baseURL(options);
     let response: unknown;
     try {
-      response = await $fetch(`/timemap/json/${encodeURIComponent(target)}`, {
-        baseURL,
-        signal: options.signal,
-        retry: options.retries ?? 1,
-        timeout: options.timeout ?? 10000,
-        headers: withUserAgent(),
-      });
+      response = await $fetch(
+        `/timemap/json/${encodeURIComponent(target)}`,
+        withRequestTimeout({
+          baseURL,
+          signal: options.signal,
+          retry: options.retries ?? 1,
+          timeout: options.timeout ?? 10000,
+          headers: withUserAgent(),
+        }),
+      );
     } catch (error) {
       if (isNotFound(error)) return { pages: [] };
       throw error;
