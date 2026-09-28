@@ -19,6 +19,7 @@ import {
   readPlaybackCapture,
   resolveRequestedTimestamp,
   selectCapture,
+  unwrapSnapshotUrl,
   toWaybackTimestamp,
 } from "../utils";
 import { BaseProvider } from "./base-provider";
@@ -211,9 +212,13 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
       options,
       meta: { selection: "pinned" },
     });
-    // The archive redirects a stamp it never captured to the nearest capture it
-    // holds. That choice is the index's job, so the index failure stays the answer.
-    if (content._meta.timestamp !== pinned.stamp) throw indexError;
+    // The archive redirects a stamp it never captured, or a URL it keeps under
+    // another spelling, to the nearest capture it holds. Choosing that capture is
+    // the index's job, so a replay that moved leaves the index failure as the answer.
+    const served = unwrapSnapshotUrl(String(content._meta.rawSnapshot ?? ""));
+    if (served.timestamp && (served.timestamp !== pinned.stamp || served.url !== pinned.original)) {
+      throw indexError;
+    }
 
     return createContentResponse(content, "wayback", { requestedTimestamp: wanted });
   }

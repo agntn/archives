@@ -497,6 +497,22 @@ describe("wayback content", () => {
     expect(response.error).toContain("503");
   });
 
+  it("keeps the index failure when the archive replays another URL under the same stamp", async () => {
+    fetchMock.mockRejectedValue(new Error('[GET] "/cdx/search/cdx": 503 Service Unavailable'));
+    rawMock.mockResolvedValueOnce(
+      rawResponse("other page", {
+        url: "https://web.archive.org/web/20020120142510id_/http://example.org/",
+      }),
+    );
+
+    const response = await createArchive(createWayback({ retries: 0 })).content(
+      "https://web.archive.org/web/20020120142510id_/http://example.com/",
+    );
+
+    expect(response.success).toBe(false);
+    expect(response.error).toContain("503");
+  });
+
   it.each([
     ["a partial timestamp", "https://example.com/", "2020"],
     ["a target without a scheme", "example.com", "20200202000000"],
