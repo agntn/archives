@@ -1,4 +1,8 @@
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+/** Bundled from the checkout's sources: a deploy needs neither dist/ nor the root node_modules. */
+const librarySource = resolve(import.meta.dirname, "../src");
 
 export default defineNuxtConfig({
   extends: ["docus"],
@@ -8,6 +12,10 @@ export default defineNuxtConfig({
    * every Nuxt runtime package resolvable from docs/ for the same reason.
    */
   workspaceDir: fileURLToPath(new URL("./", import.meta.url)),
+  alias: {
+    "@agntn/archives/tool-operations": resolve(librarySource, "tool-operations.ts"),
+    "@agntn/archives": resolve(librarySource, "index.ts"),
+  },
   devtools: { enabled: false },
   telemetry: false,
   site: {

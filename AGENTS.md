@@ -152,7 +152,7 @@ pnpm test:types       # build + tsc over lib and both extension surfaces
 pnpm lint             # build + Nuxt types + type-aware oxlint + oxfmt check
 pnpm lint:fix         # build + Nuxt types + oxlint fixes + oxfmt write
 pnpm build            # obuild (build.config.ts) → dist/
-pnpm docs             # Docus site + timeline explorer on :3000 (after pnpm build)
+pnpm docs             # Docus site + timeline explorer on :3000
 node dist/cli.mjs mcp # run the MCP server over stdio (bin: archives mcp)
 pnpm release          # test + changelogen + publish
 ```
