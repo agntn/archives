@@ -457,6 +457,61 @@ describe("wayback content", () => {
     expect(response.success).toBe(true);
   });
 
+  it("replays a pinned playback URL when the index is down", async () => {
+    fetchMock.mockRejectedValue(new Error('[GET] "/cdx/search/cdx": 503 Service Unavailable'));
+    rawMock.mockResolvedValueOnce(
+      rawResponse("pinned", {
+        url: "https://web.archive.org/web/20020120142510id_/http://example.com:80/",
+        headers: { "content-type": "text/html" },
+      }),
+    );
+
+    const response = await createArchive(createWayback({ retries: 0 })).content(
+      "https://web.archive.org/web/20020120142510id_/http://example.com:80/",
+    );
+
+    expect(response.success).toBe(true);
+    expect(response.content?.content).toBe("pinned");
+    expect(response.content?.url).toBe("http://example.com:80/");
+    expect(response.content?.timestamp).toBe("2002-01-20T14:25:10Z");
+    // The read says the index never chose this capture, so its status is unknown.
+    expect(response.content?._meta.selection).toBe("pinned");
+    expect(rawMock.mock.calls[0][0]).toBe("/web/20020120142510id_/http://example.com:80/");
+    // Redirect safety is the indexed read's: the raw-endpoint policy still applies.
+    expect(rawMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "manual" });
+  });
+
+  it.each([
+    ["a partial timestamp", "https://example.com/", "2020"],
+    ["a target without a scheme", "example.com", "20200202000000"],
+    ["no timestamp", "https://example.com/", undefined],
+  ])("still reports the index failure for %s", async (_case, target, timestamp) => {
+    fetchMock.mockRejectedValue(new Error('[GET] "/cdx/search/cdx": 503 Service Unavailable'));
+
+    const response = await createArchive(createWayback({ retries: 0 })).content(
+      target,
+      timestamp === undefined ? {} : { timestamp },
+    );
+
+    expect(response.success).toBe(false);
+    expect(response.error).toContain("503");
+    expect(rawMock).not.toHaveBeenCalled();
+  });
+
+  it("does not replay after the caller cancelled the read", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    fetchMock.mockRejectedValue(new DOMException("aborted", "AbortError"));
+
+    const response = await createArchive(createWayback({ retries: 0 })).content(
+      "https://example.com/",
+      { timestamp: "20200202000000", signal: controller.signal },
+    );
+
+    expect(response.success).toBe(false);
+    expect(rawMock).not.toHaveBeenCalled();
+  });
+
   it("reports an archive with no capture of the URL", async () => {
     fetchMock.mockResolvedValueOnce(cdxRows([]));
 
