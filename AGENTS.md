@@ -87,6 +87,7 @@ archives/
 | `archives`                  | Pi tool   | packages/pi/extensions/archives.ts | Query archive snapshots through Pi; delegates to the shared executors (source first, `dist/` in an installed package). |
 | `archives_providers`        | Pi tool   | packages/pi/extensions/archives.ts | List provider status and Perma.cc env configuration.                                                                   |
 | `snapshotArchives`          | function  | tool-operations.ts                 | Shared executor behind the snapshot tool on every surface. Throws on bad provider/prereqs.                             |
+| `snapshotBatchArchives`     | function  | tool-operations.ts                 | Executor behind the snapshot tool: one target, or up to 10 answered as one block each in input order.                  |
 | `listArchiveProviders`      | function  | tool-operations.ts                 | Shared executor listing providers, `provider=all` membership and Perma.cc key state.                                   |
 | `waybackSnapshots`          | function  | tool-operations.ts                 | Wayback-only lookup behind the interactive `/archive` command.                                                         |
 | `createMcpServer`           | function  | mcp.ts                             | Unconnected MCP server exposing snapshot, content, diff and provider tools.                                            |

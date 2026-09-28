@@ -264,6 +264,8 @@ An MCP client sees the text a tool returns and nothing else, so the text carries
 
 `archives_snapshots` is annotated read-only and open-world: it leaves the machine on every call, and archives keep growing, so two identical calls may legitimately differ. An answer replayed from the response cache is marked `; cached` in its header. A provider that returns no snapshots is an answer, not a tool error. Only a rejected argument or a failed query sets `isError`. `from` and `to` bound the listing to a time window, and the applied window is echoed in the header so a narrowed answer never reads as the archive's whole holdings.
 
+Checking a dozen pages doesn't need a dozen calls. `target` also takes a list of up to 10 domains or URLs, looked up with the same provider and options and answered as one block per target in the order you sent them. One target down is its own block, and `isError` is set only when none of them got an answer.
+
 The Perma.cc key is read from `PERMA_CC_API_KEY` or `PERMACC_API_KEY` and never accepted as a tool argument; it is redacted before the options reach any result.
 
 An MCP client starts the server in whatever directory it has open, so `archives mcp` resolves `archives.config.ts`, `.archives` and `package.json#archives` from the **home directory of the account running it**, not from that project. A config file belonging to a repository you are merely browsing is code you did not choose to run. The library keeps resolving from `process.cwd()`, unchanged.
@@ -281,7 +283,7 @@ pi install git:github.com/agntn/archives
 
 Tools:
 
-- `archives` — query archived snapshots for a domain or URL. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
+- `archives` - query archived snapshots for a domain or URL, or for a list of up to 10 in one call. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
 - `archives_content` - read the body of one archived capture. Pass `timestamp` for a point in time, a snapshot URL to read the capture it names, or the returned `continue` arguments for the following slice.
 - `archives_diff` - compare two chronological captures from one provider. Use `format=raw` for comments, scripts, and historical source.
 - `archives_providers` — list built-in archive providers and Perma.cc API-key environment status.

@@ -8,7 +8,7 @@ import type * as ArchivesTools from "@agntn/archives/tool-operations";
 type ContentDetails = ArchivesTools.ContentDetails;
 type DiffDetails = ArchivesTools.DiffDetails;
 type ProvidersDetails = ArchivesTools.ProvidersDetails;
-type SnapshotDetails = ArchivesTools.SnapshotDetails;
+type SnapshotToolDetails = ArchivesTools.SnapshotDetails | ArchivesTools.SnapshotBatchDetails;
 interface WaybackResponseSummary {
   readonly success: boolean;
   readonly pages: readonly unknown[];
@@ -77,6 +77,8 @@ const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queri
 const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, and Common Crawl. Memento reads the selected TimeMap URI directly and uses MemGator's proxy as fallback. Wayback, Arquivo.pt and Webarchiv Österreich use raw replay endpoints; Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
 const CONTENT_FORMATS = ["text", "raw"] as const;
 const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the decoded capture body without stripping markup.`;
+const MAX_SNAPSHOT_TARGETS = 10;
+const SNAPSHOT_TARGET_HINT = `Domain or URL to search for archived snapshots, or a list of up to ${MAX_SNAPSHOT_TARGETS} of them looked up with the same options.`;
 const SNAPSHOT_FROM_HINT = `Earliest capture to list, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Inclusive; a partial stamp starts the window at the beginning of the period it names.`;
 const SNAPSHOT_TO_HINT = `Latest capture to list, in the same formats as "from". Inclusive; a partial stamp stretches the window to the end of the period it names, so from=2019 with to=2019 covers the whole year.`;
 const DEFAULT_LIMIT = 10;
@@ -133,11 +135,16 @@ function archiveCommandNotice(
 // Integers, not plain numbers: a fractional limit clears validation and reaches
 // the CDX query as `&limit=10.5`, which Wayback answers by hanging.
 const snapshotParameters = Type.Object({
-  target: Type.String({
-    description: "Domain or URL to search for archived snapshots.",
-    minLength: 1,
-    maxLength: MAX_TARGET_LENGTH,
-  }),
+  target: Type.Union(
+    [
+      Type.String({ minLength: 1, maxLength: MAX_TARGET_LENGTH }),
+      Type.Array(Type.String({ minLength: 1, maxLength: MAX_TARGET_LENGTH }), {
+        minItems: 1,
+        maxItems: MAX_SNAPSHOT_TARGETS,
+      }),
+    ],
+    { description: SNAPSHOT_TARGET_HINT },
+  ),
   provider: Type.Optional(
     Type.Union(
       PROVIDER_INPUTS.map((name) => Type.Literal(name)),
@@ -427,7 +434,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     name: "archives",
     label: "Archives Snapshots",
     description:
-      "Read-only/open-world network fetch: find captures, timestamps, and snapshot URLs without reading archived bodies. Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all queries Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl, and WebCite; provider=memento uses the public MemGator service to query several archives; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY and searches one exact URL.",
+      "Read-only/open-world network fetch: find captures, timestamps, and snapshot URLs without reading archived bodies. Returns normalized pages with {url, timestamp, snapshot, _meta}. provider=all queries Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl, and WebCite; provider=memento uses the public MemGator service to query several archives; provider=permacc reads its API key from PERMA_CC_API_KEY or PERMACC_API_KEY and searches one exact URL. Pass a list of targets to check several pages in one call; each gets its own block with its snapshots or its error.",
     promptSnippet:
       "Find capture timestamps and snapshot URLs with archives; use archives_content to read one body and archives_diff to compare two.",
     promptGuidelines: [
@@ -440,9 +447,9 @@ export default function archivesExtension(pi: ExtensionAPI) {
     renderCall(args, theme) {
       return new Text(renderSnapshotCall(args, theme), 0, 0);
     },
-    async execute(_toolCallId, params, signal): Promise<AgentToolResult<SnapshotDetails>> {
-      const { snapshotArchives } = await loadToolOperations();
-      return settle(await snapshotArchives(params, signal));
+    async execute(_toolCallId, params, signal): Promise<AgentToolResult<SnapshotToolDetails>> {
+      const { snapshotBatchArchives } = await loadToolOperations();
+      return settle(await snapshotBatchArchives(params, signal));
     },
   });
 
@@ -574,10 +581,15 @@ export default function archivesExtension(pi: ExtensionAPI) {
   });
 }
 
-function renderSnapshotCall(params: SnapshotParams, theme: Readonly<RenderTheme>): string {
+/* The schema's Static types a batch as a mutable array, which a preview never needs. */
+type SnapshotCallArgs = Readonly<
+  Omit<SnapshotParams, "target"> & { target: string | readonly string[] }
+>;
+
+function renderSnapshotCall(params: SnapshotCallArgs, theme: Readonly<RenderTheme>): string {
   const parts = [
     theme.fg("toolTitle", theme.bold("archives")),
-    theme.fg("dim", truncateSingleLine(sanitizeTerminalText(params.target), 120)),
+    theme.fg("dim", truncateSingleLine(sanitizeTerminalText(targetPreview(params.target)), 120)),
   ];
   if (params.provider) parts.push(theme.fg("muted", `provider=${sanitizeLine(params.provider)}`));
   if (params.limit !== undefined) parts.push(theme.fg("muted", `limit=${params.limit}`));
@@ -613,6 +625,11 @@ function renderDiffCall(params: DiffParams, theme: Readonly<RenderTheme>): strin
   if (params.context !== undefined) parts.push(theme.fg("muted", `context=${params.context}`));
   if (params.offset !== undefined) parts.push(theme.fg("muted", `offset=${params.offset}`));
   return parts.join(" ");
+}
+
+/* A batch previews as its size and the targets that fit on the line. */
+function targetPreview(target: string | readonly string[]): string {
+  return typeof target === "string" ? target : `${target.length} targets: ${target.join(", ")}`;
 }
 
 /* Usable when the executors themselves failed to load, so it cannot come from them. */

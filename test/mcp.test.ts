@@ -372,6 +372,176 @@ describe("archives MCP server", () => {
     expect(text(response.content)).toContain("HTTP 503 Service Unavailable");
   });
 
+  it("looks up a batch of targets in one call, one block each in input order", async () => {
+    const snapshots = vi.fn((target: string) =>
+      Promise.resolve(
+        target === "example.org"
+          ? {
+              success: false,
+              pages: [],
+              error: "HTTP 503 Service Unavailable",
+              _meta: { source: "wayback", provider: "wayback" },
+            }
+          : success([page({ url: `https://${target}/` })]),
+      ),
+    );
+    providersMock.wayback.mockResolvedValue({ name: "wayback", slug: "wayback", snapshots });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: ["example.com", " example.org ", "example.net"], provider: "wayback" },
+    });
+
+    // One target down is its own block, not a failed call.
+    expect(response.isError).toBeUndefined();
+    const blocks = text(response.content).split("\n\n[provider=");
+    expect(blocks).toHaveLength(3);
+    expect(blocks[0]).toMatch(/^\[provider=wayback\] 1 snapshot\(s\) for "example\.com"/);
+    expect(blocks[0]).toContain("original: https://example.com/");
+    expect(blocks[1]).toMatch(/^wayback\] 0 snapshot\(s\) for "example\.org"; error=HTTP 503/);
+    expect(blocks[2]).toContain("original: https://example.net/");
+    expect(providersMock.wayback).toHaveBeenCalledTimes(1);
+    expect(snapshots.mock.calls.map(([target]) => target)).toEqual([
+      "example.com",
+      "example.org",
+      "example.net",
+    ]);
+  });
+
+  it("keeps a target whose provider threw from sinking the rest of the batch", async () => {
+    const snapshots = vi.fn((target: string) =>
+      target === "bad.example"
+        ? Promise.reject(new Error("socket hang up"))
+        : Promise.resolve(success([page()])),
+    );
+    providersMock.wayback.mockResolvedValue({ name: "wayback", slug: "wayback", snapshots });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: ["bad.example", "example.com"], provider: "wayback" },
+    });
+
+    expect(response.isError).toBeUndefined();
+    const answer = text(response.content);
+    expect(answer).toMatch(
+      /^\[provider=wayback\] 0 snapshot\(s\) for "bad\.example"; error=socket/,
+    );
+    expect(answer).toContain('\n\n[provider=wayback] 1 snapshot(s) for "example.com"\n');
+  });
+
+  it("fails the whole batch on an argument no target could satisfy", async () => {
+    const snapshots = vi.fn().mockResolvedValue(success([page()]));
+    providersMock.wayback.mockResolvedValue({ name: "wayback", slug: "wayback", snapshots });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: {
+        target: ["example.com", "example.org"],
+        provider: "wayback",
+        from: "2020",
+        to: "2019",
+      },
+    });
+
+    expect(response.isError).toBe(true);
+    expect(text(response.content)).toBe(
+      'archives_snapshots failed: Window is inverted: from "2020" is later than to "2019"',
+    );
+    expect(snapshots).not.toHaveBeenCalled();
+  });
+
+  it("marks a batch in which no target got an answer as a tool error", async () => {
+    stubProvider(providersMock.wayback, {
+      success: false,
+      pages: [],
+      error: "HTTP 503 Service Unavailable",
+      _meta: { source: "wayback", provider: "wayback" },
+    });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: ["example.com", "example.org"], provider: "wayback" },
+    });
+
+    expect(response.isError).toBe(true);
+    expect(text(response.content).match(/HTTP 503/g)).toHaveLength(4);
+  });
+
+  it("reads a batch a host sent as JSON text", async () => {
+    const snapshots = vi
+      .fn<(target: string) => Promise<ArchiveResponse>>()
+      .mockResolvedValue(success([page()]));
+    providersMock.wayback.mockResolvedValue({ name: "wayback", slug: "wayback", snapshots });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: '["example.com","example.org"]', provider: "wayback" },
+    });
+
+    expect(response.isError).toBeUndefined();
+    expect(snapshots.mock.calls.map(([target]) => target)).toEqual(["example.com", "example.org"]);
+  });
+
+  it("runs the batch no wider than the requested concurrency", async () => {
+    let running = 0;
+    let widest = 0;
+    const snapshots = vi.fn(async () => {
+      running += 1;
+      widest = Math.max(widest, running);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      running -= 1;
+      return success([page()]);
+    });
+    providersMock.wayback.mockResolvedValue({ name: "wayback", slug: "wayback", snapshots });
+    const client = await connectTestClient();
+
+    const targets = ["a.example", "b.example", "c.example", "d.example", "e.example"];
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: targets, provider: "wayback", concurrency: 2, cache: false },
+    });
+
+    expect(response.isError).toBeUndefined();
+    expect(snapshots).toHaveBeenCalledTimes(targets.length);
+    expect(widest).toBe(2);
+  });
+
+  it("rejects a batch that is empty, too long or holds a blank target", async () => {
+    const client = await connectTestClient();
+
+    const tooLong = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: Array.from({ length: 11 }, (_, index) => `${index}.example`) },
+    });
+    const empty = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: [] },
+    });
+    const blank = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: ["example.com", "  "] },
+    });
+    const serializedTooLong = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: JSON.stringify(Array.from({ length: 11 }, (_, index) => `${index}.x`)) },
+    });
+
+    expect(tooLong.isError).toBe(true);
+    expect(text(tooLong.content)).toContain("Invalid arguments at /target");
+    expect(empty.isError).toBe(true);
+    expect(text(empty.content)).toContain("Invalid arguments at /target");
+    expect(blank.isError).toBe(true);
+    expect(text(blank.content)).toContain("Target 2 cannot be empty");
+    expect(serializedTooLong.isError).toBe(true);
+    expect(text(serializedTooLong.content)).toContain("at most 10 entries");
+    expect(providersMock.all).not.toHaveBeenCalled();
+  });
+
   it("cannot be tricked into forging a second snapshot entry", async () => {
     stubProvider(
       providersMock.wayback,

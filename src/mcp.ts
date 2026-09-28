@@ -25,6 +25,7 @@ import {
   MAX_LIMIT,
   MAX_PARAMETER_LENGTH,
   MAX_RETRIES,
+  MAX_SNAPSHOT_TARGETS,
   MAX_TARGET_LENGTH,
   MAX_TIMEOUT,
   MAX_TIMESTAMP_LENGTH,
@@ -33,11 +34,12 @@ import {
   PROVIDER_INPUTS,
   sanitizeTerminalText,
   SNAPSHOT_FROM_HINT,
+  SNAPSHOT_TARGET_HINT,
   SNAPSHOT_TO_HINT,
-  snapshotArchives,
+  snapshotBatchArchives,
   type ContentParams,
   type DiffParams,
-  type SnapshotParams,
+  type SnapshotBatchParams,
   type ToolResult,
 } from "./tool-operations";
 import { version } from "./version";
@@ -59,14 +61,19 @@ const tools: ToolDefinition[] = [
     name: "archives_snapshots",
     title: "Archive Snapshots",
     description:
-      "Find captures, timestamps, and snapshot URLs without reading archived bodies. Returns one line per snapshot with its timestamp, the archived copy, and the original URL. Omit provider to query Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl, and WebCite; use provider=memento for the public MemGator service, which queries several archives. Providers that cannot answer the query are named in the answer instead of dropped. Combined results are merged newest first, while a single provider answers in its own order. Wayback and Webarchiv Österreich return an exact URL's oldest captures first, so ask for a larger limit when you need recent ones.",
+      "Find captures, timestamps, and snapshot URLs without reading archived bodies. Returns one line per snapshot with its timestamp, the archived copy, and the original URL. Omit provider to query Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl, and WebCite; use provider=memento for the public MemGator service, which queries several archives. Providers that cannot answer the query are named in the answer instead of dropped. Combined results are merged newest first, while a single provider answers in its own order. Wayback and Webarchiv Österreich return an exact URL's oldest captures first, so ask for a larger limit when you need recent ones. Pass a list of targets to check several pages in one call; each gets its own block with its snapshots or its error.",
     inputSchema: Type.Object(
       {
-        target: Type.String({
-          description: "Domain or URL to search for archived snapshots.",
-          minLength: 1,
-          maxLength: MAX_TARGET_LENGTH,
-        }),
+        target: Type.Union(
+          [
+            Type.String({ minLength: 1, maxLength: MAX_TARGET_LENGTH }),
+            Type.Array(Type.String({ minLength: 1, maxLength: MAX_TARGET_LENGTH }), {
+              minItems: 1,
+              maxItems: MAX_SNAPSHOT_TARGETS,
+            }),
+          ],
+          { description: SNAPSHOT_TARGET_HINT },
+        ),
         // Enumerated rather than free-form: the caller sees every accepted
         // spelling and a typo is rejected before any network work.
         provider: Type.Optional(
@@ -177,7 +184,8 @@ const tools: ToolDefinition[] = [
       idempotentHint: false,
       openWorldHint: true,
     },
-    execute: (args, signal) => snapshotArchives(args as unknown as SnapshotParams, signal),
+    execute: (args, signal) =>
+      snapshotBatchArchives(args as unknown as SnapshotBatchParams, signal),
   },
   {
     name: "archives_content",

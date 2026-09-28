@@ -30,6 +30,7 @@ import type {
 import {
   htmlToText,
   isTextualMime,
+  processInParallel,
   resolveRequestedTimestamp,
   timestampLowerBound,
   timestampUpperBound,
@@ -83,6 +84,11 @@ export const CONTENT_FORMATS = ["text", "raw"] as const;
 export type ContentFormat = (typeof CONTENT_FORMATS)[number];
 
 export const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the decoded capture body without stripping markup.`;
+
+/** Most targets one snapshot call looks up, the batch cap agntn/web uses too. */
+export const MAX_SNAPSHOT_TARGETS = 10;
+
+export const SNAPSHOT_TARGET_HINT = `Domain or URL to search for archived snapshots, or a list of up to ${MAX_SNAPSHOT_TARGETS} of them looked up with the same options.`;
 
 export const SNAPSHOT_FROM_HINT = `Earliest capture to list, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Inclusive; a partial stamp starts the window at the beginning of the period it names.`;
 
@@ -168,6 +174,26 @@ export interface SnapshotDetails {
   options: RedactedSnapshotOptions;
   count: number;
   response: ArchiveResponse;
+}
+
+/** Snapshot arguments as the tools take them: one target or a batch. */
+export type SnapshotBatchParams = Omit<SnapshotParams, "target"> & {
+  target: string | readonly string[];
+};
+
+/** One target's answer in a batch. */
+export interface SnapshotBatchItem {
+  target: string;
+  count: number;
+  response: ArchiveResponse;
+}
+
+/** A batch lookup: shared provider and options, one item per target in input order. */
+export interface SnapshotBatchDetails {
+  mode: "snapshots-batch";
+  provider: ProviderName;
+  options: RedactedSnapshotOptions;
+  items: SnapshotBatchItem[];
 }
 
 /** Arguments of the content tool, shared by every surface's schema. */
@@ -351,6 +377,112 @@ export async function snapshotArchives(
       response: sanitizeResponse(response),
     },
   };
+}
+
+/**
+ * Looks up snapshots for one target or a batch of them, as the snapshot tool does.
+ *
+ * A single target answers exactly like {@link snapshotArchives}. A batch shares one
+ * provider and one set of options, runs the targets through `concurrency`, and
+ * answers with one block per target in input order, so a target no provider
+ * answered costs its own block and not the call. The call is marked failed only
+ * when no target got an answer.
+ *
+ * @param params - Tool arguments; `target` is a domain or URL, or a list of up to
+ *   {@link MAX_SNAPSHOT_TARGETS} of them
+ * @param signal - Signal.
+ * @returns {Promise<ToolResult<SnapshotDetails | SnapshotBatchDetails>>} Rendered blocks plus the raw responses
+ * @throws {Error} When a target is empty, the batch is empty or too long, the provider is unknown, its prerequisites are missing, or the window is inverted
+ */
+export async function snapshotBatchArchives(
+  params: Readonly<SnapshotBatchParams>,
+  signal?: Readonly<AbortSignal>,
+): Promise<ToolResult<SnapshotDetails | SnapshotBatchDetails>> {
+  const requested = serializedTargets(params.target);
+  if (typeof requested === "string") {
+    return snapshotArchives({ ...params, target: requested }, signal);
+  }
+
+  const targets = validateSnapshotTargets(requested);
+  const provider = normalizeProvider(params.provider);
+  const options = { ...buildSnapshotOptions(params, provider), signal };
+  const archiveProvider = await createProvider(provider, options);
+  const archive = createArchive(archiveProvider, options);
+  // processInParallel logs a rejection and drops its item, which would shift
+  // every later block onto the wrong target. What throws here (an inverted
+  // window, a provider that fails to load) is the same for every target, so it
+  // fails the call the way it does for a single one.
+  const settled = await processInParallel(
+    targets,
+    (target) =>
+      archive.snapshots(target, options).then(
+        (response): SnapshotBatchItem => ({ target, count: response.pages.length, response }),
+        (error: unknown) => ({ error }),
+      ),
+    { concurrency: options.concurrency },
+  );
+  const items = settled.map((item) => {
+    if ("error" in item) throw item.error;
+    return item;
+  });
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: items
+          .map((item) =>
+            withHeader(
+              buildSnapshotHeader(provider, item.target, item.response, options),
+              formatSnapshots(item.response),
+            ),
+          )
+          .join("\n\n"),
+      },
+    ],
+    // One target down is its own block; only a batch where nothing answered failed.
+    ...(items.some((item) => item.response.success) ? {} : { isError: true }),
+    details: {
+      mode: "snapshots-batch",
+      provider,
+      options: redactOptions(options),
+      items: items.map((item) => ({ ...item, response: sanitizeResponse(item.response) })),
+    },
+  };
+}
+
+/*
+ * Some hosts send a list argument as its JSON text, which would otherwise be
+ * looked up as one literal target. Only a JSON array of strings becomes a batch.
+ */
+function serializedTargets(target: string | readonly string[]): string | readonly string[] {
+  if (typeof target !== "string") return target;
+  const trimmed = target.trim();
+  if (!trimmed.startsWith("[")) return target;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return target;
+  }
+  return Array.isArray(parsed) && parsed.every((item): item is string => typeof item === "string")
+    ? parsed
+    : target;
+}
+
+function validateSnapshotTargets(targets: readonly string[]): string[] {
+  if (targets.length === 0) throw new Error("Target list cannot be empty");
+  if (targets.length > MAX_SNAPSHOT_TARGETS) {
+    throw new Error(`Target list must have at most ${MAX_SNAPSHOT_TARGETS} entries`);
+  }
+  return targets.map((raw, index) => {
+    const target = raw.trim();
+    if (!target) throw new Error(`Target ${index + 1} cannot be empty`);
+    if (target.length > MAX_TARGET_LENGTH) {
+      throw new Error(`Target ${index + 1} must be at most ${MAX_TARGET_LENGTH} characters`);
+    }
+    return target;
+  });
 }
 
 /**
@@ -884,7 +1016,9 @@ const SNAPSHOT_OPTION_KEYS = [
   "to",
 ] as const satisfies readonly (keyof SnapshotParams & keyof SnapshotOptions)[];
 
-function snapshotPassthroughOptions(params: Readonly<SnapshotParams>): Partial<SnapshotOptions> {
+function snapshotPassthroughOptions(
+  params: Readonly<Omit<SnapshotParams, "target">>,
+): Partial<SnapshotOptions> {
   const result: Partial<SnapshotOptions> = {};
   for (const key of SNAPSHOT_OPTION_KEYS) {
     const value = params[key];
@@ -904,7 +1038,7 @@ function addPermaccApiKey(options: SnapshotOptions): void {
 }
 
 function buildSnapshotOptions(
-  params: Readonly<SnapshotParams>,
+  params: Readonly<Omit<SnapshotParams, "target">>,
   provider: ProviderName,
 ): SnapshotOptions {
   checkBounds(params);

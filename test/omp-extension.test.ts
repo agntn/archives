@@ -11,7 +11,9 @@ import {
   MAX_DIFF_CONTEXT,
   MAX_DIFF_OFFSET,
   MAX_LIMIT,
+  MAX_SNAPSHOT_TARGETS,
   PROVIDER_INPUTS,
+  SNAPSHOT_TARGET_HINT,
 } from "../src/tool-operations";
 
 vi.mock("ofetch", () => ({
@@ -215,6 +217,44 @@ describe("archives OMP extension", () => {
       expect(accepts(tool, { target: "example.com", provider })).toBe(true);
     }
     expect(accepts(tool, { target: "example.com", provider: "waybackmachine" })).toBe(false);
+  });
+
+  it("takes a batch of targets up to the shared executor cap", () => {
+    const tool = requireTool(registerExtension().tools, "archives");
+    const properties = (tool.parameters as unknown as TypeBox.TSchema).toJsonSchema()[
+      "properties"
+    ] as Record<string, Record<string, unknown>>;
+    const batch = (length: number) => Array.from({ length }, (_, index) => `${index}.example`);
+
+    expect(properties["target"]?.["description"]).toBe(SNAPSHOT_TARGET_HINT);
+    expect(accepts(tool, { target: batch(MAX_SNAPSHOT_TARGETS) })).toBe(true);
+    expect(accepts(tool, { target: batch(MAX_SNAPSHOT_TARGETS + 1) })).toBe(false);
+    expect(accepts(tool, { target: [] })).toBe(false);
+    expect(accepts(tool, { target: ["example.com", ""] })).toBe(false);
+  });
+
+  it("answers a batch with one block per target", async () => {
+    vi.mocked($fetch)
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/", "20200101000000", "200"],
+      ])
+      .mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    const tool = requireTool(registerExtension().tools, "archives");
+
+    const result = await tool.execute(
+      "test",
+      { target: ["example.com", "example.org"], provider: "wayback", cache: false, concurrency: 1 },
+      undefined,
+      undefined,
+      unusedContext,
+    );
+
+    const answer = result.content.map((part) => (part.type === "text" ? part.text : "")).join("");
+    expect(answer).toContain('[provider=wayback] 1 snapshot(s) for "example.com"');
+    expect(answer).toContain(
+      '\n\n[provider=wayback] 0 snapshot(s) for "example.org"\nNo snapshots.',
+    );
   });
 
   it("narrows a Wayback query to the requested window", async () => {
