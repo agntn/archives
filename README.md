@@ -1,252 +1,151 @@
 # @agntn/archives
 
-[![npm version](https://img.shields.io/npm/v/%40agntn%2Farchives?style=flat&colorA=130f40&colorB=474787)](https://npmjs.com/package/@agntn/archives)
-[![npm downloads](https://img.shields.io/npm/dm/%40agntn%2Farchives?style=flat&colorA=130f40&colorB=474787)](https://npm.chart.dev/@agntn/archives)
-[![license](https://img.shields.io/github/license/agntn/archives?style=flat&colorA=130f40&colorB=474787)](https://github.com/agntn/archives/blob/main/LICENSE)
+[![npm version](https://npmx.dev/api/registry/badge/version/@agntn/archives)](https://npmx.dev/package/@agntn/archives)
+[![npm downloads](https://npmx.dev/api/registry/badge/downloads/@agntn/archives)](https://npmx.dev/package/@agntn/archives)
+[![license](https://npmx.dev/api/registry/badge/license/@agntn/archives)](https://npmx.dev/package/@agntn/archives)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/agntn/archives)
 
-Unified TypeScript interface for querying web archive providers. One API, multiple sources, consistent output.
+🗄️ Ten archive providers, one interface. Ask what a page said in 2002, you get what it said.
 
-## Features
+## Why?
 
-- 🔍 **Multiple providers** - Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive-It, Conifer, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite
-- 📄 **Reads captures, not just lists them** - `content()` returns what an archived page said, decoded from the original response
-- 🔀 **Compares historical versions** - `diffArchivedContent()` and `archives_diff` expose removed or changed text, markup, scripts, and comments with capture provenance
-- 🌳 **Tree-shakable** - providers are lazy-loaded via dynamic imports, bundle only what you use
-- 📦 **Caching built in** - pluggable storage layer via [unstorage](https://github.com/unjs/unstorage) with configurable TTL
-- ⚡ **Parallel queries** - concurrency control, batching, automatic retries, configurable timeouts
-- 🔧 **Config files** - supports `archives.config.ts`, `.archives`, and `package.json` via [c12](https://github.com/unjs/c12)
-- 🏷️ **Fully typed** - TypeScript definitions for all responses, options, and provider-specific metadata
-- 🔌 **Agent surfaces** - an MCP server, native OMP and Pi extensions, and the WebMCP Evidence Room in the browser
+Every web archive has its own idea of an API. Wayback speaks CDX. Archive.today speaks Memento link headers. Common Crawl gives you a byte range inside a WARC file and wishes you luck. Now hand all three to an agent and see how long it keeps them apart. Not long.
 
-## Install
+So this is one `createArchive()` in front of all of them, and the same page object comes back from each.
+
+Docs and a live timeline explorer: [archives.agntn.dev](https://archives.agntn.dev).
+
+## ✨ Features
+
+- 🗂️ **Ten providers, one shape.** Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive-It, Conifer, Archive.today, Memento, Common Crawl, Perma.cc and WebCite. Dates come back as ISO 8601 from every one of them.
+- 📄 **Reads captures, not just lists them.** `content()` goes through the raw `id_` replay or a WARC range where the archive has one. No toolbar, no rewritten links.
+- 🔀 **Diffs two versions of a page.** Both from the same archive, with the real capture dates on top.
+- 🕰️ **Time windows.** `from` and `to` take `2019`, `201903` or an ISO date. Both ends inclusive.
+- 🙅 **"Unsupported" is an answer.** A provider without the endpoint says so and tells you why. No fake empty list.
+- 🧯 **Survives a bad archive day.** One provider times out, the rest still answer. The failure lands in `_meta.errors`.
+- 🌳 **Tree-shakable.** Every provider sits behind a dynamic import. Ask for Wayback, get Wayback.
+- 🤖 **MCP, Pi and OMP.** Four tools, and every surface answers the same.
+
+## 📦 Install
 
 ```bash
 pnpm add @agntn/archives
 ```
 
-Docs and the live timeline explorer: [archives.agntn.dev](https://archives.agntn.dev). The source lives in [`docs/`](./docs); run `pnpm docs` for a local copy.
+Node.js 26 or newer.
 
-## Usage
+## 🚀 First call
 
 ```ts
 import { createArchive, providers } from "@agntn/archives";
 
-const archive = createArchive(providers.wayback());
-const response = await archive.snapshots("example.com", { limit: 100 });
+const archive = createArchive(providers.wayback({ timeout: 30_000 }));
 
-if (response.success) {
-  for (const page of response.pages) {
-    console.log(page.url, page.timestamp, page.snapshot);
-  }
-}
+const { pages } = await archive.snapshots("example.com", { limit: 3 });
+for (const page of pages) console.log(page.timestamp, page.snapshot);
+
+const page = await archive.getContent("example.com", { timestamp: "2002" });
+console.log(page.content);
 ```
 
-Query all providers at once with `providers.all()` (excludes Archive-It and Conifer because they need identifiers for a collection, Perma.cc because it needs an API key, and Memento because it already queries several archives):
+```
+2002-01-20T14:25:10Z https://web.archive.org/web/20020120142510/http://example.com:80/
+2003-02-07T05:52:28Z https://web.archive.org/web/20030207055228/http://www.example.com:80/
+2004-01-05T04:55:15Z https://web.archive.org/web/20040105045515/http://www.example.com/
+<HTML>
+<HEAD>
+  <TITLE>Example Web Page</TITLE>
+</HEAD>
+<body>
+<p>You have reached this web page by typing &quot;example.com&quot;,
+&quot;example.net&quot;,
+  or &quot;example.org&quot; into your web browser.</p>
+<p>These domain names are reserved for use in documentation and are not
+available
+  for registration.</p>
+</BODY>
+</HTML>
+```
+
+No key, no config. That's the HTML example.com served in 2002. Still not for sale, by the way.
+
+Wayback keeps one capture per year by default, so three rows are three years. The `timeout` is there because its index is in no hurry. The default ten seconds is not always enough. More on listings and reading: [Snapshots](https://archives.agntn.dev/guide/snapshots), [Reading content](https://archives.agntn.dev/guide/content).
+
+## 🔍 What changed?
+
+```ts
+import { createArchive, diffArchivedContent, providers } from "@agntn/archives";
+
+const archive = createArchive(providers.wayback({ timeout: 30_000 }));
+const before = await archive.getContent("https://example.com/", { timestamp: "2020" });
+const after = await archive.getContent("https://example.com/", { timestamp: "2026" });
+
+console.log(diffArchivedContent(before, after).patch);
+```
+
+```
+--- before	2020-12-31T23:59:42Z
++++ after	2026-09-29T05:56:21Z
+@@ -1,8 +1,2 @@
+-Example Domain
+-
+-Example Domain
+-
+-This domain is for use in illustrative examples in documents. You may use this
+-domain in literature without prior coordination or asking for permission.
+-
+-More information...
+\ No newline at end of file
++Example Domain This domain is for use in documentation examples without needing permission. This is not a service, avoid relying on it for testing and monitoring purposes.
++Learn more
+\ No newline at end of file
+```
+
+Even example.com rewrites its homepage. You asked for years, the header shows the captures you actually got.
+
+Pass the full URL here. A bare `example.com` can be `http://example.com:80/` one year and `http://www.example.com/` the next. The diff refuses to compare two different URLs. Want the markup, scripts and comments too? `{ format: "raw" }`. That's where the fun stuff hides anyway ;) More: [Comparing captures](https://archives.agntn.dev/guide/diff).
+
+## 🧠 Library
 
 ```ts
 const archive = createArchive(providers.all());
 const response = await archive.snapshots("example.com");
-```
 
-To pick specific providers, wrap them in `Promise.all`:
-
-```ts
-const archive = createArchive(
-  Promise.all([providers.wayback(), providers.archiveToday(), providers.commoncrawl()]),
-);
-```
-
-### Time window
-
-`snapshots()` takes `from` and `to` bounds, as archive digits (`2019`, `201903`, up to `20190301120000`) or ISO 8601 dates. Both are inclusive, and a partial value covers the whole period it names, so `from: '2019', to: '2019'` is the entire year:
-
-```ts
-const response = await archive.snapshots("example.com", { from: "2019", to: "2019-06" });
-```
-
-Providers whose index takes a window (Wayback, Arquivo.pt, Webarchiv Österreich, Archive-It) narrow the query itself; for the rest the listing is filtered after it returns, so captures outside the window never mix into combined results. While a window is active, `limit` applies after the filter rather than at the provider, so a tight limit cannot eat the window. What the window cannot reach past is the single batch a windowed fetch asks for: up to 1000 index rows from Arquivo.pt, Webarchiv Österreich, Common Crawl and Conifer, 100 from Perma.cc, and the library does not paginate beyond that.
-
-### Arquivo.pt
-
-Arquivo.pt lists captures through its public CDX API and serves the archived response through its raw replay endpoint. It needs no API key and is included in `providers.all()`:
-
-```ts
-const archive = createArchive(providers.arquivo());
-const response = await archive.snapshots("example.com");
-```
-
-### Webarchiv Österreich
-
-Webarchiv Österreich searches the Austrian National Library's public CDXJ index and serves captures through raw `id_` replay. It needs no API key, is included in `providers.all()`, and searches one exact URL rather than every path on a domain:
-
-```ts
-const archive = createArchive(providers.webarchiv());
-const response = await archive.snapshots("https://www.onb.ac.at/");
-```
-
-### Perma.cc
-
-Perma.cc requires an API key and searches archives accessible to that account by exact submitted URL:
-
-```ts
-const archive = createArchive(providers.permacc({ apiKey: "YOUR_API_KEY" }));
-const response = await archive.snapshots("https://example.com/page");
-```
-
-A bare domain such as `example.com` is normalized to `https://example.com/`. It does not match every path on that domain.
-
-### Archive-It
-
-Archive-It queries one public collection at a time through its CDX/C API. Pass the numeric collection ID when creating the provider:
-
-```ts
-const archive = createArchive(providers.archiveIt({ collection: 4399 }));
-const response = await archive.snapshots("archive-it.org");
-```
-
-Archive-It’s all-collections endpoint is temporarily blocked, so `providers.archiveIt()` requires a collection and is not included in `providers.all()`.
-
-### Conifer
-
-Conifer searches one existing public collection at a time. Pass its user and collection slugs:
-
-```ts
-const archive = createArchive(providers.conifer({ user: "imamuseum", collection: "imamuseumorg" }));
-const response = await archive.snapshots("imamuseum.org");
-```
-
-Conifer disabled new captures and collection editing ahead of its June 2026 discontinuation, but Rhizome continues to host existing collections in read-only form. The provider is therefore not included in `providers.all()`.
-
-### Memento
-
-The original [Memento Time Travel](https://mementoweb.org/about/) aggregator was discontinued in 2025. `providers.memento()` keeps the same search across several archives through ODU's public [MemGator](https://memgator.cs.odu.edu/) service, which returns Memento JSON TimeMaps:
-
-```ts
-const archive = createArchive(providers.memento());
-const response = await archive.snapshots("https://example.com/");
-```
-
-Memento is deliberately excluded from `providers.all()`: MemGator already queries multiple archives, so calling it inside the package's combined query would duplicate results and multiply upstream requests. Library consumers can point the provider at another instance compatible with MemGator through `providers.memento({ baseUrl: "https://memgator.example" })`; agent tools use the public ODU endpoint. Remote aggregators must use HTTPS (HTTP is accepted only for local development), and TimeMap rows targeting local, private, or link-local addresses are ignored before content retrieval.
-
-### Error handling
-
-`snapshots()` returns a response object with a `success` flag. If you prefer throwing on failure, use `getPages()`:
-
-```ts
-// safe - check success flag yourself
-const response = await archive.snapshots("example.com");
-
-// throws on failure, returns pages array directly
-const pages = await archive.getPages("example.com");
-```
-
-`getPages()` distinguishes runtime failures from structural ones. When every queried provider is _unsupported_ for the operation (see below), it throws `UnsupportedOperationError` with the per-provider reasons attached:
-
-```ts
-import { UnsupportedOperationError } from "@agntn/archives";
-
-try {
-  const pages = await archive.getPages("example.com");
-} catch (error) {
-  if (error instanceof UnsupportedOperationError) {
-    // error.providers: [{ provider, reason }, ...]
-  } else {
-    // generic Error: network failure, parse error, etc.
-  }
-}
-```
-
-## Reading archived content
-
-`snapshots()` says which captures exist; `content()` returns what one of them said:
-
-```ts
-const archive = createArchive(providers.wayback());
-
-// Newest capture
-const response = await archive.content("example.com");
-response.content?.content; // the archived page body
-response.content?.timestamp; // when it was captured
-response.content?.snapshot; // the playback URL it came from
-
-// The page as it stood in March 2019
-const older = await archive.content("https://example.com/page", { timestamp: "2019-03-01" });
-```
-
-`timestamp` takes an ISO 8601 date or archive digits (`2019`, `201903`, up to `20190301120000`), and selects the newest capture at or before it. When the archive only holds later ones, it reads the closest capture after it. A snapshot URL works as the target as well, in which case the capture it names is the one read:
-
-```ts
-await archive.content("https://web.archive.org/web/20190301120000/https://example.com/");
-```
-
-Bodies are read through each archive's raw capture endpoint where one exists: Wayback, Arquivo.pt, Webarchiv Österreich and Archive-It replay the original response under the `id_` modifier, Memento reads the TimeMap's exact Memento URI with a raw replay modifier where supported and falls back to MemGator's proxy when direct playback fails, and Common Crawl serves the byte range of the WARC record the index points at. Archive.today has no raw endpoint at all, so its `content()` returns the page as the site renders it, wrapper markup and all, rather than the bytes the original server sent; a rate limit or CAPTCHA answer becomes an error instead of posing as the capture.
-
-Providers are tried in order and the first body wins, because there is one page to read rather than a set to merge. The ones that could not answer are reported next to the body:
-
-```ts
-const response = await createArchive(providers.all()).content("example.com");
-response._meta?.errors; // ["wayback: ..."] when an archive failed
+response.pages; // everything the archives found
+response._meta?.errors; // ["wayback: ...timeout", ...]
 response._meta?.unsupportedProviders; // [{ provider: "webcite", reason: "..." }]
 ```
 
-`content()` reads at most `maxBytes` (2 MiB by default) and reports `truncated: true` when it stopped early, so an archived video or disk image cannot be pulled into memory by accident. `getContent()` is the throwing variant, mirroring `getPages()`.
+On a bad day three archives timed out here and it still came back with 1145 pages. `snapshots()` and `content()` don't throw. Check `success`. `getPages()` and `getContent()` throw instead.
 
-## Comparing archived captures
+Want a few providers, not all? `createArchive(Promise.all([providers.wayback(), providers.arquivo()]))`. Cache, config files and every option: [Configuration](https://archives.agntn.dev/guide/configuration).
 
-`diffArchivedContent()` creates a unified line diff from two textual captures of the same original URL and provider. Text mode compares what a reader sees; raw mode retains decoded markup, scripts, comments, and source:
+## 🗺️ Providers
 
-```ts
-import { diffArchivedContent } from "@agntn/archives";
+| Provider             | Factory                    | Reads bodies  | Needs                   | In `all()` |
+| -------------------- | -------------------------- | ------------- | ----------------------- | ---------- |
+| Wayback Machine      | `providers.wayback()`      | yes           | nothing                 | yes        |
+| Arquivo.pt           | `providers.arquivo()`      | yes           | nothing                 | yes        |
+| Webarchiv Österreich | `providers.webarchiv()`    | yes           | an exact URL            | yes        |
+| Archive.today        | `providers.archiveToday()` | rendered page | nothing                 | yes        |
+| Common Crawl         | `providers.commoncrawl()`  | yes           | nothing                 | yes        |
+| WebCite              | `providers.webcite()`      | no            | no listing API at all   | yes        |
+| Archive-It           | `providers.archiveIt()`    | yes           | a `collection` ID       | no         |
+| Conifer              | `providers.conifer()`      | no            | `user` and `collection` | no         |
+| Memento              | `providers.memento()`      | yes           | nothing                 | no         |
+| Perma.cc             | `providers.permacc()`      | no            | an `apiKey`             | no         |
 
-const before = await archive.getContent("https://example.com/puzzle", {
-  timestamp: "2020",
-});
-const after = await archive.getContent("https://example.com/puzzle", {
-  timestamp: "2021",
-});
+Memento goes through ODU's MemGator, which already asks several archives. Put it in `all()` and you'd get everything twice. Archive.today has no raw endpoint, so you get the page as it renders it. Running your own MemGator? `providers.memento({ baseUrl })` takes it, over HTTPS unless it's local.
 
-const visibleChanges = diffArchivedContent(before, after);
-const sourceChanges = diffArchivedContent(before, after, { format: "raw" });
-```
+Some of these are history themselves. The original Memento Time Travel is gone. WebCite stopped taking new pages around 2019. Conifer only serves existing collections, read-only. Quirks per archive: [Providers](https://archives.agntn.dev/providers).
 
-The helper rejects missing or different provider provenance, different original URLs, nontextual bodies, and captures that are not chronological. Memento inputs must also identify the same underlying archive host; the aggregator label alone is not enough. Its diff algorithm has both an elapsed time budget and an edit distance ceiling. `partial: true` means at least one input body was already truncated, so absence beyond that prefix is not proved.
-
-Agent clients can perform retrieval and comparison in one call with `archives_diff`. With `provider=all`, it tries providers in order until one provider can serve both captures. It never combines versions from different archives, where replay rewriting could look like a site change. The result reports the actual selected dates because a requested time can resolve to the closest available capture.
-
-## Providers
-
-| Provider             | Factory                    | `content()` | Notes                                                                                                       |
-| -------------------- | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
-| Wayback Machine      | `providers.wayback()`      | yes         | web.archive.org CDX API; captures replayed under `id_`                                                      |
-| Arquivo.pt           | `providers.arquivo()`      | yes         | Public CDX API; raw captures replayed through `noFrame/replay`                                              |
-| Webarchiv Österreich | `providers.webarchiv()`    | yes         | Public CDXJ index; exact URL lookup; raw captures replayed under `id_`                                      |
-| Archive-It           | `providers.archiveIt()`    | yes         | Requires a numeric `collection`; CDX/C API specific to that collection                                      |
-| Conifer              | `providers.conifer()`      | no          | Requires `user` and `collection`; searches an existing public collection                                    |
-| Archive.today        | `providers.archiveToday()` | yes         | archive.ph via Memento timemap; bodies are the rendered wrapper page, not the original bytes                |
-| Memento              | `providers.memento()`      | yes         | Public ODU MemGator JSON TimeMap; queries several archives; excluded from `all` to avoid duplicate requests |
-| Common Crawl         | `providers.commoncrawl()`  | yes         | Defaults to latest collection; bodies read from the WARC byte range                                         |
-| Perma.cc             | `providers.permacc()`      | no          | Requires `apiKey`; exact URL lookup only; API returns metadata only                                         |
-| WebCite              | `providers.webcite()`      | no          | No API for listing a domain; `snapshots()` returns unsupported. New archives no longer accepted (~2019).    |
-| All                  | `providers.all()`          | n/a         | Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl, and WebCite                         |
-
-A provider that cannot serve bodies answers `content()` as unsupported with the reason, exactly as it does for a listing it has no endpoint for.
-
-You can add providers dynamically after creation:
-
-```ts
-const archive = createArchive(providers.wayback());
-await archive.use(providers.archiveToday());
-await archive.useAll([providers.commoncrawl(), providers.webcite()]);
-```
-
-## MCP server
+## 🤖 Agents
 
 ```bash
 archives mcp
+omp install github:agntn/archives
+pi install git:github.com/agntn/archives
 ```
-
-Speaks MCP over stdio and exposes four tools: `archives_snapshots`, `archives_content`, `archives_diff` and `archives_providers`. Point a client at it:
 
 ```json
 {
@@ -256,214 +155,36 @@ Speaks MCP over stdio and exposes four tools: `archives_snapshots`, `archives_co
 }
 ```
 
-An MCP client sees the text a tool returns and nothing else, so the text carries the whole answer: the provider that was queried, every snapshot with its timestamp and original URL, and the providers that could not answer, named with their reason instead of silently dropped. `archives_providers` is there for the same reason — without it the only way to learn which providers exist, which ones `provider=all` covers, and whether Perma.cc has a key is to send a value you expect to fail.
+Four read-only tools: snapshots, content, diff and providers. An archived body comes back fenced as untrusted data. It's a recording of a web page, not a message for the model. The Perma.cc key lives in `PERMA_CC_API_KEY`, never in a tool argument.
 
-`archives_content` returns one body slice, with markup stripped to readable text unless `format=raw` and bounded by `maxChars` (20 000 by default). The response names its UTF-16 range and `hasMore`. When another slice exists, its `continue` line supplies arguments pinned to that capture for the following call, including `target`, `provider`, `timestamp`, `format`, `offset`, and a provider collection when needed. When the first internal read is truncated, the tool expands it to a fixed prefix of 2 000 000 bytes before slicing so later offsets address the same rendered text. The body is fenced and labelled as untrusted data: it is a recording of a web page, not a message to the caller. A capture that is not text is described instead of decoded.
+One thing to know. `archives mcp` reads its config from your home directory, not from the project your client has open. Browsing someone's repo shouldn't run their `archives.config.ts`. [Agents guide](https://archives.agntn.dev/guide/agents).
 
-`archives_diff` takes `before` and `after`, reads both versions from one provider, and returns a unified diff with exact capture dates and snapshot URLs. `format=text` compares visible text; `format=raw` keeps source changes. Large patches use a bounded slice contract with their own output offset ceiling. The returned `continue` line pins both actual timestamps, provider, rendering, context, collection, SHA-256 of the complete patch, and next offset. If replayed bodies produce a different hash, continuation aborts instead of slicing unstable data. A partial input warning limits any negative conclusion.
+The docs site also has the [Evidence Room](https://archives.agntn.dev/evidence), the same idea over WebMCP in the browser. [WebMCP guide](https://archives.agntn.dev/guide/webmcp).
 
-`archives_snapshots` is annotated read-only and open-world: it leaves the machine on every call, and archives keep growing, so two identical calls may legitimately differ. An answer replayed from the response cache is marked `; cached` in its header. A provider that returns no snapshots is an answer, not a tool error. Only a rejected argument or a failed query sets `isError`. `from` and `to` bound the listing to a time window, and the applied window is echoed in the header so a narrowed answer never reads as the archive's whole holdings.
+## 🚫 What this does not do
 
-Checking a dozen pages doesn't need a dozen calls. `target` also takes a list of up to 10 domains or URLs, looked up with the same provider and options and answered as one block per target in the order you sent them. One target down is its own block, and `isError` is set only when none of them got an answer.
+It doesn't archive anything. You read what others saved, you can't ask for a new capture. And the live web is [@agntn/web](https://github.com/agntn/web)'s job.
 
-The Perma.cc key is read from `PERMA_CC_API_KEY` or `PERMACC_API_KEY` and never accepted as a tool argument; it is redacted before the options reach any result.
+## 🧩 Adding a provider
 
-An MCP client starts the server in whatever directory it has open, so `archives mcp` resolves `archives.config.ts`, `.archives` and `package.json#archives` from the **home directory of the account running it**, not from that project. A config file belonging to a repository you are merely browsing is code you did not choose to run. The library keeps resolving from `process.cwd()`, unchanged.
+An eleventh? Extend `BaseProvider`, answer `snapshots()`, pass it to `createArchive()`. That's it. The full contract: [Custom providers](https://archives.agntn.dev/guide/custom).
 
-`createMcpServer()` is exported from `@agntn/archives/mcp` for hosts that bring their own transport.
-
-## Agent extensions
-
-`@agntn/archives` ships native extensions for [OMP](https://omp.sh) and [Pi](https://pi.dev). Install the package directly from GitHub with the matching host:
+## 🛠️ Development
 
 ```bash
-omp install github:agntn/archives
-pi install git:github.com/agntn/archives
+pnpm install
+pnpm dev          # vp test in watch mode
+pnpm lint         # builds first, then vp lint and vp fmt --check
+pnpm test:types   # tsc over the library and both extensions
+pnpm test         # lint, types, tests with coverage
+pnpm build        # vp pack
+pnpm docs         # docs site and timeline explorer on :3000
 ```
 
-Tools:
+## 💛 Thanks
 
-- `archives` - query archived snapshots for a domain or URL, or for a list of up to 10 in one call. Use `provider="all"` for broad coverage or `provider="wayback"` for a fast Wayback-only lookup.
-- `archives_content` - read the body of one archived capture. Pass `timestamp` for a point in time, a snapshot URL to read the capture it names, or the returned `continue` arguments for the following slice.
-- `archives_diff` - compare two chronological captures from one provider. Use `format=raw` for comments, scripts, and historical source.
-- `archives_providers` — list built-in archive providers and Perma.cc API-key environment status.
+Anthropic and OpenAI back this package through their open source programs, [Claude for Open Source](https://claude.com/contact-sales/claude-for-oss) and [Codex for Open Source](https://developers.openai.com/community/codex-for-oss). Much appreciated <3
 
-Commands:
+## 📄 License
 
-- `/archive [domain-or-url]` — search Wayback snapshots interactively and paste the selected snapshot URL into the editor.
-- `/archive-providers` — show provider availability notes.
-
-All three package surfaces call the executors in `src/tool-operations.ts`, so the MCP server and the two extensions answer identically. The extensions add structured details for harness rendering. MCP keeps only the text. The extensions read the executors from source in a working tree and from `dist/` inside an installed package, so run `pnpm build` before loading an extension from a checkout.
-
-## WebMCP Evidence Room
-
-The documentation site adds a fourth agent surface in the browser at [`/evidence`](https://archives.agntn.dev/evidence). It registers four experimental WebMCP tools through `document.modelContext`: scope a historical case, pair bounded capture windows, inspect one diff with pinned provenance, and pin a finding for human review. Agent calls and manual actions update the same visible caseboard.
-
-This is progressive enhancement, not a package polyfill. Browsers without WebMCP keep the complete manual workflow. Archived excerpts stay bounded, escaped, and explicitly marked as untrusted data. Interpretations stay separate from their before/after capture citations. See the [WebMCP guide](https://archives.agntn.dev/guide/webmcp) for the protocol and browser setup.
-
-## Response format
-
-Every provider normalizes its output to the same shape:
-
-```ts
-interface ArchiveResponse {
-  success: boolean;
-  pages: ArchivedPage[];
-  error?: string;
-  unsupported?: boolean; // provider does not implement this operation
-  unsupportedReason?: string;
-  _meta?: ResponseMetadata;
-  fromCache?: boolean;
-}
-
-interface ArchivedPage {
-  url: string; // original URL
-  timestamp: string; // ISO 8601
-  snapshot: string; // direct link to the archived version
-  _meta: Record<string, unknown>;
-}
-```
-
-A read capture has its own shape:
-
-```ts
-interface ArchivedContent {
-  url: string; // original URL, as the archive recorded it
-  timestamp: string; // ISO 8601 date of the capture returned
-  snapshot: string; // playback URL the body came from
-  content: string; // decoded body of the archived response
-  mime?: string; // content type the archive reports
-  bytes: number; // bytes read, after any cap
-  truncated: boolean; // body was cut off at maxBytes
-  _meta: Record<string, unknown>;
-}
-```
-
-`ArchivedContentDiff` contains `before` and `after` capture summaries with provider provenance, a unified `patch`, `additions`, `deletions`, `identical`, `partial`, `format`, and `context`. Memento summaries also retain the underlying `archive` host.
-
-The `_meta` object on each page carries fields specific to each provider. Wayback includes `status` and `timestamp` in its raw format. Arquivo.pt and Webarchiv Österreich add `digest`, `mime` and `length`. Memento adds the upstream `archive` hostname and raw `datetime`. Common Crawl adds `digest`, `mime`, `collection`. Perma.cc has `guid`, `title`, `created_by`. Archive.today provides `hash` and `raw_date`.
-
-### Unsupported operations
-
-Not every provider implements every operation. WebCite, for example, exposes no list-by-domain API — it only resolves snapshots by ID. When a provider cannot answer a call, it returns `success: false` with `unsupported: true` and a human-readable `unsupportedReason`, instead of fabricating data.
-
-For multi-provider calls, the combined response surfaces unsupported providers under `_meta.unsupportedProviders` regardless of how the rest behaved. The top-level `unsupported` flag has stricter semantics:
-
-| Scenario                                                   | `success` | `error`       | `unsupported` | `_meta.unsupportedProviders` |
-| ---------------------------------------------------------- | --------- | ------------- | ------------- | ---------------------------- |
-| Some providers succeed, others are unsupported             | `true`    | —             | —             | populated                    |
-| Some providers error, others are unsupported, none succeed | `false`   | joined errors | —             | populated                    |
-| Every queried provider is unsupported                      | `false`   | —             | `true`        | populated                    |
-
-Example:
-
-```ts
-const archive = createArchive(providers.all());
-const response = await archive.snapshots("example.com");
-
-response.pages; // results from Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl
-response._meta?.unsupportedProviders;
-// [{ provider: "webcite", reason: "WebCite has no list-by-domain API. ..." }]
-```
-
-To treat unsupported providers as a _whole-call_ failure, check the top-level flag explicitly: `if (!response.success && response.unsupported) { ... }`.
-
-## Configuration
-
-Archives loads configuration through [c12](https://github.com/unjs/c12), which means you can configure it via config files, environment overrides, or `package.json`:
-
-```ts
-// archives.config.ts
-export default {
-  storage: {
-    cache: true,
-    ttl: 7 * 24 * 60 * 60 * 1000, // 7 days
-    prefix: "archives",
-  },
-  performance: {
-    concurrency: 3,
-    batchSize: 20,
-    timeout: 10_000,
-    retries: 1,
-  },
-};
-```
-
-Environment-specific overrides work with `$development`, `$production`, and `$test` keys.
-
-### Custom storage driver
-
-The caching layer is backed by [unstorage](https://github.com/unjs/unstorage), so any unstorage driver works:
-
-```ts
-import { configureStorage } from "@agntn/archives";
-import fsDriver from "unstorage/drivers/fs";
-
-await configureStorage({
-  driver: fsDriver({ base: "./cache" }),
-  ttl: 24 * 60 * 60 * 1000, // 1 day
-});
-```
-
-Per-request cache control is also supported:
-
-```ts
-// skip cache for this request
-await archive.snapshots("example.com", { cache: false });
-```
-
-## API
-
-### `createArchive(providers, options?)`
-
-Creates an archive client. Accepts a single provider, a `Promise<ArchiveProvider>`, or a `Promise<ArchiveProvider[]>`.
-
-Returns:
-
-- `snapshots(domain, options?)` - returns full `ArchiveResponse` with success flag
-- `getPages(domain, options?)` - returns `ArchivedPage[]`, throws on failure
-- `content(url, options?)` - returns `ArchiveContentResponse` with the archived body
-- `getContent(url, options?)` - returns `ArchivedContent`, throws on failure
-- `diffArchivedContent(before, after, options?)` - compares two textual captures already in memory, with provenance and complexity guards
-- `use(provider)` - add a provider to the instance
-- `useAll(providers)` - add multiple providers at once
-
-### Options
-
-All methods accept `ArchiveOptions`:
-
-| Option        | Type      | Default     | Description                             |
-| ------------- | --------- | ----------- | --------------------------------------- |
-| `limit`       | `number`  | `1000`      | Maximum results to return               |
-| `cache`       | `boolean` | `true`      | Enable/disable caching                  |
-| `ttl`         | `number`  | `604800000` | Cache TTL in milliseconds (7 days)      |
-| `concurrency` | `number`  | `3`         | Positive integer; max parallel requests |
-| `batchSize`   | `number`  | `20`        | Positive integer; items per batch       |
-| `timeout`     | `number`  | `10000`     | Request timeout in ms                   |
-| `retries`     | `number`  | `1`         | Retry attempts on failure               |
-| `apiKey`      | `string`  | -           | API key for providers that need auth    |
-
-`content()` takes two more, in `ArchiveContentOptions`:
-
-| Option      | Type     | Default   | Description                                                    |
-| ----------- | -------- | --------- | -------------------------------------------------------------- |
-| `timestamp` | `string` | -         | Capture to read: ISO 8601 date or archive digits               |
-| `maxBytes`  | `number` | `2097152` | Cap on the bytes read from the body; sets `truncated` when hit |
-
-Options can be set at three levels: config file (global defaults), `createArchive` call (instance defaults), and individual method calls (per-request). Each level overrides the previous one.
-
-### Storage utilities
-
-- `configureStorage(options?)` - configure the cache driver and settings
-- `clearProviderStorage(provider)` - clear cached responses for a specific provider
-- `storage` - direct access to the underlying unstorage instance
-
-## Roadmap
-
-**Providers:** —
-
-**Features:** Page archiving API for creating archives, not just reading them
-
-## License
-
-MIT
+[MIT](./LICENSE)
