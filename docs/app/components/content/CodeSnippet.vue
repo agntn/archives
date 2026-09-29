@@ -17,5 +17,5 @@ const html = computed(() => {
 </script>
 
 <template>
-  <pre class="archives-snippet"><code v-html="html" /></pre>
+  <pre class="console-snippet"><code v-html="html" /></pre>
 </template>

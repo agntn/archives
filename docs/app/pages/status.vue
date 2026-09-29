@@ -34,6 +34,18 @@ async function load() {
   }
 }
 
+type BadgeColor = "neutral" | "error" | "primary";
+type BadgeVariant = "subtle" | "outline";
+
+/** How each probe state reads: answered bright, empty and unconfigured quiet, a failure red. */
+const STATE: Record<Probe["state"], { label: string; color: BadgeColor; variant: BadgeVariant }> = {
+  ok: { label: "ok", color: "neutral", variant: "subtle" },
+  empty: { label: "empty", color: "neutral", variant: "outline" },
+  unsupported: { label: "unsupported", color: "neutral", variant: "outline" },
+  failed: { label: "failed", color: "error", variant: "outline" },
+  "needs-config": { label: "needs config", color: "neutral", variant: "outline" },
+};
+
 const answering = computed(() => state.result?.probes.filter((probe) => probe.state === "ok" || probe.state === "empty").length ?? 0);
 
 onMounted(load);
@@ -46,40 +58,81 @@ onMounted(load);
       title="Which archives answer"
       accent="right now."
       description="One tiny listing per provider, timed from the docs worker. Cached for ten minutes, so a demo does not turn into a stress test."
+      circuit="probe"
     >
-      <p v-if="state.result" class="mt-3 font-mono text-xs text-dimmed">{{ answering }} answering · probed {{ shortStamp(state.result.fetchedAt) }} with {{ state.result.target }}</p>
-    </ToolHero>
-
-    <section class="archives-section">
-      <div class="mx-auto w-full max-w-[var(--ui-container)] px-8 py-12 sm:px-12 lg:px-16">
-        <p v-if="state.loading" class="archives-frame flex items-center gap-2 rounded-xl px-5 py-4 text-sm text-muted">
-          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-          Probing every provider…
-        </p>
-        <pre v-else-if="state.error" class="archives-body archives-frame rounded-xl" :style="{ color: 'var(--archives-del)' }">{{ state.error }}</pre>
-        <div v-else-if="state.result" class="archives-frame overflow-hidden rounded-xl">
-          <div class="archives-table-wrap">
-            <table class="archives-table">
-              <thead>
-                <tr><th>provider</th><th>state</th><th>latency</th><th>note</th></tr>
-              </thead>
-              <tbody>
-                <tr v-for="probe in state.result.probes" :key="probe.provider">
-                  <td class="whitespace-nowrap">
-                    <NuxtLink :to="providerInfo(probe.provider)?.to ?? '/providers'" class="inline-flex items-center gap-2 text-sm text-highlighted hover:text-primary">
-                      <UIcon :name="providerInfo(probe.provider)?.icon ?? 'i-lucide-archive'" class="size-4 text-muted" />
-                      {{ providerLabel(probe.provider) }}
-                    </NuxtLink>
-                  </td>
-                  <td><span class="archives-state" :class="`archives-state-${probe.state === 'needs-config' ? 'unsupported' : probe.state}`">{{ probe.state === 'needs-config' ? 'needs config' : probe.state }}</span></td>
-                  <td class="font-mono text-xs text-muted">{{ probe.ms ? `${(probe.ms / 1000).toFixed(1)} s` : "n/a" }}</td>
-                  <td class="text-xs text-muted">{{ probe.reason ?? probe.note }}</td>
-                </tr>
-              </tbody>
-            </table>
+      <template #instrument>
+        <ExplorerPanel
+          tag="Log"
+          title="status()"
+          label="Provider status"
+          :busy="state.loading"
+          :sweep="state.result?.fetchedAt"
+          :meta="state.result ? `${answering} of ${state.result.probes.length} answering` : 'probing'"
+        >
+          <div v-if="state.loading" class="archives-band">
+            <p class="archives-note">
+              <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
+              Probing every provider…
+            </p>
           </div>
-        </div>
-      </div>
-    </section>
+          <div v-else-if="state.error" class="archives-band">
+            <p class="archives-error" role="alert"><span class="console-tag">Failed</span>{{ state.error }}</p>
+          </div>
+          <ul v-else-if="state.result" class="archives-rows status-rows">
+            <li v-for="probe in state.result.probes" :key="probe.provider">
+              <NuxtLink :to="providerInfo(probe.provider)?.to ?? '/providers'" class="status-name">
+                <UIcon :name="providerInfo(probe.provider)?.icon ?? 'i-lucide-archive'" class="size-3.5 flex-none" aria-hidden="true" />
+                <span>{{ providerLabel(probe.provider) }}</span>
+              </NuxtLink>
+              <span class="status-state">
+                <UBadge :color="STATE[probe.state].color" :variant="STATE[probe.state].variant" :label="STATE[probe.state].label" />
+              </span>
+              <span class="archives-value status-ms">{{ probe.ms ? `${(probe.ms / 1000).toFixed(1)} s` : "n/a" }}</span>
+              <span class="status-note">{{ probe.reason ?? probe.note }}</span>
+            </li>
+          </ul>
+          <template #footer>
+            <span v-if="state.result">probed {{ shortStamp(state.result.fetchedAt) }} with {{ state.result.target }}</span>
+            <span v-else>one listing per provider</span>
+            <span class="console-meta">cached ten minutes</span>
+          </template>
+        </ExplorerPanel>
+      </template>
+    </ToolHero>
   </div>
 </template>
+
+<style scoped>
+.status-rows > li {
+  grid-template-columns: minmax(10rem, 13rem) 7.5rem 4rem minmax(0, 1fr);
+}
+.status-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.status-name > .iconify {
+  position: relative;
+  top: 2px;
+  color: var(--ui-text-muted);
+}
+.status-ms {
+  text-align: right;
+}
+.status-note {
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+@media (width < 52rem) {
+  .status-rows > li {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .status-note {
+    grid-column: 1 / -1;
+  }
+}
+</style>

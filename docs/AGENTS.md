@@ -6,14 +6,16 @@ Docus site for `@agntn/archives`. Markdown lives in `content/`. The timeline exp
 
 ```
 docs/
-├── nuxt.config.ts                 # extends: ['docus'], cloudflare_module preset (Workers)
-├── app/app.config.ts              # title, github, theme
-├── app/app.css                    # theme tokens (light + .dark), shared `archives-*` classes
-├── app/components/                # Docus overrides: AppHeaderLogo, AppHeaderCTA (nav), AppFooterLeft
-├── app/components/content/        # MDC components (`::landing-home`, `::provider-facts`, `::timeline-explorer`)
-├── app/composables/               # useLandingArchive (one clock for every live panel), useSubNavigation
-├── app/utils/                     # providers table, timeline grouping, formatting, recorded landing samples
-├── app/pages/                     # explorer routes outside the docs layout: timeline, compare, site, capture, urls, history, agent, status, shelf
+├── nuxt.config.ts                 # extends: ['docus'], cloudflare_module preset (Workers), local fonts, Shiki theme, icon bundle
+├── shiki-theme.ts                 # code block theme, every colour a `--shiki-token-*` variable from app.css
+├── DESIGN.md                      # what this site owns on top of the agntn design system, and where it departs
+├── app/app.config.ts              # title, github, Nuxt UI variants in the instrument grammar
+├── app/app.css                    # tokens, the shared `console-*` grammar, docs chrome, variant classes, `archives-*` parts
+├── app/components/                # Docus overrides (header, sidebar, toc, page links, surround), ExplorerPanel, ProviderCells, OG templates
+├── app/components/content/        # MDC components (`::landing-home`, `::provider-facts`, `::provider-roster`), Prose* overrides, explorer parts
+├── app/composables/               # useLandingArchive (one clock for every live panel), useSubNavigation, useCopied, useRosterFlip
+├── app/utils/                     # providers table, timeline grouping, formatting, tokens, roster classes, recorded landing samples
+├── app/pages/                     # explorer routes outside the docs layout: timeline, compare, site, capture, urls, history, evidence, agent, status, shelf
 ├── server/api/                    # snapshots, content, diff, providers, coverage, urls, history, status over tool-operations
 ├── server/tasks/warm/demo.ts      # cron task: warm the coverage cache for DEMO_TARGETS
 ├── content/index.md               # landing
@@ -58,5 +60,6 @@ Resolution traps, both caused by the repo root being a separate pnpm workspace w
 
 - Archived bodies are untrusted data. Render them in `<pre>` as text; never `v-html`, never evaluate.
 - The viewer's Replay mode frames the archive's own playback URL and only for hosts known to allow it (`frame` in `providers.ts`, `canFrame`). Source mode draws the archived markup in an iframe with `sandbox=""` (no scripts, no origin), a CSP that admits only images, styles, fonts and media from the archive host, and a `<base>` on the capture. Keep both; never load archived markup into the page's own DOM.
-- Provider names, icons and factory signatures live once in `app/utils/providers.ts`. The sidebar, the landing grid, the explorer and `::provider-facts` read from it.
+- Provider names, icons, hosts, factory signatures and the roster sentence live once in `app/utils/providers.ts`. The sidebar, the landing, the explorer, `::provider-facts` and `::provider-roster` read from it.
+- The look follows the agntn design system; `DESIGN.md` lists what this site owns and where it departs. Explorer instruments stand on `ExplorerPanel`; actions, chips, tabs and fields are Nuxt UI components with their variant in `app.config.ts`, never a hand-built `<button>`.
 - Keep Node demos in `playground/`.

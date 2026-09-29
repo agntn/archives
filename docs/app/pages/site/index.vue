@@ -6,10 +6,12 @@ const router = useRouter();
 const domain = ref("");
 const demos = ["example.com", "mozilla.org", "nuxt.com"] as const;
 
-function go(value = domain.value) {
-  const host = value.trim().replace(/^https?:\/\//u, "").replace(/\/.*$/u, "");
-  if (host) {
-    void router.push(`/site/${encodeURIComponent(host)}`);
+/** The host alone: a pasted URL loses its scheme and path. */
+const host = computed(() => domain.value.trim().replace(/^https?:\/\//u, "").replace(/\/.*$/u, ""));
+
+function go(value = host.value) {
+  if (value) {
+    void router.push(`/site/${encodeURIComponent(value)}`);
   }
 }
 </script>
@@ -21,23 +23,81 @@ function go(value = domain.value) {
       title="One domain."
       accent="Every archive's holdings."
       description="Seven archives asked in parallel: how many captures each one has, the first and the last, and a year by year heatmap of where the history actually lives."
-    />
-    <section class="archives-section">
-      <div class="mx-auto w-full max-w-3xl px-8 py-12 sm:px-12">
-        <form class="archives-frame overflow-hidden rounded-xl" @submit.prevent="go()">
-          <div class="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-end">
-            <label class="flex-1">
-              <span class="archives-label">domain</span>
-              <input v-model="domain" type="text" class="archives-field font-mono" placeholder="example.com" autocomplete="off" spellcheck="false" />
-            </label>
-            <UButton type="submit" color="primary" icon="i-lucide-map">Show coverage</UButton>
+      circuit="domain"
+    >
+      <template #instrument>
+        <ExplorerPanel
+          as="form"
+          tag="Call"
+          label="Coverage of one domain"
+          role="search"
+          meta="seven archives"
+          @submit.prevent="go()"
+        >
+          <template #title>coverage(<span class="tok-str">"{{ host || "example.com" }}"</span>)</template>
+          <div class="archives-band site-form">
+            <div class="console-readout">
+              <dl class="console-readout-rows">
+                <div>
+                  <dt><label for="site-domain">Domain</label></dt>
+                  <dd>
+                    <UInput
+                      id="site-domain"
+                      v-model="domain"
+                      variant="none"
+                      placeholder="example.com"
+                      autocomplete="off"
+                      spellcheck="false"
+                      class="w-full"
+                    />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Answer</dt>
+                  <dd class="archives-dim">captures per archive, first and last, a heatmap per year</dd>
+                </div>
+              </dl>
+            </div>
+            <div class="site-actions">
+              <UButton type="submit" color="primary" variant="solid" trailing-icon="i-lucide-map" label="Show coverage" />
+              <div class="site-demos" aria-label="Warm domains">
+                <UButton
+                  v-for="demo in demos"
+                  :key="demo"
+                  color="neutral"
+                  variant="chip"
+                  :label="demo"
+                  @click="go(demo)"
+                />
+              </div>
+            </div>
           </div>
-          <div class="flex flex-wrap items-center gap-2 border-t border-muted px-5 py-3">
-            <span class="font-mono text-[11px] text-dimmed">warm:</span>
-            <button v-for="demo in demos" :key="demo" type="button" class="archives-btn h-7 px-2 font-mono text-xs" @click="go(demo)">{{ demo }}</button>
-          </div>
-        </form>
-      </div>
-    </section>
+          <template #footer>
+            <span>The three chips are warmed by the worker's cron, so they answer at once.</span>
+          </template>
+        </ExplorerPanel>
+      </template>
+    </ToolHero>
   </div>
 </template>
+
+<style scoped>
+.site-form {
+  display: grid;
+  gap: 16px;
+}
+.site-form .console-readout-rows > div {
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+}
+.site-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+.site-demos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+</style>

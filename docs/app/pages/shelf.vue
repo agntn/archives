@@ -8,6 +8,10 @@ useSeoMeta({ title: "Shelf · @agntn/archives", description: "Captures saved in 
 
 const { items, remove, clear, toPage, exportMarkdown, exportJson } = useShelf();
 const format = ref<"markdown" | "json">("markdown");
+const formatItems = [
+  { label: "Markdown", value: "markdown", icon: "i-simple-icons-markdown" },
+  { label: "JSON", value: "json", icon: "i-lucide-braces" },
+];
 const exported = computed(() => (format.value === "markdown" ? exportMarkdown() : exportJson()));
 const copied = ref(false);
 
@@ -32,58 +36,115 @@ async function copy() {
       title="Captures you kept,"
       accent="with their provenance."
       description="Saved in this browser only. Export the list as Markdown footnotes or JSON, each entry naming the archive, the exact capture date, the snapshot URL and the digest when the archive gave one."
-    />
+      circuit="shelf"
+    >
+      <template #instrument>
+        <div class="shelf-stack">
+          <ExplorerPanel tag="List" title="shelf" label="Saved captures" :meta="`${items.length} saved · this browser`">
+            <div v-if="!items.length" class="archives-band">
+              <p class="archives-note">
+                The shelf is empty. Open a capture in the
+                <NuxtLink to="/timeline" class="shelf-link">timeline</NuxtLink> and press the bookmark in the viewer.
+              </p>
+            </div>
+            <ul v-else class="archives-rows shelf-rows">
+              <li v-for="item in items" :key="item.key">
+                <NuxtLink :to="captureLink(toPage(item))" class="archives-value">{{ shortStamp(item.timestamp) }}</NuxtLink>
+                <span class="shelf-archive">
+                  <UIcon :name="providerInfo(item.provider)?.icon ?? 'i-lucide-archive'" class="size-3.5 flex-none" aria-hidden="true" />
+                  <span>{{ providerLabel(item.provider) }}</span>
+                </span>
+                <UTooltip :text="item.url">
+                  <span class="shelf-url" tabindex="0">{{ item.url }}</span>
+                </UTooltip>
+                <span class="archives-dim">saved {{ shortStamp(item.savedAt) }}</span>
+                <UButton color="neutral" variant="subtle" square icon="i-lucide-x" :aria-label="`Remove ${item.url}`" @click="remove(item.key)" />
+              </li>
+            </ul>
+            <template v-if="items.length" #footer>
+              <span>Kept in localStorage, never sent anywhere.</span>
+              <UButton color="neutral" variant="subtle" icon="i-lucide-trash-2" label="clear shelf" class="shelf-clear" @click="clear()" />
+            </template>
+          </ExplorerPanel>
 
-    <section class="archives-section">
-      <div class="mx-auto w-full max-w-[var(--ui-container)] space-y-6 px-8 py-12 sm:px-12 lg:px-16">
-        <p v-if="!items.length" class="archives-frame rounded-xl px-5 py-4 text-sm text-muted">
-          The shelf is empty. Open a capture in the <NuxtLink to="/timeline" class="text-primary hover:underline">timeline</NuxtLink> and press the bookmark in the viewer bar.
-        </p>
-        <template v-else>
-          <div class="archives-frame overflow-hidden rounded-xl">
-            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-muted px-5 py-3">
-              <p class="font-mono text-xs text-muted">captures <span class="ms-2 text-highlighted">{{ items.length }}</span></p>
-              <button type="button" class="archives-btn h-7 px-2 text-xs" @click="clear()">
-                <UIcon name="i-lucide-trash-2" class="size-3.5" />
-                clear shelf
-              </button>
+          <ExplorerPanel v-if="items.length" tag="File" label="Export" :meta="`${items.length} entries`">
+            <template #title>{{ format === "markdown" ? "shelf.md" : "shelf.json" }}</template>
+            <UTabs v-model="format" :items="formatItems" :content="false" variant="link" class="shelf-tabs" aria-label="Export format" />
+            <div class="archives-band">
+              <p class="console-label console-rule-title">
+                <span>Export <span aria-hidden="true">[ {{ format }} ]</span></span>
+                <span class="console-mark" aria-hidden="true" />
+                <UButton
+                  color="neutral"
+                  variant="subtle"
+                  :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
+                  :label="copied ? 'copied' : 'copy'"
+                  :aria-label="copied ? 'Copied' : 'Copy the export'"
+                  @click="copy"
+                />
+              </p>
+              <pre class="console-snippet shelf-export">{{ exported }}</pre>
             </div>
-            <div class="archives-table-wrap">
-              <table class="archives-table">
-                <thead>
-                  <tr><th>captured</th><th>archive</th><th>original</th><th>saved</th><th></th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in items" :key="item.key">
-                    <td class="font-mono text-xs whitespace-nowrap"><NuxtLink :to="captureLink(toPage(item))" class="text-primary hover:underline">{{ shortStamp(item.timestamp) }}</NuxtLink></td>
-                    <td class="text-xs whitespace-nowrap"><span class="inline-flex items-center gap-1.5"><UIcon :name="providerInfo(item.provider)?.icon ?? 'i-lucide-archive'" class="size-3.5 text-muted" />{{ providerLabel(item.provider) }}</span></td>
-                    <td class="font-mono text-xs break-all text-muted">{{ item.url }}</td>
-                    <td class="font-mono text-xs whitespace-nowrap text-dimmed">{{ shortStamp(item.savedAt) }}</td>
-                    <td class="text-end">
-                      <button type="button" class="archives-btn h-7 px-2" :aria-label="`Remove ${item.url}`" @click="remove(item.key)"><UIcon name="i-lucide-x" class="size-3.5" /></button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="archives-frame overflow-hidden rounded-xl">
-            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-muted px-5 py-3">
-              <span class="archives-segmented">
-                <button v-for="option in ['markdown', 'json'] as const" :key="option" type="button" class="archives-segment" :class="{ 'archives-segment-active': format === option }" @click="format = option">{{ option }}</button>
-              </span>
-              <button type="button" class="archives-btn h-7 px-2 text-xs" @click="copy">
-                <UIcon :name="copied ? 'i-lucide-check' : 'i-lucide-clipboard-copy'" class="size-3.5" />
-                copy export
-              </button>
-            </div>
-            <div class="px-5 py-4">
-              <textarea class="archives-textarea" rows="10" readonly :value="exported" />
-            </div>
-          </div>
-        </template>
-      </div>
-    </section>
+          </ExplorerPanel>
+        </div>
+      </template>
+    </ToolHero>
   </div>
 </template>
+
+<style scoped>
+.shelf-stack {
+  display: grid;
+  gap: 28px;
+}
+.shelf-stack > :deep(.explorer-panel + .explorer-panel) {
+  margin-top: 0;
+}
+.shelf-link {
+  color: var(--ui-text-highlighted);
+  text-decoration: underline dotted var(--console-line);
+  text-underline-offset: 3px;
+}
+.shelf-link:hover {
+  color: var(--console-accent);
+}
+.shelf-rows > li {
+  grid-template-columns: 8.5rem minmax(8rem, 12rem) minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+.shelf-archive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.shelf-url {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shelf-clear {
+  margin-left: auto;
+}
+.shelf-tabs {
+  padding: 0 20px;
+}
+/* The export as text, interpolated; it scrolls inside, never the page. */
+.shelf-export {
+  max-height: 20rem;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (width < 52rem) {
+  .shelf-rows > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .shelf-url,
+  .shelf-rows > li > .archives-dim {
+    grid-column: 1 / -1;
+  }
+}
+</style>

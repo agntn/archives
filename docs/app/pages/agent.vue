@@ -35,8 +35,26 @@ const args = reactive({
   context: 3,
 });
 
+/** The four tools as tabs, in the order the MCP server lists them. */
+const TOOL_ICONS: Record<Tool, string> = {
+  snapshots: "i-lucide-history",
+  content: "i-lucide-file-text",
+  diff: "i-lucide-git-compare",
+  providers: "i-lucide-library",
+};
+const toolItems = (Object.keys(TOOLS) as Tool[]).map((id) => ({ label: TOOLS[id].title, value: id, icon: TOOL_ICONS[id] }));
+const position = computed(() => (Object.keys(TOOLS) as Tool[]).indexOf(tool.value) + 1);
+const providerItems = [
+  { label: "all", value: "all", icon: "i-lucide-layers" },
+  ...PROVIDERS.map((provider) => ({ label: provider.slug, value: provider.slug, icon: provider.icon })),
+];
+const pickedProvider = computed(() => providerItems.find((item) => item.value === args.provider));
+const formatItems = [
+  { label: "text", value: "text" },
+  { label: "raw", value: "raw" },
+];
+
 const state = reactive<{ loading: boolean; error?: string; text?: string; details?: unknown; ms?: number }>({ loading: false });
-const showDetails = ref(false);
 const copied = ref<string | undefined>();
 
 /** Only the arguments the chosen tool takes, without the empty ones. */
@@ -181,110 +199,262 @@ onMounted(() => {
       title="The four tools,"
       accent="as an agent sees them."
       description="Fill the arguments, run the executor, read the exact text an MCP client receives. Copy the call as JSON-RPC or as the TypeScript that does the same."
-    />
+      circuit="call"
+    >
+      <template #instrument>
+        <div class="agent-stack">
+          <ExplorerPanel
+            as="form"
+            tag="Call"
+            label="Request"
+            :busy="state.loading"
+            :meta="TOOLS[tool].blurb"
+            @submit.prevent="run"
+          >
+            <template #title>{{ TOOLS[tool].name }}<span class="console-file">{{ String(position).padStart(2, "0") }} / {{ String(toolItems.length).padStart(2, "0") }}</span></template>
 
-    <section class="archives-section">
-      <div class="mx-auto w-full max-w-[var(--ui-container)] space-y-6 px-8 py-12 sm:px-12 lg:px-16">
-        <div class="archives-frame overflow-hidden rounded-xl">
-          <div class="flex flex-wrap gap-1 border-b border-muted px-4 py-3">
-            <button v-for="(meta, id) in TOOLS" :key="id" type="button" class="archives-segment inline-flex items-center gap-1.5" :class="{ 'archives-segment-active': tool === id }" @click="tool = id">
-              <span class="font-mono text-xs">{{ meta.name }}</span>
-            </button>
-          </div>
-          <form class="grid gap-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="run">
-            <p class="text-sm text-muted sm:col-span-2 lg:col-span-4">{{ TOOLS[tool].blurb }}</p>
-            <template v-if="tool !== 'providers'">
-              <label class="sm:col-span-2">
-                <span class="archives-label">target</span>
-                <input v-model="args.target" type="text" class="archives-field font-mono" autocomplete="off" spellcheck="false" />
-              </label>
-              <label>
-                <span class="archives-label">provider</span>
-                <select v-model="args.provider" class="archives-select">
-                  <option value="all">all</option>
-                  <option v-for="provider in PROVIDERS" :key="provider.slug" :value="provider.slug">{{ provider.slug }}</option>
-                </select>
-              </label>
-            </template>
-            <template v-if="tool === 'snapshots'">
-              <label><span class="archives-label">limit</span><input v-model.number="args.limit" type="number" min="1" max="50" class="archives-field font-mono" /></label>
-              <label><span class="archives-label">from</span><input v-model="args.from" type="text" class="archives-field font-mono" placeholder="2010" /></label>
-              <label><span class="archives-label">to</span><input v-model="args.to" type="text" class="archives-field font-mono" placeholder="2020-06" /></label>
-            </template>
-            <template v-if="tool === 'content'">
-              <label><span class="archives-label">timestamp</span><input v-model="args.timestamp" type="text" class="archives-field font-mono" placeholder="2015 or 20150601" /></label>
-              <label><span class="archives-label">format</span><select v-model="args.format" class="archives-select"><option value="text">text</option><option value="raw">raw</option></select></label>
-              <label><span class="archives-label">maxChars</span><input v-model.number="args.maxChars" type="number" min="100" max="200000" class="archives-field font-mono" /></label>
-              <label><span class="archives-label">offset</span><input v-model.number="args.offset" type="number" min="0" class="archives-field font-mono" /></label>
-            </template>
-            <template v-if="tool === 'diff'">
-              <label><span class="archives-label">before</span><input v-model="args.before" type="text" class="archives-field font-mono" /></label>
-              <label><span class="archives-label">after</span><input v-model="args.after" type="text" class="archives-field font-mono" /></label>
-              <label><span class="archives-label">format</span><select v-model="args.format" class="archives-select"><option value="text">text</option><option value="raw">raw</option></select></label>
-              <label><span class="archives-label">context</span><input v-model.number="args.context" type="number" min="0" max="20" class="archives-field font-mono" /></label>
-            </template>
-            <div class="flex items-end sm:col-span-2 lg:col-span-4">
-              <UButton type="submit" color="primary" :loading="state.loading" icon="i-lucide-terminal">Run {{ TOOLS[tool].name }}</UButton>
-            </div>
-          </form>
-        </div>
+            <UTabs v-model="tool" :items="toolItems" :content="false" variant="link" class="agent-tabs" aria-label="Tool" />
 
-        <div class="grid gap-4 lg:grid-cols-2">
-          <div class="archives-frame overflow-hidden rounded-xl">
-            <div class="flex items-center justify-between gap-2 border-b border-muted px-5 py-3">
-              <p class="font-mono text-xs text-muted"><span class="text-dimmed">result · text</span><span v-if="state.ms" class="ms-2 text-dimmed">{{ (state.ms / 1000).toFixed(1) }} s</span></p>
-              <button v-if="state.text" type="button" class="archives-btn h-7 px-2 text-xs" @click="copy('text', state.text!)">
-                <UIcon :name="copied === 'text' ? 'i-lucide-check' : 'i-lucide-clipboard-copy'" class="size-3.5" />
-                copy
-              </button>
+            <div class="archives-band agent-request">
+              <div class="agent-glyph" aria-hidden="true">
+                <ConsoleReticle :key="tool" :icon="TOOL_ICONS[tool]" />
+              </div>
+              <div class="agent-fields">
+                <div class="console-readout">
+                  <dl class="console-readout-rows">
+                    <template v-if="tool !== 'providers'">
+                      <div>
+                        <dt><label for="agent-target">target</label></dt>
+                        <dd><UInput id="agent-target" v-model="args.target" variant="none" autocomplete="off" spellcheck="false" class="w-full" /></dd>
+                      </div>
+                      <div>
+                        <dt>provider</dt>
+                        <dd>
+                          <USelectMenu v-model="args.provider" :items="providerItems" value-key="value" :icon="pickedProvider?.icon" variant="none" :search-input="false" aria-label="Provider" class="w-full" />
+                        </dd>
+                      </div>
+                    </template>
+                    <template v-if="tool === 'snapshots'">
+                      <div>
+                        <dt><label for="agent-limit">limit</label></dt>
+                        <dd><UInput id="agent-limit" v-model.number="args.limit" type="number" :min="1" :max="50" variant="none" class="w-full" /></dd>
+                      </div>
+                      <div>
+                        <dt><label for="agent-from">from · to</label></dt>
+                        <dd class="agent-pair">
+                          <UInput id="agent-from" v-model="args.from" variant="none" placeholder="2010" aria-label="From" />
+                          <span class="archives-dim" aria-hidden="true">→</span>
+                          <UInput v-model="args.to" variant="none" placeholder="2020-06" aria-label="To" />
+                        </dd>
+                      </div>
+                    </template>
+                    <template v-if="tool === 'content'">
+                      <div>
+                        <dt><label for="agent-timestamp">timestamp</label></dt>
+                        <dd><UInput id="agent-timestamp" v-model="args.timestamp" variant="none" placeholder="2015 or 20150601" class="w-full" /></dd>
+                      </div>
+                      <div>
+                        <dt>format</dt>
+                        <dd><USelectMenu v-model="args.format" :items="formatItems" value-key="value" variant="none" :search-input="false" aria-label="Format" class="w-full" /></dd>
+                      </div>
+                      <div>
+                        <dt><label for="agent-max">maxChars · offset</label></dt>
+                        <dd class="agent-pair">
+                          <UInput id="agent-max" v-model.number="args.maxChars" type="number" :min="100" :max="200000" variant="none" aria-label="maxChars" />
+                          <span class="archives-dim" aria-hidden="true">·</span>
+                          <UInput v-model.number="args.offset" type="number" :min="0" variant="none" aria-label="offset" />
+                        </dd>
+                      </div>
+                    </template>
+                    <template v-if="tool === 'diff'">
+                      <div>
+                        <dt><label for="agent-before">before · after</label></dt>
+                        <dd class="agent-pair">
+                          <UInput id="agent-before" v-model="args.before" variant="none" aria-label="before" />
+                          <span class="archives-dim" aria-hidden="true">→</span>
+                          <UInput v-model="args.after" variant="none" aria-label="after" />
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>format</dt>
+                        <dd><USelectMenu v-model="args.format" :items="formatItems" value-key="value" variant="none" :search-input="false" aria-label="Format" class="w-full" /></dd>
+                      </div>
+                      <div>
+                        <dt><label for="agent-context">context</label></dt>
+                        <dd><UInput id="agent-context" v-model.number="args.context" type="number" :min="0" :max="20" variant="none" class="w-full" /></dd>
+                      </div>
+                    </template>
+                    <template v-if="tool === 'providers'">
+                      <div>
+                        <dt>arguments</dt>
+                        <dd class="archives-dim">none: every provider, what it needs, and whether Perma.cc has a key</dd>
+                      </div>
+                    </template>
+                  </dl>
+                </div>
+                <div>
+                  <UButton type="submit" color="primary" variant="solid" :loading="state.loading" trailing-icon="i-lucide-terminal" :label="`Run ${TOOLS[tool].name}`" />
+                </div>
+              </div>
             </div>
-            <p v-if="state.loading" class="flex items-center gap-2 px-5 py-4 text-sm text-muted"><UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />Running on the docs worker…</p>
-            <pre v-else-if="state.error" class="archives-body" :style="{ color: 'var(--archives-del)' }">{{ state.error }}</pre>
-            <pre v-else-if="state.text" class="archives-body">{{ state.text }}</pre>
-            <p v-else class="px-5 py-4 text-sm text-muted">Nothing run yet.</p>
-            <div v-if="state.details" class="border-t border-muted">
-              <button type="button" class="flex w-full items-center justify-between px-5 py-2.5 font-mono text-[11px] text-dimmed hover:text-highlighted" @click="showDetails = !showDetails">
-                <span>details · what Pi and OMP render beside the text</span>
-                <UIcon :name="showDetails ? 'i-lucide-chevron-left' : 'i-lucide-chevron-right'" class="size-3.5" />
-              </button>
-              <pre v-if="showDetails" class="archives-body max-h-96">{{ JSON.stringify(state.details, null, 2) }}</pre>
-            </div>
-          </div>
 
-          <div class="space-y-4">
-            <div class="archives-frame overflow-hidden rounded-xl">
-              <div class="flex items-center justify-between gap-2 border-b border-muted px-5 py-3">
-                <p class="font-mono text-xs text-muted"><span class="text-dimmed">MCP</span><span class="ms-2 text-highlighted">tools/call</span></p>
-                <button type="button" class="archives-btn h-7 px-2 text-xs" @click="copy('mcp', mcpCall)">
-                  <UIcon :name="copied === 'mcp' ? 'i-lucide-check' : 'i-lucide-clipboard-copy'" class="size-3.5" />
-                  copy
-                </button>
+            <div class="archives-band agent-calls">
+              <div class="agent-call">
+                <p class="console-label console-rule-title">
+                  <span>MCP <span aria-hidden="true">[ tools/call ]</span></span>
+                  <span class="console-mark" aria-hidden="true" />
+                  <UButton color="neutral" variant="subtle" :icon="copied === 'mcp' ? 'i-lucide-check' : 'i-lucide-copy'" :label="copied === 'mcp' ? 'copied' : 'copy'" aria-label="Copy the MCP call" @click="copy('mcp', mcpCall)" />
+                </p>
+                <CodeSnippet :code="mcpCall" lang="json" />
               </div>
-              <CodeSnippet :code="mcpCall" lang="json" />
+              <div class="agent-call">
+                <p class="console-label console-rule-title">
+                  <span>TypeScript <span aria-hidden="true">[ @agntn/archives ]</span></span>
+                  <span class="console-mark" aria-hidden="true" />
+                  <UButton color="neutral" variant="subtle" :icon="copied === 'ts' ? 'i-lucide-check' : 'i-lucide-copy'" :label="copied === 'ts' ? 'copied' : 'copy'" aria-label="Copy the TypeScript" @click="copy('ts', tsSnippet)" />
+                </p>
+                <CodeSnippet :code="tsSnippet" :lang="tool === 'providers' ? 'shell' : 'ts'" />
+              </div>
             </div>
-            <div class="archives-frame overflow-hidden rounded-xl">
-              <div class="flex items-center justify-between gap-2 border-b border-muted px-5 py-3">
-                <p class="font-mono text-xs text-muted"><span class="text-dimmed">TypeScript</span><span class="ms-2 text-highlighted">@agntn/archives</span></p>
-                <button type="button" class="archives-btn h-7 px-2 text-xs" @click="copy('ts', tsSnippet)">
-                  <UIcon :name="copied === 'ts' ? 'i-lucide-check' : 'i-lucide-clipboard-copy'" class="size-3.5" />
-                  copy
-                </button>
-              </div>
-              <CodeSnippet :code="tsSnippet" :lang="tool === 'providers' ? 'shell' : 'ts'" />
-            </div>
-            <div class="archives-frame overflow-hidden rounded-xl">
-              <div class="flex items-center justify-between gap-2 border-b border-muted px-5 py-3">
-                <p class="font-mono text-xs text-muted"><span class="text-dimmed">client config</span><span class="ms-2 text-highlighted">archives mcp</span></p>
-                <button type="button" class="archives-btn h-7 px-2 text-xs" @click="copy('cfg', mcpConfig)">
-                  <UIcon :name="copied === 'cfg' ? 'i-lucide-check' : 'i-lucide-clipboard-copy'" class="size-3.5" />
-                  copy
-                </button>
-              </div>
+
+            <div class="archives-band">
+              <p class="console-label console-rule-title">
+                <span>Client <span aria-hidden="true">[ archives mcp over stdio ]</span></span>
+                <span class="console-mark" aria-hidden="true" />
+                <UButton color="neutral" variant="subtle" :icon="copied === 'cfg' ? 'i-lucide-check' : 'i-lucide-copy'" :label="copied === 'cfg' ? 'copied' : 'copy'" aria-label="Copy the client config" @click="copy('cfg', mcpConfig)" />
+              </p>
               <CodeSnippet :code="mcpConfig" lang="json" />
             </div>
-          </div>
+          </ExplorerPanel>
+
+          <ExplorerPanel
+            tag="Answer"
+            label="Response"
+            :busy="state.loading"
+            :sweep="state.text"
+            :meta="state.ms ? `${(state.ms / 1000).toFixed(1)} s` : 'nothing run yet'"
+          >
+            <template #title>content[0].text</template>
+            <div v-if="state.loading" class="archives-band">
+              <p class="archives-note">
+                <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
+                Running on the docs worker…
+              </p>
+            </div>
+            <div v-else-if="state.error" class="archives-band">
+              <p class="archives-error" role="alert"><span class="console-tag">Failed</span>{{ state.error }}</p>
+            </div>
+            <div v-else-if="state.text" class="archives-band">
+              <p class="console-label console-rule-title">
+                <span>Text <span aria-hidden="true">[ what the MCP client receives ]</span></span>
+                <span class="console-mark" aria-hidden="true" />
+                <UButton color="neutral" variant="subtle" :icon="copied === 'text' ? 'i-lucide-check' : 'i-lucide-copy'" :label="copied === 'text' ? 'copied' : 'copy'" aria-label="Copy the text" @click="copy('text', state.text!)" />
+              </p>
+              <!-- The tool text: interpolated into a pre, never rendered as markup. -->
+              <pre class="agent-text">{{ state.text }}</pre>
+            </div>
+            <div v-else class="archives-band">
+              <p class="archives-note">Nothing run yet. Pick a tool and press run.</p>
+            </div>
+            <ConsoleResponse
+              v-if="state.details"
+              :title="`${TOOLS[tool].name} details`"
+              :text="JSON.stringify(state.details, null, 2)"
+              label="Details"
+              source="details"
+              description="What Pi and OMP render beside the text. An MCP client never sees it."
+            />
+            <template #footer>
+              <span>MCP · Pi · OMP answer from the same executor</span>
+              <span class="console-meta">answered by the docs worker</span>
+            </template>
+          </ExplorerPanel>
         </div>
-      </div>
-    </section>
+      </template>
+    </ToolHero>
   </div>
 </template>
+
+<style scoped>
+.agent-stack {
+  display: grid;
+  gap: 28px;
+}
+.agent-stack > :deep(.explorer-panel + .explorer-panel) {
+  margin-top: 0;
+}
+.agent-tabs {
+  padding: 0 20px;
+}
+.agent-request {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  border-top: 1px solid var(--console-line);
+}
+.agent-glyph {
+  width: 84px;
+}
+.agent-fields {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.agent-fields .console-readout-rows > div {
+  grid-template-columns: 9rem minmax(0, 1fr);
+}
+.agent-fields .console-readout-rows dt {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+.agent-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.agent-calls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px 28px;
+}
+.agent-call {
+  min-width: 0;
+}
+.agent-text {
+  max-height: min(60dvh, 36rem);
+  margin: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ui-text-muted);
+}
+@media (width < 56rem) {
+  .agent-calls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (width < 640px) {
+  .agent-tabs {
+    padding: 0 14px;
+    overflow-x: auto;
+  }
+  .agent-tabs :deep([data-slot="leadingIcon"]) {
+    display: none;
+  }
+  .agent-request {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .agent-glyph {
+    display: none;
+  }
+  .agent-fields .console-readout-rows > div {
+    grid-template-columns: 6rem minmax(0, 1fr);
+  }
+}
+</style>

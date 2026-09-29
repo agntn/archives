@@ -69,13 +69,25 @@ const years = computed(() => {
 
 const peak = computed(() => Math.max(1, ...holders.value.flatMap((provider) => Object.values(provider.years))));
 
-function level(count: number | undefined): string {
+/** Four steps of density, 0 for a year the archive has nothing for. */
+function level(count: number | undefined): number {
   if (!count) {
-    return "";
+    return 0;
   }
   const ratio = count / peak.value;
-  return ratio > 0.75 ? "archives-heat-4" : ratio > 0.5 ? "archives-heat-3" : ratio > 0.25 ? "archives-heat-2" : "archives-heat-1";
+  return ratio > 0.75 ? 4 : ratio > 0.5 ? 3 : ratio > 0.25 ? 2 : 1;
 }
+
+type BadgeColor = "neutral" | "error";
+type BadgeVariant = "subtle" | "outline";
+
+/** How each archive's answer reads: holding it bright, nothing or no endpoint quiet, a failure red. */
+const STATE: Record<ProviderCoverage["state"], { color: BadgeColor; variant: BadgeVariant }> = {
+  ok: { color: "neutral", variant: "subtle" },
+  empty: { color: "neutral", variant: "outline" },
+  unsupported: { color: "neutral", variant: "outline" },
+  failed: { color: "error", variant: "outline" },
+};
 
 /** Years no archive covers at all: the holes a researcher needs to know about. */
 const gaps = computed(() =>
@@ -105,115 +117,262 @@ watch(domain, load);
 
 <template>
   <div class="archives-landing not-prose">
-    <ToolHero eyebrow="coverage" :title="domain" accent="across the archives">
-      <p class="mt-3 font-mono text-xs text-dimmed">
-        <span v-if="state.result">{{ holders.length }} of {{ state.result.providers.length }} providers hold it · fetched {{ shortStamp(state.result.fetchedAt) }}</span>
-        <span v-else-if="state.loading">asking seven archives…</span>
-      </p>
-    </ToolHero>
+    <ToolHero eyebrow="coverage" :title="domain" accent="across the archives." circuit="coverage">
+      <template #instrument>
+        <ExplorerPanel
+          tag="ID"
+          :title="domain"
+          label="Coverage of one domain"
+          :busy="state.loading"
+          :sweep="state.result?.fetchedAt"
+          :meta="state.result ? `fetched ${shortStamp(state.result.fetchedAt)}` : 'asking seven archives'"
+        >
+          <div v-if="state.loading" class="archives-band">
+            <p class="archives-note">
+              <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
+              Listing every archive in parallel. A cold Wayback query can take half a minute.
+            </p>
+          </div>
+          <div v-else-if="state.error" class="archives-band">
+            <p class="archives-error" role="alert"><span class="console-tag">Failed</span>{{ state.error }}</p>
+          </div>
 
-    <section class="archives-section">
-      <div class="mx-auto w-full max-w-[var(--ui-container)] space-y-6 px-8 py-12 sm:px-12 lg:px-16">
-        <p v-if="state.loading" class="archives-frame flex items-center gap-2 rounded-xl px-5 py-4 text-sm text-muted">
-          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-          Listing every archive in parallel. A cold Wayback query can take half a minute.
-        </p>
-        <pre v-else-if="state.error" class="archives-body archives-frame rounded-xl" :style="{ color: 'var(--archives-del)' }">{{ state.error }}</pre>
+          <template v-else-if="state.result">
+            <div class="console-band console-subject-band">
+              <div :key="state.result.fetchedAt" class="console-scan" aria-hidden="true" />
+              <div class="console-identity-block">
+                <ConsoleReticle :key="domain" icon="i-lucide-map" />
+                <div class="console-name">
+                  <span class="console-label">Site / <span class="console-label-key">coverage</span></span>
+                  <h3 class="console-name-mono">{{ domain }}</h3>
+                  <p class="console-about">
+                    {{ holders.length }} of {{ state.result.providers.length }} archives list captures of it.
+                    <template v-if="gaps.length">No archive covers {{ gaps.length === 1 ? gaps[0] : `${gaps.length} of the years` }} in between.</template>
+                  </p>
+                </div>
+              </div>
+              <div class="console-readout">
+                <svg class="console-link" viewBox="0 0 32 40" fill="none" aria-hidden="true">
+                  <circle cx="3" cy="12" r="2.5" />
+                  <path d="M5.5 12H14L22 20H32" />
+                </svg>
+                <dl class="console-readout-rows">
+                  <div>
+                    <dt>Held by</dt>
+                    <dd class="console-accent">{{ holders.length }} archives</dd>
+                  </div>
+                  <div>
+                    <dt>Captures</dt>
+                    <dd>{{ total }} listed</dd>
+                  </div>
+                  <div>
+                    <dt>First seen</dt>
+                    <dd>{{ span ? dateOnly(span.first) : "none" }}</dd>
+                  </div>
+                  <div>
+                    <dt>Last seen</dt>
+                    <dd>{{ span ? dateOnly(span.last) : "none" }}</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
 
-        <template v-else-if="state.result">
-          <dl class="archives-frame grid grid-cols-2 overflow-hidden rounded-xl sm:grid-cols-4">
-            <div class="px-5 py-5 text-center">
-              <dd class="font-mono text-2xl text-highlighted">{{ holders.length }}</dd>
-              <dt class="mt-1 font-mono text-[11px] tracking-[0.12em] text-dimmed uppercase">archives hold it</dt>
+            <div v-if="years.length" class="archives-band">
+              <p class="console-label console-rule-title">
+                <span>Heatmap <span aria-hidden="true">[ captures per year · from what each archive listed ]</span></span>
+                <span class="console-mark" aria-hidden="true" />
+              </p>
+              <div class="heat-scroll">
+                <div class="heat" :style="{ gridTemplateColumns: `10rem repeat(${years.length}, minmax(0.9rem, 1fr))` }">
+                  <span />
+                  <span v-for="year in years" :key="`h-${year}`" class="heat-year">{{ year % 5 === 0 || years.length <= 12 ? year : "" }}</span>
+                  <template v-for="provider in holders" :key="provider.provider">
+                    <span class="heat-name">
+                      <UIcon :name="providerInfo(provider.provider)?.icon ?? 'i-lucide-archive'" class="size-3.5 flex-none" aria-hidden="true" />
+                      <span>{{ providerLabel(provider.provider) }}</span>
+                    </span>
+                    <UTooltip
+                      v-for="year in years"
+                      :key="`${provider.provider}-${year}`"
+                      :text="`${providerLabel(provider.provider)} ${year}: ${provider.years[String(year)] ?? 0}`"
+                    >
+                      <span class="heat-cell" :data-level="level(provider.years[String(year)])" />
+                    </UTooltip>
+                  </template>
+                </div>
+              </div>
             </div>
-            <div class="border-l border-muted px-5 py-5 text-center">
-              <dd class="font-mono text-2xl text-highlighted">{{ total }}</dd>
-              <dt class="mt-1 font-mono text-[11px] tracking-[0.12em] text-dimmed uppercase">captures listed</dt>
-            </div>
-            <div class="border-t border-muted px-5 py-5 text-center sm:border-t-0 sm:border-l">
-              <dd class="font-mono text-2xl text-highlighted">{{ span ? span.first.slice(0, 4) : "n/a" }}</dd>
-              <dt class="mt-1 font-mono text-[11px] tracking-[0.12em] text-dimmed uppercase">first seen</dt>
-            </div>
-            <div class="border-t border-l border-muted px-5 py-5 text-center sm:border-t-0">
-              <dd class="font-mono text-2xl text-highlighted">{{ span ? span.last.slice(0, 4) : "n/a" }}</dd>
-              <dt class="mt-1 font-mono text-[11px] tracking-[0.12em] text-dimmed uppercase">last seen</dt>
-            </div>
-          </dl>
 
-          <div v-if="years.length" class="archives-frame overflow-hidden rounded-xl">
-            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-muted px-5 py-3">
-              <p class="font-mono text-xs text-muted">captures per year <span class="ms-2 text-dimmed">from the listings each archive could afford</span></p>
-              <p v-if="gaps.length" class="font-mono text-[11px]" :style="{ color: 'var(--archives-del)' }">
-                no archive covers {{ gaps.length === 1 ? gaps[0] : `${gaps.length} years` }}
+            <div class="archives-band site-band-rows">
+              <p class="console-label console-rule-title">
+                <span>Archives <span aria-hidden="true">[ every one asked ]</span></span>
+                <span class="console-mark" aria-hidden="true" />
               </p>
             </div>
-            <div class="overflow-x-auto px-5 py-4">
-              <div class="archives-heat" :style="{ gridTemplateColumns: `10rem repeat(${years.length}, minmax(1rem, 1fr))` }">
-                <span />
-                <span v-for="year in years" :key="`h-${year}`" class="archives-heat-label" :class="{ 'opacity-40': year % 5 !== 0 && years.length > 12 }">{{ year % 5 === 0 || years.length <= 12 ? year : "" }}</span>
-                <template v-for="provider in holders" :key="provider.provider">
-                  <span class="archives-heat-label flex items-center gap-1.5 pe-2 text-muted">
-                    <UIcon :name="providerInfo(provider.provider)?.icon ?? 'i-lucide-archive'" class="size-3.5" />
-                    {{ providerLabel(provider.provider) }}
-                  </span>
-                  <span v-for="year in years" :key="`${provider.provider}-${year}`" class="archives-heat-cell" :class="level(provider.years[String(year)])" :title="`${providerLabel(provider.provider)} ${year}: ${provider.years[String(year)] ?? 0}`" />
-                </template>
-              </div>
-            </div>
-          </div>
-
-          <div class="grid gap-4 md:grid-cols-2">
-            <div v-for="provider in state.result.providers" :key="provider.provider" class="archives-frame overflow-hidden rounded-xl">
-              <div class="flex items-center justify-between gap-2 border-b border-muted px-5 py-3">
-                <NuxtLink :to="providerInfo(provider.provider)?.to ?? '/providers'" class="inline-flex items-center gap-2 text-sm font-medium text-highlighted hover:text-primary">
-                  <UIcon :name="providerInfo(provider.provider)?.icon ?? 'i-lucide-archive'" class="size-4 text-muted" />
-                  {{ providerLabel(provider.provider) }}
+            <ul class="archives-rows site-rows">
+              <li v-for="provider in state.result.providers" :key="provider.provider">
+                <NuxtLink :to="providerInfo(provider.provider)?.to ?? '/providers'" class="site-name">
+                  <UIcon :name="providerInfo(provider.provider)?.icon ?? 'i-lucide-archive'" class="size-3.5 flex-none" aria-hidden="true" />
+                  <span>{{ providerLabel(provider.provider) }}</span>
                 </NuxtLink>
-                <span class="inline-flex items-center gap-2">
-                  <span class="font-mono text-[11px] text-dimmed">{{ (provider.ms / 1000).toFixed(1) }} s</span>
-                  <span class="archives-state" :class="`archives-state-${provider.state}`">{{ provider.state }}</span>
+                <span><UBadge :color="STATE[provider.state].color" :variant="STATE[provider.state].variant" :label="provider.state" /></span>
+                <span v-if="provider.state === 'ok'" class="site-span">
+                  <span class="archives-value">{{ provider.count }}</span> · {{ dateOnly(provider.first ?? "") }} → {{ dateOnly(provider.last ?? "") }}
                 </span>
-              </div>
-              <div v-if="provider.state === 'ok'" class="px-5 py-4">
-                <p class="font-mono text-xs text-muted">
-                  <span class="text-highlighted">{{ provider.count }}</span> captures ·
-                  {{ dateOnly(provider.first ?? "") }} to {{ dateOnly(provider.last ?? "") }}
-                </p>
-                <ul class="mt-3 space-y-1.5">
-                  <li v-for="page in provider.sample" :key="page.snapshot" class="flex items-center justify-between gap-3 font-mono text-xs">
-                    <NuxtLink :to="captureLink(page)" class="text-primary hover:underline">{{ shortStamp(page.timestamp) }}</NuxtLink>
-                    <span class="truncate text-dimmed" :title="page.url">{{ page.url }}</span>
-                  </li>
-                </ul>
-              </div>
-              <p v-else class="px-5 py-4 text-xs text-muted">{{ provider.reason ?? "Nothing listed for this domain." }}</p>
-            </div>
-          </div>
+                <span v-else class="site-reason">{{ provider.reason ?? "Nothing listed for this domain." }}</span>
+                <span class="archives-dim site-ms">{{ (provider.ms / 1000).toFixed(1) }} s</span>
+                <span v-if="provider.state === 'ok' && provider.sample.length" class="site-samples">
+                  <UTooltip v-for="page in provider.sample" :key="page.snapshot" :text="page.url">
+                    <NuxtLink :to="captureLink(page)">{{ shortStamp(page.timestamp) }}</NuxtLink>
+                  </UTooltip>
+                </span>
+              </li>
+            </ul>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <NuxtLink :to="{ path: '/timeline', query: { target: domain, provider: 'all', limit: '50' } }" class="archives-btn">
-              <UIcon name="i-lucide-history" class="size-4" />
-              Open in the timeline
-            </NuxtLink>
-            <NuxtLink v-if="waybackPair" :to="compareLink(waybackPair.before, waybackPair.after)" class="archives-btn">
-              <UIcon name="i-lucide-columns-2" class="size-4" />
-              Compare oldest and newest on Wayback
-            </NuxtLink>
-            <NuxtLink :to="{ path: '/urls', query: { target: domain } }" class="archives-btn">
-              <UIcon name="i-lucide-list" class="size-4" />
-              Archived URLs
-            </NuxtLink>
-            <NuxtLink v-if="oldest" :to="captureLink(oldest)" class="archives-btn">
-              <UIcon name="i-lucide-eye" class="size-4" />
-              Oldest capture
-            </NuxtLink>
-            <NuxtLink v-if="newest" :to="captureLink(newest)" class="archives-btn">
-              <UIcon name="i-lucide-eye" class="size-4" />
-              Newest capture
-            </NuxtLink>
-          </div>
-        </template>
-      </div>
-    </section>
+            <div class="archives-band site-leads">
+              <p class="console-label console-rule-title">
+                <span>Next <span aria-hidden="true">[ same domain, other pages ]</span></span>
+                <span class="console-mark" aria-hidden="true" />
+              </p>
+              <NuxtLink :to="{ path: '/timeline', query: { target: domain, provider: 'all', limit: '50' } }" class="console-lead">
+                <span class="console-tag">Timeline</span><span class="site-lead-text">every capture, newest first</span><span class="console-leader" aria-hidden="true" />
+              </NuxtLink>
+              <NuxtLink :to="{ path: '/urls', query: { target: domain } }" class="console-lead">
+                <span class="console-tag">URLs</span><span class="site-lead-text">the archived URLs under the domain</span><span class="console-leader" aria-hidden="true" />
+              </NuxtLink>
+              <NuxtLink v-if="waybackPair" :to="compareLink(waybackPair.before, waybackPair.after)" class="console-lead">
+                <span class="console-tag">Compare</span><span class="site-lead-text">oldest and newest on the Wayback Machine</span><span class="console-leader" aria-hidden="true" />
+              </NuxtLink>
+              <NuxtLink v-if="oldest" :to="captureLink(oldest)" class="console-lead">
+                <span class="console-tag">Oldest</span><span class="site-lead-text">{{ shortStamp(oldest.timestamp) }} · {{ providerLabel(String(oldest._meta.provider ?? "")) }}</span><span class="console-leader" aria-hidden="true" />
+              </NuxtLink>
+              <NuxtLink v-if="newest" :to="captureLink(newest)" class="console-lead">
+                <span class="console-tag">Newest</span><span class="site-lead-text">{{ shortStamp(newest.timestamp) }} · {{ providerLabel(String(newest._meta.provider ?? "")) }}</span><span class="console-leader" aria-hidden="true" />
+              </NuxtLink>
+            </div>
+          </template>
+
+          <template #footer>
+            <NuxtLink to="/site" class="site-back"><span aria-hidden="true">→ </span>another domain</NuxtLink>
+            <span class="console-meta">cached per archive, never a failed probe</span>
+          </template>
+        </ExplorerPanel>
+      </template>
+    </ToolHero>
   </div>
 </template>
+
+<style scoped>
+.heat-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.heat {
+  display: grid;
+  gap: 3px;
+  min-width: 36rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.heat-year {
+  overflow: visible;
+  white-space: nowrap;
+  letter-spacing: 0.06em;
+  color: var(--ui-text-dimmed);
+}
+.heat-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-right: 8px;
+  overflow: hidden;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--ui-text-muted);
+}
+.heat-cell {
+  display: block;
+  height: 16px;
+  box-shadow: inset 0 0 0 1px var(--console-line);
+}
+.heat-cell[data-level="1"] {
+  background: color-mix(in srgb, var(--console-accent) 18%, transparent);
+}
+.heat-cell[data-level="2"] {
+  background: color-mix(in srgb, var(--console-accent) 38%, transparent);
+}
+.heat-cell[data-level="3"] {
+  background: color-mix(in srgb, var(--console-accent) 62%, transparent);
+}
+.heat-cell[data-level="4"] {
+  background: var(--console-accent);
+}
+.site-band-rows {
+  padding-bottom: 4px;
+}
+.site-rows > li {
+  grid-template-columns: minmax(9rem, 12rem) 7.5rem minmax(0, 1fr) 3.5rem;
+}
+.site-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.site-name > .iconify {
+  position: relative;
+  top: 2px;
+  color: var(--ui-text-muted);
+}
+.site-reason {
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.site-ms {
+  text-align: right;
+}
+.site-samples {
+  grid-column: 3 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 11px;
+}
+.site-leads {
+  border-top: 1px solid var(--console-line);
+}
+.site-leads > .console-lead {
+  flex-wrap: nowrap;
+  min-width: 0;
+  margin: 0 0 8px;
+}
+.site-lead-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-text-highlighted);
+}
+.site-leads > .console-lead:hover .site-lead-text {
+  color: var(--console-accent);
+}
+.site-back {
+  color: var(--ui-text-muted);
+}
+.site-back:hover {
+  color: var(--console-accent);
+}
+@media (width < 52rem) {
+  .site-rows > li {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .site-span,
+  .site-reason,
+  .site-samples {
+    grid-column: 1 / -1;
+  }
+}
+</style>

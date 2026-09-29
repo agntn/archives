@@ -13,7 +13,7 @@ import {
   type ApiResult,
   type ViewMode,
 } from "../../utils/capture";
-import { dateOnly, shortStamp, shortUrl } from "../../utils/format";
+import { bareHost, dateOnly, shortStamp, shortUrl } from "../../utils/format";
 import { PROVIDERS, canFrame, providerLabel } from "../../utils/providers";
 import { fencedBody, groupByProvider, yearBuckets } from "../../utils/timeline";
 
@@ -201,6 +201,29 @@ async function compare(format: "text" | "raw" = comparison.format) {
   }
 }
 
+/** The provider picker: `all` first, then every provider with what it still needs. */
+const providerItems = [
+  { label: "all · the six in providers.all()", value: "all", icon: "i-lucide-layers" },
+  ...PROVIDERS.map((provider) => ({
+    label: provider.needs ? `${provider.label} · needs ${provider.needs}` : provider.label,
+    value: provider.slug,
+    icon: provider.icon,
+  })),
+];
+const limitItems = LIMITS.map((limit): { label: string; value: number } => ({ label: String(limit), value: limit }));
+const pickedProvider = computed(() => providerItems.find((item) => item.value === form.provider));
+
+type BadgeColor = "neutral" | "error";
+type BadgeVariant = "subtle" | "outline";
+
+/** How each archive's answer reads: captures bright, nothing or no endpoint quiet, a failure red. */
+const STATE: Record<string, { color: BadgeColor; variant: BadgeVariant }> = {
+  ok: { color: "neutral", variant: "subtle" },
+  empty: { color: "neutral", variant: "outline" },
+  unsupported: { color: "neutral", variant: "outline" },
+  failed: { color: "error", variant: "outline" },
+};
+
 function bucketNote(bucket: (typeof buckets.value)[number]): string {
   if (bucket.state === "ok") {
     return `${bucket.count} · ${dateOnly(bucket.first ?? "")} to ${dateOnly(bucket.last ?? "")}`;
@@ -243,98 +266,156 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <form class="archives-frame overflow-hidden rounded-xl" @submit.prevent="search()">
-      <div class="grid gap-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-6">
-        <label class="sm:col-span-2 lg:col-span-3">
-          <span class="archives-label">target · domain or URL</span>
-          <input v-model="form.target" type="text" class="archives-field font-mono" placeholder="example.com" autocomplete="off" spellcheck="false" />
-        </label>
-        <label class="lg:col-span-2">
-          <span class="archives-label">provider</span>
-          <select v-model="form.provider" class="archives-select">
-            <option value="all">all · Wayback, Arquivo.pt, Webarchiv, Archive.today, Common Crawl, WebCite</option>
-            <option v-for="provider in PROVIDERS" :key="provider.slug" :value="provider.slug">
-              {{ provider.label }}{{ provider.needs ? ` · needs ${provider.needs}` : "" }}
-            </option>
-          </select>
-        </label>
-        <label>
-          <span class="archives-label">limit</span>
-          <select v-model.number="form.limit" class="archives-select">
-            <option v-for="limit in LIMITS" :key="limit" :value="limit">{{ limit }}</option>
-          </select>
-        </label>
-        <label>
-          <span class="archives-label">from</span>
-          <input v-model="form.from" type="text" class="archives-field font-mono" placeholder="2010" autocomplete="off" />
-        </label>
-        <label>
-          <span class="archives-label">to</span>
-          <input v-model="form.to" type="text" class="archives-field font-mono" placeholder="2020-06" autocomplete="off" />
-        </label>
-        <label v-if="needsCollection">
-          <span class="archives-label">collection</span>
-          <input v-model="form.collection" type="text" class="archives-field font-mono" autocomplete="off" />
-        </label>
-        <label v-if="needsUser">
-          <span class="archives-label">user</span>
-          <input v-model="form.user" type="text" class="archives-field font-mono" autocomplete="off" />
-        </label>
-        <div class="flex items-end sm:col-span-2 lg:col-span-1 lg:col-start-6">
-          <UButton type="submit" color="primary" class="w-full justify-center" :loading="listing.loading" icon="i-lucide-search">
-            Search
-          </UButton>
+  <div class="timeline-explorer">
+    <ExplorerPanel
+      as="form"
+      tag="Call"
+      role="search"
+      label="Snapshot search"
+      :call="`archives_snapshots({ target: &quot;${form.target}&quot;, provider: &quot;${form.provider}&quot;, limit: ${form.limit} })`"
+      :busy="listing.loading"
+      :meta="`limit ${form.limit}`"
+      @submit.prevent="search()"
+    >
+      <template #title>snapshots(<span class="tok-str">"{{ form.target || "example.com" }}"</span>)</template>
+      <div class="archives-band timeline-form">
+        <div class="console-readout">
+          <dl class="console-readout-rows">
+            <div>
+              <dt><label for="timeline-target">Target</label></dt>
+              <dd>
+                <UInput
+                  id="timeline-target"
+                  v-model="form.target"
+                  variant="none"
+                  placeholder="example.com"
+                  autocomplete="off"
+                  spellcheck="false"
+                  class="w-full"
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>Provider</dt>
+              <dd>
+                <USelectMenu
+                  v-model="form.provider"
+                  :items="providerItems"
+                  value-key="value"
+                  :icon="pickedProvider?.icon"
+                  variant="none"
+                  :search-input="false"
+                  aria-label="Provider"
+                  class="w-full"
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>Limit</dt>
+              <dd>
+                <USelectMenu
+                  v-model="form.limit"
+                  :items="limitItems"
+                  value-key="value"
+                  variant="none"
+                  :search-input="false"
+                  aria-label="Limit"
+                  class="w-full"
+                />
+              </dd>
+            </div>
+            <div>
+              <dt><label for="timeline-from">Window</label></dt>
+              <dd class="timeline-window">
+                <UInput id="timeline-from" v-model="form.from" variant="none" placeholder="from 2010" autocomplete="off" aria-label="From" />
+                <span class="archives-dim" aria-hidden="true">→</span>
+                <UInput v-model="form.to" variant="none" placeholder="to 2020-06" autocomplete="off" aria-label="To" />
+              </dd>
+            </div>
+            <div v-if="needsCollection">
+              <dt><label for="timeline-collection">Collection</label></dt>
+              <dd><UInput id="timeline-collection" v-model="form.collection" variant="none" autocomplete="off" class="w-full" /></dd>
+            </div>
+            <div v-if="needsUser">
+              <dt><label for="timeline-user">User</label></dt>
+              <dd><UInput id="timeline-user" v-model="form.user" variant="none" autocomplete="off" class="w-full" /></dd>
+            </div>
+          </dl>
+        </div>
+        <div class="timeline-actions">
+          <UButton type="submit" color="primary" variant="solid" :loading="listing.loading" trailing-icon="i-lucide-search" label="Search" />
+          <p class="archives-note">A target no archive holds is an answer, not an error.</p>
         </div>
       </div>
-      <p class="border-t border-muted px-5 py-3 font-mono text-[11px] text-dimmed">
-        Runs <span class="text-muted">archives_snapshots</span> on the docs worker with the same executor the MCP server uses. Answers are cached for 30 minutes; a target no archive holds is an answer, not an error.
-      </p>
-    </form>
+      <template #footer>
+        <span>archives_snapshots on the docs worker, the executor the MCP server runs</span>
+        <span class="console-meta">cached 30 minutes</span>
+      </template>
+    </ExplorerPanel>
 
-    <pre v-if="listing.error" class="archives-body archives-frame rounded-xl" :style="{ color: 'var(--archives-del)' }">{{ listing.error }}</pre>
+    <ExplorerPanel v-if="listing.error" tag="Error" title="archives_snapshots" label="Listing failed">
+      <div class="archives-band">
+        <p class="archives-error" role="alert"><span class="console-tag">Failed</span>{{ listing.error }}</p>
+      </div>
+    </ExplorerPanel>
 
     <template v-if="listing.result">
-      <div class="archives-frame overflow-hidden rounded-xl">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-muted px-5 py-3">
-          <p class="font-mono text-xs text-highlighted"><LandingStamp :value="headline" /></p>
-          <span class="flex flex-wrap items-center gap-3 font-mono text-[11px] text-dimmed">
-            <NuxtLink :to="`/site/${encodeURIComponent(form.target.replace(/^https?:\/\//u, '').replace(/\/.*$/u, ''))}`" class="text-primary hover:underline">coverage dashboard →</NuxtLink>
-            <span>fetched {{ shortStamp(listing.result.fetchedAt) }}</span>
-          </span>
-        </div>
-        <div class="grid gap-6 px-5 py-5 lg:grid-cols-2">
-          <ul class="archives-rows">
-            <li v-for="bucket in buckets" :key="bucket.provider" class="archives-row">
-              <span class="archives-row-main">
-                <span class="archives-row-label">{{ providerLabel(bucket.provider) }}</span>
-                <span class="archives-row-note" :title="bucket.reason">{{ shortUrl(bucketNote(bucket), 72) }}</span>
-              </span>
-              <span class="archives-state" :class="`archives-state-${bucket.state}`">{{ bucket.state }}</span>
-            </li>
-          </ul>
-          <div v-if="years.length">
-            <div class="archives-years" role="img" :aria-label="`Captures per year from ${years[0]?.year} to ${years.at(-1)?.year}`">
-              <span
-                v-for="year in years"
-                :key="year.year"
-                class="archives-year"
-                :class="{ 'archives-year-hot': year.count === peak }"
-                :style="{ height: `${Math.max(4, Math.round((year.count / peak) * 100))}%` }"
-                :title="`${year.year}: ${year.count}`"
-              />
+      <ExplorerPanel
+        tag="List"
+        label="What each archive holds"
+        :call="headline"
+        :sweep="listing.result.fetchedAt"
+        :meta="`fetched ${shortStamp(listing.result.fetchedAt)}`"
+      >
+        <template #title>{{ listing.result.details.target }}<span class="console-file">{{ pages.length }} captures</span></template>
+        <div class="archives-band timeline-summary">
+          <div class="timeline-buckets">
+            <p class="console-label console-rule-title">
+              <span>Archives <span aria-hidden="true">[ every one asked ]</span></span>
+              <span class="console-mark" aria-hidden="true" />
+            </p>
+            <ul class="timeline-bucket-list">
+              <li v-for="bucket in buckets" :key="bucket.provider">
+                <span class="timeline-bucket-name">{{ providerLabel(bucket.provider) }}</span>
+                <UBadge :color="STATE[bucket.state]?.color ?? 'neutral'" :variant="STATE[bucket.state]?.variant ?? 'outline'" :label="bucket.state" />
+                <UTooltip :text="bucketNote(bucket)">
+                  <span class="timeline-bucket-note" tabindex="0">{{ bucketNote(bucket) }}</span>
+                </UTooltip>
+              </li>
+            </ul>
+          </div>
+          <div v-if="years.length" class="timeline-years-block">
+            <p class="console-label console-rule-title">
+              <span>Captures <span aria-hidden="true">[ per year ]</span></span>
+              <span class="console-mark" aria-hidden="true" />
+            </p>
+            <div class="timeline-years" role="img" :aria-label="`Captures per year from ${years[0]?.year} to ${years.at(-1)?.year}`">
+              <UTooltip v-for="year in years" :key="year.year" :text="`${year.year}: ${year.count}`">
+                <span class="timeline-year" :data-peak="year.count === peak">
+                  <span class="timeline-bar" :style="{ transform: `scaleY(${year.count ? Math.max(0.06, year.count / peak) : 0})` }" />
+                </span>
+              </UTooltip>
             </div>
-            <div class="archives-year-axis">
+            <div class="timeline-scale" aria-hidden="true">
               <span>{{ years[0]?.year }}</span>
-              <span>{{ pages.length }} captures</span>
               <span>{{ years.at(-1)?.year }}</span>
             </div>
           </div>
         </div>
-        <div v-if="chronological.length > 1" class="border-t border-muted px-5 pt-3 pb-1">
+        <div v-if="chronological.length > 1" class="archives-band">
+          <p class="console-label console-rule-title">
+            <span>Strip <span aria-hidden="true">[ oldest to newest · pick one to view ]</span></span>
+            <span class="console-mark" aria-hidden="true" />
+          </p>
           <CaptureStrip :pages="chronological" :current-key="viewerKey" :key-of="pageKey" @select="view($event)" />
         </div>
-      </div>
+        <template #footer>
+          <NuxtLink :to="`/site/${encodeURIComponent(bareHost(form.target).replace(/\/.*$/u, ''))}`" class="timeline-link"
+            ><span aria-hidden="true">→ </span>coverage of the whole domain</NuxtLink
+          >
+          <span class="console-meta">{{ headline }}</span>
+        </template>
+      </ExplorerPanel>
 
       <CaptureViewer
         v-if="viewer.page"
@@ -347,113 +428,286 @@ onMounted(() => {
         @close="closeViewer()"
       />
 
-      <div v-if="pages.length" class="archives-frame overflow-hidden rounded-xl">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-muted px-5 py-3">
-          <p class="font-mono text-xs text-muted">
-            captures <span class="ms-2 text-highlighted">{{ pages.length }}</span>
-            <span class="ms-3 text-dimmed">newest first · ← → move between captures in the viewer</span>
-          </p>
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="font-mono text-[11px] text-dimmed">
-              {{ selected.length ? `${selected.length} of 2 selected` : "tick two to compare" }}
-            </span>
-            <NuxtLink v-if="pair && !pairProblem" :to="compareLink(pair.before, pair.after)" class="archives-btn">
-              <UIcon name="i-lucide-columns-2" class="size-4" />
-              Side by side
-            </NuxtLink>
-            <button type="button" class="archives-btn" :disabled="!pair || Boolean(pairProblem) || comparison.loading" @click="compare()">
-              <UIcon name="i-lucide-diff" class="size-4" />
-              Diff
-            </button>
+      <ExplorerPanel v-if="pages.length" tag="List" title="captures" label="Captures" :meta="selected.length ? `${selected.length} of 2 selected` : 'tick two to compare'">
+        <div class="archives-band timeline-pick">
+          <p class="archives-note">Newest first. In the viewer, the arrow keys move between captures.</p>
+          <div class="timeline-pick-actions">
+            <UButton
+              v-if="pair && !pairProblem"
+              :to="compareLink(pair.before, pair.after)"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-columns-2"
+              label="Side by side"
+            />
+            <UButton
+              color="primary"
+              variant="solid"
+              trailing-icon="i-lucide-diff"
+              label="Diff"
+              :disabled="!pair || Boolean(pairProblem) || comparison.loading"
+              @click="compare()"
+            />
           </div>
+          <p v-if="pairProblem" class="archives-error" role="alert"><span class="console-tag">Pair</span>{{ pairProblem }}</p>
         </div>
-        <p v-if="pairProblem" class="border-b border-muted px-5 py-2 text-xs" :style="{ color: 'var(--archives-del)' }">
-          {{ pairProblem }}
-        </p>
-        <div class="archives-table-wrap">
-          <table class="archives-table">
-            <thead>
-              <tr>
-                <th class="w-10"></th>
-                <th>captured</th>
-                <th>provider</th>
-                <th>status</th>
-                <th>original</th>
-                <th>snapshot</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="page in pages" :key="pageKey(page)" :class="{ 'archives-cell-active': isSelected(page) || pageKey(page) === viewerKey }">
-                <td>
-                  <input type="checkbox" :checked="isSelected(page)" :aria-label="`Select ${page.timestamp}`" class="accent-[var(--ui-primary)]" @change="toggle(page)" />
-                </td>
-                <td class="font-mono text-xs whitespace-nowrap text-highlighted">{{ shortStamp(page.timestamp) }}</td>
-                <td class="text-xs whitespace-nowrap">{{ providerLabel(String(page._meta.provider ?? "")) }}</td>
-                <td class="font-mono text-xs text-dimmed">{{ page._meta.status ?? "n/a" }}</td>
-                <td class="font-mono text-xs text-muted" :title="page.url">{{ shortUrl(page.url, 40) }}</td>
-                <td>
-                  <a :href="page.snapshot" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline" :title="page.snapshot">
-                    open
-                    <UIcon name="i-lucide-arrow-up-right" class="size-3.5" />
-                  </a>
-                </td>
-                <td class="text-end">
-                  <button
-                    type="button"
-                    class="archives-btn h-7 px-2 text-xs"
-                    :class="{ 'text-primary': pageKey(page) === viewerKey }"
-                    :disabled="!canFrame(page) && !servesBodies(page)"
-                    :title="canFrame(page) || servesBodies(page) ? 'View this capture' : 'This archive neither serves bodies nor allows framing; use open'"
-                    @click="view(page)"
-                  >
-                    <UIcon name="i-lucide-eye" class="size-3.5" />
-                    View
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+        <ul class="archives-rows timeline-rows">
+          <li v-for="page in pages" :key="pageKey(page)" :data-active="isSelected(page) || pageKey(page) === viewerKey">
+            <UCheckbox :model-value="isSelected(page)" :aria-label="`Select ${page.timestamp}`" @update:model-value="toggle(page)" />
+            <span class="archives-value">{{ shortStamp(page.timestamp) }}</span>
+            <span class="timeline-row-provider">{{ providerLabel(String(page._meta.provider ?? "")) }}</span>
+            <span class="archives-dim">{{ page._meta.status ?? "n/a" }}</span>
+            <UTooltip :text="page.url">
+              <span class="timeline-row-url" tabindex="0">{{ shortUrl(page.url, 48) }}</span>
+            </UTooltip>
+            <span class="timeline-row-actions">
+              <UButton
+                :to="page.snapshot"
+                target="_blank"
+                rel="noopener"
+                color="neutral"
+                variant="subtle"
+                trailing-icon="i-lucide-arrow-up-right"
+                label="open"
+                :aria-label="`Open ${page.timestamp} on the archive`"
+              />
+              <UTooltip :text="canFrame(page) || servesBodies(page) ? 'View this capture here' : 'This archive neither serves bodies nor allows framing; use open'">
+                <UButton
+                  color="neutral"
+                  variant="subtle"
+                  icon="i-lucide-eye"
+                  label="view"
+                  :disabled="!canFrame(page) && !servesBodies(page)"
+                  @click="view(page)"
+                />
+              </UTooltip>
+            </span>
+          </li>
+        </ul>
+      </ExplorerPanel>
     </template>
 
-    <div v-if="comparison.loading || comparison.error || comparison.result" class="archives-frame overflow-hidden rounded-xl">
-      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-muted px-5 py-3">
-        <p class="font-mono text-xs text-muted">
-          <span class="text-dimmed">archives_diff</span>
-          <span v-if="pair" class="ms-2 text-highlighted">{{ dateOnly(pair.before.timestamp) }} → {{ dateOnly(pair.after.timestamp) }}</span>
-        </p>
-        <div class="flex items-center gap-1">
-          <button
+    <ExplorerPanel
+      v-if="comparison.loading || comparison.error || comparison.result"
+      tag="Call"
+      label="Diff of the two picked captures"
+      :busy="comparison.loading"
+      :sweep="comparison.result?.fetchedAt"
+      :meta="pair ? `${dateOnly(pair.before.timestamp)} → ${dateOnly(pair.after.timestamp)}` : undefined"
+    >
+      <template #title>archives_diff(<span class="tok-str">"{{ comparison.format }}"</span>)</template>
+      <div class="archives-band timeline-diff-head">
+        <div class="timeline-formats" aria-label="Diff format">
+          <UButton
             v-for="format in ['text', 'raw'] as const"
             :key="format"
-            type="button"
-            class="archives-btn h-7 px-2 text-xs"
-            :class="{ 'text-primary': comparison.format === format }"
+            :color="comparison.format === format ? 'primary' : 'neutral'"
+            variant="chip"
+            :label="format"
             :disabled="comparison.loading"
             @click="compare(format)"
-          >
-            {{ format }}
-          </button>
+          />
         </div>
-      </div>
-      <p v-if="comparison.loading" class="flex items-center gap-2 px-5 py-4 text-sm text-muted">
-        <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-        Reading both captures and comparing…
-      </p>
-      <pre v-else-if="comparison.error" class="archives-body" :style="{ color: 'var(--archives-del)' }">{{ comparison.error }}</pre>
-      <template v-else-if="comparison.result">
-        <div class="flex flex-wrap gap-x-4 gap-y-1 border-b border-muted px-5 py-2.5 font-mono text-[11px] text-dimmed">
-          <span :style="{ color: 'var(--archives-add)' }">+{{ comparison.result.details.result?.additions ?? 0 }}</span>
-          <span :style="{ color: 'var(--archives-del)' }">−{{ comparison.result.details.result?.deletions ?? 0 }}</span>
-          <span>before <span class="text-muted">{{ comparison.result.details.result?.before.timestamp }}</span></span>
-          <span>after <span class="text-muted">{{ comparison.result.details.result?.after.timestamp }}</span></span>
-          <span v-if="comparison.result.details.result?.partial" :style="{ color: 'var(--archives-del)' }">partial: a body was truncated</span>
+        <p v-if="comparison.loading" class="archives-note">
+          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
+          Reading both captures and comparing…
+        </p>
+        <p v-else-if="comparison.error" class="archives-error" role="alert"><span class="console-tag">Failed</span>{{ comparison.error }}</p>
+        <p v-else-if="comparison.result" class="timeline-diff-stats">
+          <span class="timeline-add">+{{ comparison.result.details.result?.additions ?? 0 }}</span>
+          <span class="timeline-del">−{{ comparison.result.details.result?.deletions ?? 0 }}</span>
+          <span>before <span class="archives-value">{{ comparison.result.details.result?.before.timestamp }}</span></span>
+          <span>after <span class="archives-value">{{ comparison.result.details.result?.after.timestamp }}</span></span>
+          <span v-if="comparison.result.details.result?.partial" class="timeline-del">partial: a body was cut</span>
           <span v-if="comparison.result.details.result?.identical">identical</span>
-        </div>
+        </p>
+      </div>
+      <div v-if="comparison.result && patch" class="archives-band">
         <DiffLines :patch="patch" />
-      </template>
-    </div>
+      </div>
+    </ExplorerPanel>
   </div>
 </template>
+
+<style scoped>
+.timeline-explorer {
+  display: grid;
+  gap: 28px;
+}
+.timeline-explorer > :deep(.explorer-panel + .explorer-panel) {
+  margin-top: 0;
+}
+.timeline-form {
+  display: grid;
+  gap: 16px;
+}
+.timeline-form .console-readout-rows > div {
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+}
+.timeline-window {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.timeline-actions,
+.timeline-pick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+.timeline-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px 32px;
+}
+.timeline-bucket-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.timeline-bucket-list > li {
+  display: grid;
+  grid-template-columns: 10rem auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.timeline-bucket-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-text-highlighted);
+}
+.timeline-bucket-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-text-muted);
+}
+.timeline-years {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 72px;
+  box-shadow: inset 0 -1px 0 var(--console-line);
+}
+.timeline-year {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 2px;
+}
+.timeline-bar {
+  position: absolute;
+  inset: 0;
+  transform-origin: bottom;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ui-text-muted) 55%, transparent) 0 1px,
+    transparent 1px 4px
+  );
+  box-shadow: inset 0 0 0 1px var(--console-line);
+}
+.timeline-year[data-peak="true"] .timeline-bar {
+  background: color-mix(in srgb, var(--console-accent) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--console-accent);
+}
+.timeline-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ui-text-dimmed);
+}
+.timeline-link {
+  color: var(--ui-text-muted);
+}
+.timeline-link:hover {
+  color: var(--console-accent);
+}
+.timeline-pick {
+  display: grid;
+  gap: 12px;
+}
+.timeline-rows > li {
+  grid-template-columns: 1.25rem 8.5rem minmax(7rem, 10rem) 3rem minmax(0, 1fr) auto;
+  align-items: center;
+}
+.timeline-rows > li[data-active="true"] {
+  background: color-mix(in srgb, var(--ui-text-muted) 5%, var(--ui-bg));
+  box-shadow: inset 2px 0 0 var(--console-accent);
+}
+.timeline-rows > li + li[data-active="true"] {
+  box-shadow:
+    inset 2px 0 0 var(--console-accent),
+    inset 0 1px 0 var(--console-line);
+}
+.timeline-row-provider,
+.timeline-row-url {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timeline-row-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+.timeline-diff-head {
+  display: grid;
+  gap: 12px;
+}
+.timeline-formats {
+  display: flex;
+  gap: 6px;
+}
+.timeline-diff-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ui-text-dimmed);
+}
+.timeline-add {
+  color: var(--archives-add);
+}
+.timeline-del {
+  color: var(--archives-del);
+}
+@media (width < 56rem) {
+  .timeline-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .timeline-rows > li {
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  }
+  .timeline-row-provider,
+  .timeline-rows > li > .archives-dim,
+  .timeline-row-url {
+    grid-column: 2 / -1;
+  }
+  .timeline-row-actions {
+    grid-column: 2 / -1;
+  }
+}
+@media (width < 640px) {
+  .timeline-form .console-readout-rows > div {
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+  .timeline-bucket-list > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .timeline-bucket-note {
+    grid-column: 1 / -1;
+  }
+}
+</style>
