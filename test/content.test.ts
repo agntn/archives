@@ -1,6 +1,6 @@
 import { objectContaining } from "./_matchers";
 import { gzipSync } from "node:zlib";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { $fetch, type FetchResponse } from "ofetch";
 import { createArchive, resetConfig, storage, UnsupportedOperationError } from "../src";
 import type { ArchiveContentOptions, ArchiveContentResponse, ArchiveProvider } from "../src/types";

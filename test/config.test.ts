@@ -1,5 +1,5 @@
 import { anyValue, objectContaining } from "./_matchers";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { getConfig, resolveConfig, resetConfig } from "../src/config";
 import { loadConfig } from "c12";
 import memoryDriver from "unstorage/drivers/memory";

@@ -6,7 +6,7 @@ import type {
   ExtensionContext,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import archivesExtension from "../packages/pi/extensions/archives";
 import { storage } from "../src/storage";
 import {

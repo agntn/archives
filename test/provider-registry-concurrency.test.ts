@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 afterEach(() => {
   vi.doUnmock("../src/providers/_lazy-import");

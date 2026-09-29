@@ -1,5 +1,5 @@
 import { objectContaining } from "./_matchers";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { $fetch } from "ofetch";
 import { createArchive, resetConfig, storage } from "../src";
 import createWayback from "../src/providers/wayback";

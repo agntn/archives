@@ -3,7 +3,7 @@ import { cpSync, existsSync, globSync, mkdirSync, mkdtempSync, rmSync, symlinkSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 /** Node 22 before 22.18 strips types only with a flag; the bin keeps the bundle there. */

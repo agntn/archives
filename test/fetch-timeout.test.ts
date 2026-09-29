@@ -2,7 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { $fetch } from "ofetch";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createArchive, providers } from "../src/index";
 import { createMcpServer } from "../src/mcp";
 import { createFetchOptions } from "../src/utils";

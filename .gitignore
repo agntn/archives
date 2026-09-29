@@ -9,3 +9,4 @@ docs/.data
 docs/.nitro
 docs/.cache
 docs/.wrangler
+.vitest/
