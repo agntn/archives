@@ -1,4 +1,4 @@
-import { expect } from "vitest";
+import { expect } from "vite-plus/test";
 
 /**
  * Keeps Vitest's `any`-typed asymmetric matcher behind an `unknown` boundary.

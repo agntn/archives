@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { ArchiveResponse, ArchivedPage } from "../src/types";
 import { diffLines, fencedBody, groupByProvider, yearBuckets } from "../docs/app/utils/timeline";
 

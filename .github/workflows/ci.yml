@@ -13,14 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm i -fg corepack && corepack enable
-      - uses: actions/setup-node@v4
+      - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
         with:
           node-version: 26
-          cache: "pnpm"
-      - run: pnpm install
+          cache: true
       - run: pnpm lint
       - run: pnpm test:types
       - run: pnpm --dir playground build
-      - run: pnpm vitest --coverage
+      - run: pnpm exec vp test run --coverage
       - uses: codecov/codecov-action@v5

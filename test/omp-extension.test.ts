@@ -2,7 +2,7 @@ import { objectContaining, rangeDescription } from "./_matchers";
 import * as TypeBox from "@oh-my-pi/omptype/typebox";
 import { $fetch } from "ofetch";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import archivesOmpExtension from "../packages/omp/extensions/archives.js";
 import {
   CONTENT_FORMAT_HINT,

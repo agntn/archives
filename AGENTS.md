@@ -7,7 +7,7 @@
 
 ## OVERVIEW
 
-Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Built on the unjs ecosystem: ofetch, unstorage, c12, consola, ufo, obuild, changelogen.
+Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Built on the unjs ecosystem: ofetch, unstorage, c12, consola, ufo, changelogen, with Vite+ (`vite-plus`) for build, lint, format and tests.
 
 ## STRUCTURE
 
@@ -29,7 +29,7 @@ archives/
 │   ├── providers/        # one file per archive source + barrel
 │   └── utils/            # _utils.ts: parallel work, response helpers, domain/timestamp
 │                         # _content.ts: capture reading, WARC, charset, html-to-text
-├── build.config.ts       # obuild: one bundle, four inputs (shared chunks)
+├── vite.config.ts        # Vite+: pack (one bundle, four inputs), lint, fmt, test
 ├── test/                 # mirrors src/ structure, one .test.ts per module
 ├── packages/pi/extensions/
 │   └── archives.ts       # Pi tool/command surface shipped via package.json pi.extensions
@@ -114,10 +114,10 @@ archives/
 - **Unsupported operations are first-class**: when an operation is outside a provider's API surface (e.g. WebCite has no list-by-domain endpoint), return `createUnsupportedResponse(reason, slug)`, not a fake page or a fake error. `combineResults` propagates these into `_meta.unsupportedProviders`. `getPages()` throws `UnsupportedOperationError` (with `.providers`) when the whole call is unsupported, so callers can distinguish structural mismatches from runtime failures.
 - **Timestamp format**: providers convert native timestamps to ISO 8601. Raw format preserved in `_meta`.
 - **Option merging**: three-level cascade: config defaults → init options → request options. Via `mergeOptions()`.
-- **Quality config**: `oxlint` and `oxfmt` spread the shared `@agntn/ox` policies. Linting is type-aware; ESLint was removed intentionally.
+- **Quality config**: the `lint` and `fmt` blocks of `vite.config.ts` spread the shared `@agntn/ox` policies; `vp lint` and `vp fmt` run them. Linting is type-aware; ESLint was removed intentionally.
 - **`src/` runs under plain Node type stripping**: relative imports end in `.ts` (a directory as `./dir/index.ts`), type-only imports use `import type`, and no `enum`, `namespace` or parameter properties. `erasableSyntaxOnly` and `verbatimModuleSyntax` enforce the syntax, `test/cli.test.ts` the imports. `moduleResolution` stays `Bundler`: under `NodeNext` the `unstorage` driver types import a directory and `Driver` turns into an error type.
 - **A local MCP server serves `src/`**: inside a checkout, `dist/cli.mjs mcp` loads the command from `src/`, like the Pi and OMP extensions, so a change needs a server restart, not `pnpm build`. The npm package, a copy under `node_modules` and a Node that does not strip types keep the bundle; `ARCHIVES_DIST=1` forces it. A change to `src/cli.ts` itself still needs `pnpm build`.
-- **Build**: `obuild` reads `build.config.ts` → `dist/`. Four inputs in **one** bundle entry so the entrypoint, the CLI, the MCP server and the executors share chunks instead of each carrying a private copy of the provider factory.
+- **Build**: `vp pack` reads the `pack` block of `vite.config.ts` → `dist/`. Four inputs in **one** bundle so the entrypoint, the CLI, the MCP server and the executors share chunks instead of each carrying a private copy of the provider factory. typebox is bundled inline with its license beside it, rolldown's `//#region` markers are stripped, and chunks keep stable names under `dist/_chunks/`, which `test/cli.test.ts` relies on.
 - **One executor per operation**: MCP, Pi and OMP all call `src/tool-operations.ts`. A surface owns only its schema, its call rendering and its result envelope. Schema metadata (`PROVIDER_HINT`, limits) is restated per surface because parameters are declared before the executors can be loaded — the extension tests guard it against drift.
 - **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tool-operations.ts")` and `import("../../../dist/tool-operations.mjs")`. Never `import(url.href)`. `tsc` resolves that dist specifier, so `test:types` builds before it type-checks.
 - **MCP result is text only**: `details` never reaches an MCP client, so anything a caller needs for the next call belongs in `content[].text`.
@@ -149,12 +149,12 @@ archives/
 
 ```bash
 pnpm install          # install deps
-pnpm dev              # vitest watch mode
-pnpm test             # lint + type-check + vitest with coverage
+pnpm dev              # vp test in watch mode
+pnpm test             # lint + type-check + vp test with coverage
 pnpm test:types       # build + tsc over lib and both extension surfaces
-pnpm lint             # build + Nuxt types + type-aware oxlint + oxfmt check
-pnpm lint:fix         # build + Nuxt types + oxlint fixes + oxfmt write
-pnpm build            # obuild (build.config.ts) → dist/
+pnpm lint             # build + Nuxt types + type-aware vp lint + vp fmt check
+pnpm lint:fix         # build + Nuxt types + vp lint fixes + vp fmt write
+pnpm build            # vp pack (vite.config.ts) → dist/
 pnpm docs             # Docus site + timeline explorer on :3000
 node dist/cli.mjs mcp # run the MCP server over stdio (bin: archives mcp); serves src/ in a checkout
 pnpm release          # test + changelogen + publish
@@ -170,7 +170,7 @@ pnpm release          # test + changelogen + publish
 - **WebCite has no list-by-domain API**: `webcite.snapshots(domain)` returns `unsupported: true` with a `unsupportedReason`. Direct snapshot retrieval (`webcitation.org/<id>`) is planned via a future `getById` API. New archives have not been accepted since ~2019.
 - **Archive.today uses Memento API**: parses timemap link headers with regex. Fragile if format changes.
 - **Playground targets Cloudflare**: `nitro.preset = 'cloudflare_module'` with `nodeCompat: true`.
-- **CI runs coverage separately**: `pnpm vitest --coverage` as its own step, not via `pnpm test`.
+- **CI runs coverage separately**: `pnpm exec vp test run --coverage` as its own step, not via `pnpm test`.
 - **Autofix CI**: PRs get auto-committed lint fixes via `autofix-ci/action`.
 - **Renovate**: extends `github>unjs/renovate-config` for dependency updates.
 - **coverage/ is committed**: HTML coverage reports are in git (not in .gitignore despite `dist` being ignored).

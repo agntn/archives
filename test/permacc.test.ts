@@ -1,6 +1,6 @@
 import { objectContaining } from "./_matchers";
 import { $fetch } from "ofetch";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { createArchive, resetConfig, storage } from "../src";
 import createPermacc from "../src/providers/permacc";
 import type { PermaccOptions } from "../src/_providers";

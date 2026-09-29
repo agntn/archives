@@ -1,5 +1,5 @@
 import { objectContaining } from "./_matchers";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { Archive, createArchive, UnsupportedOperationError, storage, resetConfig } from "../src";
 import createWayback from "../src/providers/wayback";
 import createWebCite from "../src/providers/webcite";

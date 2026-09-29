@@ -1,7 +1,7 @@
 import { objectContaining, rangeDescription } from "./_matchers";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { createMcpServer } from "../src/mcp";
 import { storage } from "../src/storage";
 import { MAX_CONTENT_OFFSET, MAX_DIFF_OFFSET, diffArchives } from "../src/tool-operations";

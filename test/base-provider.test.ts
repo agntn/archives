@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { BaseProvider } from "../src/providers/base-provider";
 import type { ArchiveOptions, ArchiveResponse } from "../src/types";
 
