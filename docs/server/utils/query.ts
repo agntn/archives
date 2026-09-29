@@ -155,24 +155,49 @@ export function toolAnswer<TDetails>(
   return answer;
 }
 
-/** Uncached archive queries one client may start per minute; cache hits are free. */
+/** Uncached archive queries one client may start per minute; `ratelimits` in wrangler.jsonc carries the same number. */
 export const RATE_LIMIT = 30;
 
+/** The Workers Rate Limiting binding: Cloudflare keeps the count, so concurrent misses can't race it. */
+interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
+/** Fallback for `nuxt dev` without the binding: one counter per isolate, incremented synchronously. */
+const localCounts = new Map<string, number>();
+
 /**
- * Counts the archive queries a client starts in the current minute and refuses the ones past the limit.
+ * The address a request came from, as Cloudflare saw it. `X-Forwarded-For` is left out: its first
+ * entry is whatever the caller sent, so it would let one client rotate its own key.
+ */
+function clientAddress(event: H3Event): string {
+  return getRequestHeader(event, "cf-connecting-ip") ?? getRequestIP(event) ?? "unknown";
+}
+
+/**
+ * Refuses an archive query past the per-minute limit for its address.
  *
  * Only a cache miss counts, so a demo that replays warmed answers never trips it, and
  * the archives behind the worker see at most this many new questions from one address.
  */
 export async function assertRateLimit(event: H3Event): Promise<void> {
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? getRequestHeader(event, "cf-connecting-ip") ?? "unknown";
-  const minute = Math.floor(Date.now() / 60_000);
-  const key = `docs:rate:${hash(ip)}:${minute}`;
-  const storage = useStorage("cache");
-  const count = Number((await storage.getItem<number>(key).catch(() => 0)) ?? 0) + 1;
-  await storage.setItem(key, count, { ttl: 120 }).catch(() => undefined);
-  if (count > RATE_LIMIT) {
-    setResponseHeader(event, "Retry-After", String(60 - (Math.floor(Date.now() / 1000) % 60)));
+  const key = hash(clientAddress(event));
+  const limiter = (event.context.cloudflare?.env as { ARCHIVE_LIMIT?: RateLimiter } | undefined)?.ARCHIVE_LIMIT;
+  let allowed: boolean;
+  if (limiter) {
+    allowed = (await limiter.limit({ key })).success;
+  } else {
+    const minute = Math.floor(Date.now() / 60_000);
+    const slot = `${key}:${minute}`;
+    if (!localCounts.has(slot)) {
+      for (const stale of localCounts.keys()) if (!stale.endsWith(`:${minute}`)) localCounts.delete(stale);
+    }
+    const count = (localCounts.get(slot) ?? 0) + 1;
+    localCounts.set(slot, count);
+    allowed = count <= RATE_LIMIT;
+  }
+  if (!allowed) {
+    setResponseHeader(event, "Retry-After", 60);
     throw createError({
       statusCode: 429,
       statusMessage: `More than ${RATE_LIMIT} new archive queries in a minute from one address; cached answers are not counted. Wait a moment.`,
@@ -213,7 +238,7 @@ export async function cachedAnswer<T>(
   await assertRateLimit(event);
   const { value, degraded } = await produce();
   const seconds = degraded ? DEGRADED_TTL : ttl;
-  await storage.setItem(key, { value, expires: Date.now() + seconds * 1000 }).catch(() => undefined);
+  await storage.setItem(key, { value, expires: Date.now() + seconds * 1000 }, { ttl: seconds }).catch(() => undefined);
   markPublic(event, seconds);
   return value;
 }
