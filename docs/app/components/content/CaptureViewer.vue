@@ -74,6 +74,12 @@ const modes = computed(() => {
   ];
 });
 
+/** The modes as tabs; one the archive can't serve stays visible but disabled, with the reason under it. */
+const tabItems = computed(() =>
+  modes.value.map((option) => ({ label: option.label, value: option.id, icon: option.icon, disabled: !option.enabled })),
+);
+const unavailable = computed(() => modes.value.filter((option) => !option.enabled));
+
 /**
  * The archived markup as a document the browser can draw without running it.
  *
@@ -211,141 +217,257 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="archives-frame overflow-hidden rounded-xl">
-    <div class="archives-viewer-bar">
-      <span class="inline-flex items-center gap-2">
-        <UIcon :name="providerInfo(providerArgument(page))?.icon ?? 'i-lucide-archive'" class="size-4 text-primary" />
-        <span class="text-sm font-medium text-highlighted">{{ label }}</span>
-      </span>
-      <span class="font-mono text-xs text-highlighted">{{ shortStamp(page.timestamp) }}</span>
-      <span class="archives-viewer-url" :title="page.url">{{ page.url }}</span>
-      <span v-if="pages.length > 1" class="inline-flex items-center gap-1">
-        <button type="button" class="archives-btn h-7 px-2" :disabled="!previousPage" :title="previousPage ? `Previous: ${shortStamp(previousPage.timestamp)}` : 'Oldest capture here'" aria-label="Previous capture" @click="step(-1)">
-          <UIcon name="i-lucide-chevron-left" class="size-4" />
-        </button>
-        <span class="font-mono text-[11px] text-dimmed">{{ index + 1 }} / {{ pages.length }}</span>
-        <button type="button" class="archives-btn h-7 px-2" :disabled="!nextPage" :title="nextPage ? `Next: ${shortStamp(nextPage.timestamp)}` : 'Newest capture here'" aria-label="Next capture" @click="step(1)">
-          <UIcon name="i-lucide-chevron-right" class="size-4" />
-        </button>
-      </span>
-      <span class="archives-segmented" role="tablist" aria-label="View mode">
-        <button
-          v-for="option in modes"
-          :key="option.id"
-          type="button"
-          role="tab"
-          class="archives-segment inline-flex items-center gap-1.5"
-          :class="{ 'archives-segment-active': mode === option.id }"
-          :aria-selected="mode === option.id"
-          :disabled="!option.enabled"
-          :title="option.enabled ? undefined : option.why"
-          @click="setMode(option.id)"
-        >
-          <UIcon :name="option.icon" class="size-3.5" />
-          {{ option.label }}
-        </button>
-      </span>
-      <span class="inline-flex items-center gap-1">
-        <button type="button" class="archives-btn h-7 px-2" :class="{ 'text-primary': saved }" :title="saved ? 'Remove from the shelf' : 'Save to the shelf'" :aria-pressed="saved" @click="toggle(page)">
-          <UIcon :name="saved ? 'i-lucide-bookmark-check' : 'i-lucide-bookmark'" class="size-3.5" />
-        </button>
-        <button type="button" class="archives-btn h-7 px-2" :title="citation(page)" aria-label="Copy a citation" @click="copy('cite')">
-          <UIcon :name="copied === 'cite' ? 'i-lucide-check' : 'i-lucide-quote'" class="size-3.5" />
-        </button>
-        <NuxtLink :to="captureLink(page)" class="archives-btn h-7 px-2" title="Permalink of this capture" aria-label="Permalink">
-          <UIcon name="i-lucide-link" class="size-3.5" />
-        </NuxtLink>
-        <a :href="page.snapshot" target="_blank" rel="noopener" class="archives-btn h-7 px-2 text-xs" title="Open the capture in the archive">
-          <UIcon name="i-lucide-external-link" class="size-3.5" />
-          Open
-        </a>
-        <button v-if="closable" type="button" class="archives-btn h-7 px-2" aria-label="Close viewer" title="Close (Esc)" @click="emit('close')">
-          <UIcon name="i-lucide-x" class="size-3.5" />
-        </button>
-      </span>
+  <ExplorerPanel tag="View" :label="`Capture viewer: ${label}`" :sweep="key" :meta="pages.length > 1 ? `${index + 1} / ${pages.length}` : undefined">
+    <template #title>{{ label }}<span class="console-file">{{ shortStamp(page.timestamp) }}</span></template>
+
+    <div class="viewer-controls">
+      <UTabs
+        :model-value="mode"
+        :items="tabItems"
+        :content="false"
+        variant="link"
+        class="viewer-tabs"
+        aria-label="View mode"
+        @update:model-value="setMode($event as ViewMode)"
+      />
+      <div class="viewer-actions">
+        <template v-if="pages.length > 1">
+          <UTooltip :text="previousPage ? `Previous: ${shortStamp(previousPage.timestamp)}` : 'Oldest capture here'">
+            <UButton color="neutral" variant="subtle" square icon="i-lucide-chevron-left" aria-label="Previous capture" :disabled="!previousPage" @click="step(-1)" />
+          </UTooltip>
+          <UTooltip :text="nextPage ? `Next: ${shortStamp(nextPage.timestamp)}` : 'Newest capture here'">
+            <UButton color="neutral" variant="subtle" square icon="i-lucide-chevron-right" aria-label="Next capture" :disabled="!nextPage" @click="step(1)" />
+          </UTooltip>
+        </template>
+        <UTooltip :text="saved ? 'Remove from the shelf' : 'Save to the shelf'">
+          <UButton
+            color="neutral"
+            variant="subtle"
+            square
+            :icon="saved ? 'i-lucide-bookmark-check' : 'i-lucide-bookmark'"
+            :aria-label="saved ? 'Remove from the shelf' : 'Save to the shelf'"
+            :aria-pressed="saved"
+            @click="toggle(page)"
+          />
+        </UTooltip>
+        <UTooltip :text="citation(page)">
+          <UButton color="neutral" variant="subtle" square :icon="copied === 'cite' ? 'i-lucide-check' : 'i-lucide-quote'" aria-label="Copy a citation" @click="copy('cite')" />
+        </UTooltip>
+        <UTooltip text="Permalink of this capture">
+          <UButton :to="captureLink(page)" color="neutral" variant="subtle" square icon="i-lucide-link" aria-label="Permalink" />
+        </UTooltip>
+        <UButton :to="page.snapshot" target="_blank" rel="noopener" color="neutral" variant="subtle" trailing-icon="i-lucide-arrow-up-right" label="open" aria-label="Open the capture in the archive" />
+        <UTooltip v-if="closable" text="Close (Esc)">
+          <UButton color="neutral" variant="subtle" square icon="i-lucide-x" aria-label="Close viewer" @click="emit('close')" />
+        </UTooltip>
+      </div>
     </div>
 
-    <p v-if="caveat" class="flex items-start gap-2 border-b border-muted px-4 py-2 text-xs text-muted">
-      <UIcon name="i-lucide-shield-alert" class="mt-0.5 size-3.5 shrink-0 text-primary" />
-      <span>{{ caveat }}</span>
-    </p>
+    <div class="viewer-url">
+      <span class="console-tag">URL</span>
+      <UTooltip :text="page.url">
+        <span class="viewer-url-text" tabindex="0">{{ page.url }}</span>
+      </UTooltip>
+    </div>
+
+    <div v-if="caveat || unavailable.length" class="archives-band viewer-notes">
+      <p v-if="caveat" class="archives-note"><span class="console-tag">Note</span>{{ caveat }}</p>
+      <p v-for="option in unavailable" :key="option.id" class="archives-note">
+        <span class="console-tag">{{ option.label }}</span>{{ option.why }}.
+      </p>
+    </div>
 
     <template v-if="mode === 'replay'">
       <iframe
         :key="page.snapshot"
         :src="page.snapshot"
-        class="archives-viewer-frame"
+        class="viewer-frame"
         :style="frameStyle"
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         referrerpolicy="no-referrer"
         :title="`${label} replay of ${page.url} captured ${shortStamp(page.timestamp)}`"
       />
-      <p class="border-t border-muted px-4 py-2 font-mono text-[11px] text-dimmed">
-        Played back by the archive itself, in its own frame. Links inside stay in the archive.
-      </p>
     </template>
 
     <template v-else>
-      <p v-if="loading" class="flex items-center gap-2 px-5 py-4 text-sm text-muted">
-        <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-        Reading the capture…
-      </p>
-      <div v-else-if="error && throttled" class="px-5 py-5">
-        <p class="flex items-start gap-2 text-sm text-highlighted">
-          <UIcon name="i-lucide-shield-alert" class="mt-0.5 size-4 shrink-0 text-primary" />
-          <span>
-            {{ label }} answered <span class="font-mono">429 Too Many Requests</span>.
-            It throttles automated readers, so the docs worker cannot fetch this capture right now.
-          </span>
+      <div v-if="loading" class="archives-band">
+        <p class="archives-note">
+          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
+          Reading the capture…
         </p>
-        <div class="mt-4 flex flex-wrap items-center gap-2">
-          <a :href="page.snapshot" target="_blank" rel="noopener" class="archives-btn">
-            <UIcon name="i-lucide-external-link" class="size-4" />
-            Open the capture in {{ label }}
-          </a>
-          <button type="button" class="archives-btn" @click="loadBody()">Try again</button>
+      </div>
+      <div v-else-if="error && throttled" class="archives-band viewer-throttled">
+        <p class="archives-error" role="alert">
+          <span class="console-tag">429</span>{{ label }} throttles automated readers, so the docs worker can't fetch this capture right now.
+        </p>
+        <div class="viewer-retry">
+          <UButton :to="page.snapshot" target="_blank" rel="noopener" color="neutral" variant="outline" icon="i-lucide-external-link" :label="`Open in ${label}`" />
+          <UButton color="neutral" variant="subtle" icon="i-lucide-rotate-cw" label="Try again" @click="loadBody()" />
         </div>
-        <details class="mt-4">
-          <summary class="cursor-pointer font-mono text-[11px] text-dimmed">what the executor said</summary>
-          <pre class="archives-body px-0" :style="{ color: 'var(--archives-del)' }">{{ error }}</pre>
+        <details class="viewer-details">
+          <summary>what the executor said</summary>
+          <pre class="viewer-body viewer-body-error">{{ error }}</pre>
         </details>
       </div>
-      <pre v-else-if="error" class="archives-body" :style="{ color: 'var(--archives-del)' }">{{ error }}</pre>
+      <div v-else-if="error" class="archives-band">
+        <p class="archives-error" role="alert"><span class="console-tag">Failed</span>{{ error }}</p>
+      </div>
       <template v-else-if="result">
-        <div class="flex flex-wrap gap-x-4 gap-y-1 border-b border-muted px-5 py-2.5 font-mono text-[11px] text-dimmed">
-          <span>captured <span class="text-muted">{{ capture?.timestamp }}</span></span>
-          <span>type <span class="text-muted">{{ capture?.mime ?? "?" }}</span></span>
-          <span>read <span class="text-muted">{{ formatBytes(capture?.bytes ?? 0) }}</span></span>
-          <span v-if="mode === 'text'">slice <span class="text-muted">{{ result.details.offset }}..{{ result.details.endOffset }}</span></span>
-          <span v-else-if="result.details.hasMore || capture?.truncated" :style="{ color: 'var(--archives-del)' }">truncated: the page is longer than what was rendered</span>
-          <a :href="capture?.snapshot" target="_blank" rel="noopener" class="text-primary hover:underline">source</a>
-        </div>
+        <p class="viewer-meta">
+          <span>captured <span class="archives-value">{{ capture?.timestamp }}</span></span>
+          <span>type <span class="archives-value">{{ capture?.mime ?? "?" }}</span></span>
+          <span>read <span class="archives-value">{{ formatBytes(capture?.bytes ?? 0) }}</span></span>
+          <span v-if="mode === 'text'">slice <span class="archives-value">{{ result.details.offset }}..{{ result.details.endOffset }}</span></span>
+          <span v-else-if="result.details.hasMore || capture?.truncated" class="viewer-cut">cut: the page is longer than what was rendered</span>
+          <a :href="capture?.snapshot" target="_blank" rel="noopener" class="viewer-source">source ↗</a>
+        </p>
         <template v-if="mode === 'source'">
           <iframe
             v-if="sourceDocument"
             :key="`${key}-source`"
             :srcdoc="sourceDocument"
-            class="archives-viewer-frame"
+            class="viewer-frame"
             :style="frameStyle"
             sandbox=""
             referrerpolicy="no-referrer"
             :title="`Archived markup of ${page.url} captured ${shortStamp(page.timestamp)}, scripts removed`"
           />
-          <pre v-else class="archives-body">{{ body || "(the capture is not text; see the source link)" }}</pre>
-          <p class="border-t border-muted px-4 py-2 font-mono text-[11px] text-dimmed">
-            The archived bytes, drawn without scripts. Only images, styles and fonts from the archive's own host are allowed to load.
-          </p>
+          <pre v-else class="viewer-body">{{ body || "(the capture isn't text; see the source link)" }}</pre>
         </template>
         <template v-else>
-          <pre class="archives-body">{{ body || "(the capture is not text; see the source link)" }}</pre>
-          <div v-if="result.details.hasMore" class="border-t border-muted px-5 py-3">
-            <button type="button" class="archives-btn" @click="loadBody(result!.details.nextOffset ?? 0)">
-              Next slice
-              <UIcon name="i-lucide-chevron-right" class="size-4" />
-            </button>
+          <pre class="viewer-body">{{ body || "(the capture isn't text; see the source link)" }}</pre>
+          <div v-if="result.details.hasMore" class="archives-band viewer-next">
+            <UButton color="neutral" variant="outline" trailing-icon="i-lucide-chevron-right" label="Next slice" @click="loadBody(result!.details.nextOffset ?? 0)" />
           </div>
         </template>
       </template>
     </template>
-  </div>
+
+    <template #footer>
+      <span v-if="mode === 'replay'">Played back by the archive itself, in its own frame. Links inside stay in the archive.</span>
+      <span v-else-if="mode === 'source'">The archived bytes, drawn without scripts. Only images, styles and fonts from the archive's host load.</span>
+      <span v-else>The archived body as text, read through the executor the MCP server runs.</span>
+    </template>
+  </ExplorerPanel>
 </template>
+
+<style scoped>
+.viewer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 4px 20px 0;
+}
+.viewer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.viewer-url {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 20px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border-bottom: 1px solid var(--console-line);
+}
+.viewer-url > .console-tag {
+  flex: none;
+  margin: 0;
+}
+.viewer-url-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-text-highlighted);
+}
+.viewer-notes {
+  display: grid;
+  gap: 6px;
+  padding-block: 12px;
+  border-bottom: 1px solid var(--console-line);
+}
+.viewer-notes > .archives-note > .console-tag {
+  flex: none;
+  margin: 0;
+}
+.viewer-frame {
+  display: block;
+  width: 100%;
+  height: min(70dvh, 44rem);
+  border: 0;
+  background: #fff;
+}
+.viewer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 10px 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ui-text-dimmed);
+  border-bottom: 1px solid var(--console-line);
+}
+.viewer-cut {
+  color: var(--archives-del);
+}
+.viewer-source {
+  color: var(--ui-text-muted);
+}
+.viewer-source:hover {
+  color: var(--console-accent);
+}
+/* Archived text: interpolated into a pre, never rendered as markup; it scrolls inside, never the page. */
+.viewer-body {
+  max-height: min(60dvh, 36rem);
+  margin: 0;
+  padding: 16px 20px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ui-text-muted);
+}
+.viewer-body-error {
+  padding: 8px 0 0;
+  color: var(--archives-del);
+}
+.viewer-throttled {
+  display: grid;
+  gap: 14px;
+}
+.viewer-retry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.viewer-details > summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ui-text-dimmed);
+}
+.viewer-next {
+  border-top: 1px solid var(--console-line);
+}
+@media (width < 640px) {
+  .viewer-controls,
+  .viewer-url,
+  .viewer-meta {
+    padding-inline: 14px;
+  }
+  .viewer-tabs :deep([data-slot="leadingIcon"]) {
+    display: none;
+  }
+}
+</style>

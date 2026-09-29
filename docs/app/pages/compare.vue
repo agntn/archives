@@ -32,6 +32,8 @@ const diff = reactive<{ loading: boolean; error?: string; result?: ApiResult<Dif
 const patch = computed(() => (diff.result ? fencedBody(diff.result.text) : ""));
 
 const bodyProviders = PROVIDERS.filter((provider) => provider.content && !provider.needs);
+const providerItems = bodyProviders.map((provider) => ({ label: provider.label, value: provider.slug, icon: provider.icon }));
+const pickedProvider = computed(() => providerItems.find((item) => item.value === form.provider));
 
 function replaceQuery() {
   const query: Record<string, string> = { target: form.target, provider: form.provider };
@@ -179,104 +181,232 @@ const pageOf = (page: ArchivedPage | undefined) => page;
       title="Two captures."
       accent="Side by side."
       description="One page, one archive, two dates. Both captures play back next to each other, the diff sits underneath, and the sliders walk the whole history."
-    />
-
-    <section class="archives-section">
-      <div class="mx-auto w-full max-w-[var(--ui-container)] space-y-6 px-8 py-12 sm:px-12 lg:px-16">
-        <form class="archives-frame overflow-hidden rounded-xl" @submit.prevent="load()">
-          <div class="grid gap-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-6">
-            <label class="sm:col-span-2 lg:col-span-3">
-              <span class="archives-label">page · URL or domain</span>
-              <input v-model="form.target" type="text" class="archives-field font-mono" placeholder="https://example.com/" autocomplete="off" spellcheck="false" />
-            </label>
-            <label class="lg:col-span-2">
-              <span class="archives-label">provider · one archive, so the diff means something</span>
-              <select v-model="form.provider" class="archives-select">
-                <option v-for="provider in bodyProviders" :key="provider.slug" :value="provider.slug">{{ provider.label }}</option>
-              </select>
-            </label>
-            <div class="flex items-end">
-              <UButton type="submit" color="primary" class="w-full justify-center" :loading="listing.loading" icon="i-lucide-search">Load</UButton>
-            </div>
-          </div>
-        </form>
-
-        <pre v-if="listing.error" class="archives-body archives-frame rounded-xl" :style="{ color: 'var(--archives-del)' }">{{ listing.error }}</pre>
-
-        <template v-if="pages.length > 1 && before && after">
-          <div class="archives-frame overflow-hidden rounded-xl">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-muted px-5 py-3">
-              <p class="font-mono text-xs text-muted">
-                <span class="text-dimmed">captures</span>
-                <span class="ms-2 text-highlighted">{{ pages.length }}</span>
-                <span class="ms-3 text-dimmed">{{ span }}</span>
-              </p>
-              <span class="inline-flex items-center gap-1">
-                <button type="button" class="archives-btn h-7 px-2 text-xs" :disabled="beforeIndex === 0" @click="walk(-1)">
-                  <UIcon name="i-lucide-chevron-left" class="size-4" />
-                  earlier pair
-                </button>
-                <button type="button" class="archives-btn h-7 px-2 text-xs" :disabled="afterIndex >= pages.length - 1" @click="walk(1)">
-                  later pair
-                  <UIcon name="i-lucide-chevron-right" class="size-4" />
-                </button>
-              </span>
-            </div>
-            <div class="grid gap-5 px-5 py-4 lg:grid-cols-2">
-              <label>
-                <span class="archives-label">before · {{ shortStamp(before.timestamp) }}</span>
-                <input type="range" class="archives-range" :min="0" :max="pages.length - 1" :value="beforeIndex" @input="pick('before', Number(($event.target as HTMLInputElement).value))" />
-              </label>
-              <label>
-                <span class="archives-label">after · {{ shortStamp(after.timestamp) }}</span>
-                <input type="range" class="archives-range" :min="0" :max="pages.length - 1" :value="afterIndex" @input="pick('after', Number(($event.target as HTMLInputElement).value))" />
-              </label>
-            </div>
-            <div class="border-t border-muted px-5 pt-3 pb-1">
-              <CaptureStrip :pages="pages" :current-key="pageKey(after)" :key-of="pageKey" @select="pick('after', pages.findIndex((page) => pageKey(page) === pageKey($event)))" />
-            </div>
-          </div>
-
-          <div class="archives-split overflow-hidden rounded-xl archives-frame">
-            <CaptureViewer :key="`before-${pageKey(before)}`" :page="pageOf(before)!" :closable="false" :keyboard="false" height="60vh" />
-            <CaptureViewer :key="`after-${pageKey(after)}`" :page="pageOf(after)!" :closable="false" :keyboard="false" height="60vh" />
-          </div>
-
-          <div class="archives-frame overflow-hidden rounded-xl">
-            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-muted px-5 py-3">
-              <p class="font-mono text-xs text-muted">
-                <span class="text-dimmed">archives_diff</span>
-                <span class="ms-2 text-highlighted">{{ span }}</span>
-              </p>
-              <div class="flex items-center gap-1">
-                <button v-for="option in ['text', 'raw'] as const" :key="option" type="button" class="archives-btn h-7 px-2 text-xs" :class="{ 'text-primary': format === option }" :disabled="diff.loading" @click="setFormat(option)">
-                  {{ option }}
-                </button>
+      circuit="pair"
+    >
+      <template #instrument>
+        <div class="compare-stack">
+          <ExplorerPanel
+            as="form"
+            tag="Call"
+            role="search"
+            label="Load the captures of one page"
+            :busy="listing.loading"
+            :meta="pickedProvider?.label"
+            @submit.prevent="load()"
+          >
+            <template #title>snapshots(<span class="tok-str">"{{ form.target || "example.com" }}"</span>)</template>
+            <div class="archives-band compare-form">
+              <div class="console-readout">
+                <dl class="console-readout-rows">
+                  <div>
+                    <dt><label for="compare-target">Page</label></dt>
+                    <dd>
+                      <UInput id="compare-target" v-model="form.target" variant="none" placeholder="https://example.com/" autocomplete="off" spellcheck="false" class="w-full" />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Provider</dt>
+                    <dd>
+                      <USelectMenu
+                        v-model="form.provider"
+                        :items="providerItems"
+                        value-key="value"
+                        :icon="pickedProvider?.icon"
+                        variant="none"
+                        :search-input="false"
+                        aria-label="Provider"
+                        class="w-full"
+                      />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Why one</dt>
+                    <dd class="archives-dim">a diff never mixes archives, so replay rewriting never reads as a change</dd>
+                  </div>
+                </dl>
+              </div>
+              <div>
+                <UButton type="submit" color="primary" variant="solid" :loading="listing.loading" trailing-icon="i-lucide-search" label="Load" />
               </div>
             </div>
-            <p v-if="diff.loading" class="flex items-center gap-2 px-5 py-4 text-sm text-muted">
-              <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-              Reading both captures and comparing…
-            </p>
-            <pre v-else-if="diff.error" class="archives-body" :style="{ color: 'var(--archives-del)' }">{{ diff.error }}</pre>
-            <p v-else-if="!diff.result" class="px-5 py-4 text-sm text-muted">Pick two different captures.</p>
-            <template v-else>
-              <div class="flex flex-wrap gap-x-4 gap-y-1 border-b border-muted px-5 py-2.5 font-mono text-[11px] text-dimmed">
-                <span :style="{ color: 'var(--archives-add)' }">+{{ diff.result.details.result?.additions ?? 0 }}</span>
-                <span :style="{ color: 'var(--archives-del)' }">−{{ diff.result.details.result?.deletions ?? 0 }}</span>
-                <span>before <span class="text-muted">{{ diff.result.details.result?.before.timestamp }}</span></span>
-                <span>after <span class="text-muted">{{ diff.result.details.result?.after.timestamp }}</span></span>
-                <span v-if="diff.result.details.result?.partial" :style="{ color: 'var(--archives-del)' }">partial: a body was truncated</span>
-                <span v-if="diff.result.details.result?.identical">identical</span>
+          </ExplorerPanel>
+
+          <ExplorerPanel v-if="listing.error" tag="Error" title="snapshots" label="Listing failed">
+            <div class="archives-band">
+              <p class="archives-error" role="alert"><span class="console-tag">Failed</span>{{ listing.error }}</p>
+            </div>
+          </ExplorerPanel>
+
+          <template v-if="pages.length > 1 && before && after">
+            <ExplorerPanel tag="List" label="Pick the pair" :meta="span" :sweep="`${beforeIndex}-${afterIndex}`">
+              <template #title>{{ form.target }}<span class="console-file">{{ pages.length }} captures</span></template>
+              <div class="archives-band compare-pick">
+                <div class="console-readout">
+                  <dl class="console-readout-rows">
+                    <div>
+                      <dt>Before</dt>
+                      <dd class="compare-slider">
+                        <USlider
+                          :model-value="beforeIndex"
+                          :min="0"
+                          :max="pages.length - 1"
+                          aria-label="Before"
+                          @update:model-value="pick('before', Number($event))"
+                        />
+                        <span class="archives-value">{{ shortStamp(before.timestamp) }}</span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>After</dt>
+                      <dd class="compare-slider">
+                        <USlider
+                          :model-value="afterIndex"
+                          :min="0"
+                          :max="pages.length - 1"
+                          aria-label="After"
+                          @update:model-value="pick('after', Number($event))"
+                        />
+                        <span class="console-accent">{{ shortStamp(after.timestamp) }}</span>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                <CaptureStrip :pages="pages" :current-key="pageKey(after)" :key-of="pageKey" @select="pick('after', pages.findIndex((page) => pageKey(page) === pageKey($event)))" />
               </div>
-              <DiffLines :patch="patch" />
-            </template>
-          </div>
-        </template>
-        <p v-else-if="listing.result" class="archives-frame rounded-xl px-5 py-4 text-sm text-muted">
-          This archive lists fewer than two captures for the page. Try the timeline with <span class="font-mono">provider=all</span>.
-        </p>
-      </div>
-    </section>
+              <template #footer>
+                <span>Walk the history one pair at a time.</span>
+                <div class="console-controls" aria-label="Pairs">
+                  <UButton color="neutral" variant="subtle" square icon="i-lucide-chevron-left" aria-label="Earlier pair" :disabled="beforeIndex === 0" @click="walk(-1)" />
+                  <span>Pair</span>
+                  <UButton color="neutral" variant="subtle" square icon="i-lucide-chevron-right" aria-label="Later pair" :disabled="afterIndex >= pages.length - 1" @click="walk(1)" />
+                </div>
+              </template>
+            </ExplorerPanel>
+
+            <div class="compare-split">
+              <CaptureViewer :key="`before-${pageKey(before)}`" :page="pageOf(before)!" :closable="false" :keyboard="false" height="60vh" />
+              <CaptureViewer :key="`after-${pageKey(after)}`" :page="pageOf(after)!" :closable="false" :keyboard="false" height="60vh" />
+            </div>
+
+            <ExplorerPanel tag="Call" label="Diff of the pair" :busy="diff.loading" :sweep="diff.result?.fetchedAt" :meta="span">
+              <template #title>archives_diff(<span class="tok-str">"{{ format }}"</span>)</template>
+              <div class="archives-band compare-diff-head">
+                <div class="compare-formats" aria-label="Diff format">
+                  <UButton
+                    v-for="option in ['text', 'raw'] as const"
+                    :key="option"
+                    :color="format === option ? 'primary' : 'neutral'"
+                    variant="chip"
+                    :label="option"
+                    :disabled="diff.loading"
+                    @click="setFormat(option)"
+                  />
+                </div>
+                <p v-if="diff.loading" class="archives-note">
+                  <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
+                  Reading both captures and comparing…
+                </p>
+                <p v-else-if="diff.error" class="archives-error" role="alert"><span class="console-tag">Failed</span>{{ diff.error }}</p>
+                <p v-else-if="!diff.result" class="archives-note">Pick two different captures.</p>
+                <p v-else class="compare-stats">
+                  <span class="compare-add">+{{ diff.result.details.result?.additions ?? 0 }}</span>
+                  <span class="compare-del">−{{ diff.result.details.result?.deletions ?? 0 }}</span>
+                  <span>before <span class="archives-value">{{ diff.result.details.result?.before.timestamp }}</span></span>
+                  <span>after <span class="archives-value">{{ diff.result.details.result?.after.timestamp }}</span></span>
+                  <span v-if="diff.result.details.result?.partial" class="compare-del">partial: a body was cut</span>
+                  <span v-if="diff.result.details.result?.identical">identical</span>
+                </p>
+              </div>
+              <div v-if="diff.result && patch" class="archives-band">
+                <DiffLines :patch="patch" />
+              </div>
+            </ExplorerPanel>
+          </template>
+
+          <ExplorerPanel v-else-if="listing.result" tag="List" :title="form.target" label="Too few captures">
+            <div class="archives-band">
+              <p class="archives-note">
+                This archive lists fewer than two captures for the page. Try the timeline with
+                <code class="archives-code">provider=all</code>.
+              </p>
+            </div>
+          </ExplorerPanel>
+        </div>
+      </template>
+    </ToolHero>
   </div>
 </template>
+
+<style scoped>
+.compare-stack {
+  display: grid;
+  gap: 28px;
+}
+.compare-stack > :deep(.explorer-panel + .explorer-panel) {
+  margin-top: 0;
+}
+.compare-form,
+.compare-pick,
+.compare-diff-head {
+  display: grid;
+  gap: 16px;
+}
+.compare-form .console-readout-rows > div,
+.compare-pick .console-readout-rows > div {
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+}
+.compare-slider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9.5rem;
+  align-items: center;
+  gap: 16px;
+}
+.compare-slider > span {
+  text-align: right;
+}
+.compare-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+.compare-split > :deep(.explorer-panel + .explorer-panel) {
+  margin-top: 0;
+}
+.compare-formats {
+  display: flex;
+  gap: 6px;
+}
+.compare-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ui-text-dimmed);
+}
+.compare-add {
+  color: var(--archives-add);
+}
+.compare-del {
+  color: var(--archives-del);
+}
+@media (width < 64rem) {
+  .compare-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (width < 640px) {
+  .compare-form .console-readout-rows > div,
+  .compare-pick .console-readout-rows > div {
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+  .compare-slider {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .compare-slider > span {
+    text-align: left;
+  }
+}
+</style>

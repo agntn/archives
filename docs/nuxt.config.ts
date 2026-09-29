@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { archivesTheme } from "./shiki-theme";
 
 /** Bundled from the checkout's sources: a deploy needs neither dist/ nor the root node_modules. */
 const librarySource = resolve(import.meta.dirname, "../src");
@@ -25,62 +26,103 @@ export default defineNuxtConfig({
   llms: {
     domain: "https://archives.agntn.dev",
   },
+  /** Docus pages define their own OG images; the alt text is the one thing they leave unset. */
+  ogImage: {
+    defaults: {
+      alt: "@agntn/archives: one query, every archive",
+    },
+  },
   icon: {
     clientBundle: {
       icons: [
         "lucide:archive",
+        "lucide:arrow-down",
+        "lucide:arrow-left",
         "lucide:arrow-right",
+        "lucide:arrow-up",
         "lucide:arrow-up-right",
         "lucide:book-open",
+        "lucide:bookmark",
+        "lucide:bookmark-check",
         "lucide:bot",
+        "lucide:braces",
         "lucide:check",
+        "lucide:check-circle",
+        "lucide:chevron-down",
         "lucide:chevron-left",
         "lucide:chevron-right",
+        "lucide:chevrons-up-down",
+        "lucide:circle-alert",
+        "lucide:circle-stop",
+        "lucide:circle-x",
+        "lucide:code",
+        "lucide:columns-2",
         "lucide:copy",
         "lucide:database",
-        "lucide:code",
         "lucide:diff",
+        "lucide:download",
+        "lucide:expand",
         "lucide:external-link",
         "lucide:eye",
         "lucide:file-text",
+        "lucide:git-compare",
+        "lucide:git-compare-arrows",
         "lucide:globe",
         "lucide:history",
+        "lucide:info",
         "lucide:landmark",
-        "lucide:activity",
-        "lucide:bookmark",
-        "lucide:bookmark-check",
-        "lucide:columns-2",
-        "lucide:git-compare",
-        "lucide:list",
-        "lucide:map",
-        "lucide:quote",
-        "lucide:terminal",
-        "lucide:link",
-        "lucide:trash-2",
-        "lucide:clipboard-copy",
         "lucide:layers",
         "lucide:library",
+        "lucide:lightbulb",
         "lucide:link",
+        "lucide:list",
         "lucide:loader-circle",
         "lucide:lock",
+        "lucide:map",
+        "lucide:microscope",
+        "lucide:pin",
         "lucide:play",
         "lucide:plus",
+        "lucide:quote",
+        "lucide:radar",
+        "lucide:rotate-ccw",
+        "lucide:rotate-cw",
+        "lucide:scan-search",
         "lucide:search",
         "lucide:settings-2",
-        "lucide:shield-alert",
+        "lucide:terminal",
+        "lucide:trash-2",
+        "lucide:triangle-alert",
         "lucide:x",
+        "simple-icons:anthropic",
+        "simple-icons:cursor",
         "simple-icons:github",
         "simple-icons:internetarchive",
+        "simple-icons:markdown",
         "simple-icons:npm",
+        "simple-icons:openai",
         "vscode-icons:file-type-js",
-        "vscode-icons:file-type-typescript",
         "vscode-icons:file-type-json",
         "vscode-icons:file-type-shell",
+        "vscode-icons:file-type-typescript",
       ],
     },
   },
   colorMode: {
     preference: "dark",
+  },
+  app: {
+    head: {
+      link: [
+        { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+        { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+        { rel: "manifest", href: "/site.webmanifest" },
+      ],
+      meta: [
+        { name: "theme-color", content: "#0b0d10" },
+        { name: "apple-mobile-web-app-title", content: "archives" },
+      ],
+    },
   },
   /** Docus ships an MCP endpoint that needs the Cloudflare Agents SDK on Workers. The docs do not need it. */
   mcp: {
@@ -122,10 +164,12 @@ export default defineNuxtConfig({
       },
     },
   },
+  /** Fonts live in public/fonts and app/assets/fonts.css, which is the only place nuxt-og-image reads them from. */
+  css: ["~/assets/fonts.css"],
   fonts: {
     families: [
-      { name: "Space Grotesk", weights: [400, 500, 600] },
-      { name: "Space Mono", weights: [400, 700] },
+      { name: "Figtree", provider: "local", weights: [400, 500] },
+      { name: "Fira Code", provider: "local", weights: [400, 500] },
     ],
   },
   content: {
@@ -137,9 +181,9 @@ export default defineNuxtConfig({
       markdown: {
         highlight: {
           theme: {
-            default: "vitesse-light",
-            light: "vitesse-light",
-            dark: "vesper",
+            default: archivesTheme,
+            light: archivesTheme,
+            dark: archivesTheme,
           },
         },
       },

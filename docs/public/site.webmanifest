@@ -1,0 +1,13 @@
+{
+  "name": "@agntn/archives",
+  "short_name": "archives",
+  "description": "One TypeScript interface over the web archives: list captures, read a page, diff two versions",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

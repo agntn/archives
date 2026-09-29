@@ -7,15 +7,21 @@ export interface ProviderInfo {
   readonly label: string;
   readonly icon: string;
   readonly factory: string;
+  /** Host the listing is asked on, as in the provider's source. */
+  readonly host: string;
   /** Endpoint family the listing comes from. */
   readonly index: string;
   /** Whether `content()` can read capture bodies. */
   readonly content: boolean;
+  /** The body is the archive's own rendering of the page, not the bytes the site sent. */
+  readonly rendered?: boolean;
   readonly inAll: boolean;
   /** Extra option the factory needs before it can answer. */
   readonly needs?: string;
   /** The archive's playback pages allow being framed by another site. */
   readonly frame: boolean;
+  /** One sentence on what the provider talks to, for the roster. */
+  readonly about: string;
   /** What the viewer should say before a read is even tried. */
   readonly caveat?: string;
   readonly to: string;
@@ -28,10 +34,12 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "Wayback Machine",
     icon: "i-simple-icons-internetarchive",
     factory: "providers.wayback()",
+    host: "web.archive.org",
     index: "CDX",
     content: true,
     inAll: true,
     frame: true,
+    about: "CDX API with collapse and filter. Bodies replayed under id_, the original bytes.",
     to: "/providers/wayback",
   },
   {
@@ -40,10 +48,12 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "Arquivo.pt",
     icon: "i-lucide-landmark",
     factory: "providers.arquivo()",
+    host: "arquivo.pt",
     index: "CDX",
     content: true,
     inAll: true,
     frame: true,
+    about: "Public CDX index of the Portuguese web archive. Raw replay through noFrame/replay.",
     to: "/providers/arquivo",
   },
   {
@@ -52,11 +62,13 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "Webarchiv Österreich",
     icon: "i-lucide-library",
     factory: "providers.webarchiv()",
+    host: "webarchiv.onb.ac.at",
     index: "CDXJ",
     content: true,
     inAll: true,
     frame: false,
     caveat: "This archive does not allow framing; Source and Text read the raw replay instead.",
+    about: "Austrian National Library CDXJ index. One exact URL per query, id_ replay for bodies.",
     to: "/providers/webarchiv",
   },
   {
@@ -65,12 +77,15 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "Archive.today",
     icon: "i-lucide-history",
     factory: "providers.archiveToday()",
+    host: "archive.is",
     index: "Memento TimeMap",
     content: true,
+    rendered: true,
     inAll: true,
     frame: false,
     caveat:
       "Archive.today throttles automated readers and often answers 429. Reads from here can fail; the capture always opens in a new tab.",
+    about: "Memento TimeMap on archive.is. Bodies are the rendered wrapper page, not the original bytes.",
     to: "/providers/archive-today",
   },
   {
@@ -79,10 +94,12 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "Common Crawl",
     icon: "i-lucide-archive",
     factory: "providers.commoncrawl()",
+    host: "index.commoncrawl.org",
     index: "CDX + WARC",
     content: true,
     inAll: true,
     frame: false,
+    about: "CDX index per crawl, bodies read from the WARC byte range on data.commoncrawl.org.",
     to: "/providers/commoncrawl",
   },
   {
@@ -91,10 +108,12 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "WebCite",
     icon: "i-lucide-file-text",
     factory: "providers.webcite()",
+    host: "webcitation.org",
     index: "none",
     content: false,
     inAll: true,
     frame: false,
+    about: "No API to list a domain. Answers unsupported with the reason; no new archives since about 2019.",
     to: "/providers/webcite",
   },
   {
@@ -103,10 +122,12 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "Memento",
     icon: "i-lucide-globe",
     factory: "providers.memento()",
+    host: "memgator.cs.odu.edu",
     index: "MemGator TimeMap",
     content: true,
     inAll: false,
     frame: false,
+    about: "ODU MemGator JSON TimeMap across several archives. Outside all to avoid duplicate requests.",
     to: "/providers/memento",
   },
   {
@@ -115,11 +136,13 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "Archive-It",
     icon: "i-lucide-layers",
     factory: "providers.archiveIt({ collection })",
+    host: "wayback.archive-it.org",
     index: "CDX/C",
     content: true,
     inAll: false,
     needs: "collection",
     frame: true,
+    about: "CDX/C index of one numbered collection. Needs a collection; reads bodies inside it.",
     to: "/providers/archive-it",
   },
   {
@@ -128,11 +151,13 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "Conifer",
     icon: "i-lucide-database",
     factory: "providers.conifer({ user, collection })",
+    host: "conifer.rhizome.org",
     index: "CDX",
     content: false,
     inAll: false,
     needs: "user, collection",
     frame: false,
+    about: "Search inside an existing public collection. Needs a user and a collection; no bodies.",
     to: "/providers/conifer",
   },
   {
@@ -141,11 +166,13 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     label: "Perma.cc",
     icon: "i-lucide-lock",
     factory: "providers.permacc({ apiKey })",
+    host: "api.perma.cc",
     index: "REST",
     content: false,
     inAll: false,
     needs: "apiKey",
     frame: false,
+    about: "REST API behind an API key. Exact URL lookup, metadata only, what the key can see.",
     to: "/providers/permacc",
   },
 ];

@@ -31,6 +31,10 @@ const router = useRouter();
 const form = reactive({ target: "https://example.com/", provider: "wayback", limit: 6, from: "", to: "" });
 const state = reactive<{ loading: boolean; error?: string; result?: History }>({ loading: false });
 const bodyProviders = PROVIDERS.filter((provider) => provider.content && !provider.needs);
+const providerItems = bodyProviders.map((provider) => ({ label: provider.label, value: provider.slug, icon: provider.icon }));
+const pickedProvider = computed(() => providerItems.find((item) => item.value === form.provider));
+/** Two captures make one comparison; the worker reads at most seven. */
+const limitItems = [2, 3, 4, 5, 6, 7].map((limit) => ({ label: `${limit} captures`, value: limit }));
 const peak = computed(() => Math.max(1, ...(state.result?.steps.map((step) => step.additions + step.deletions) ?? [])));
 const biggest = computed(() => {
   const steps = state.result?.steps ?? [];
@@ -92,82 +96,188 @@ onMounted(() => {
       title="What changed,"
       accent="capture by capture."
       description="Consecutive captures from one archive, each pair compared on its visible text. The bars show how much moved; the biggest jump is where the story is."
-    />
-
-    <section class="archives-section">
-      <div class="mx-auto w-full max-w-[var(--ui-container)] space-y-6 px-8 py-12 sm:px-12 lg:px-16">
-        <form class="archives-frame overflow-hidden rounded-xl" @submit.prevent="load">
-          <div class="grid gap-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-6">
-            <label class="sm:col-span-2 lg:col-span-2">
-              <span class="archives-label">page · URL</span>
-              <input v-model="form.target" type="text" class="archives-field font-mono" placeholder="https://example.com/" autocomplete="off" spellcheck="false" />
-            </label>
-            <label>
-              <span class="archives-label">provider</span>
-              <select v-model="form.provider" class="archives-select">
-                <option v-for="provider in bodyProviders" :key="provider.slug" :value="provider.slug">{{ provider.label }}</option>
-              </select>
-            </label>
-            <label>
-              <span class="archives-label">captures · up to 7</span>
-              <input v-model.number="form.limit" type="number" min="2" max="7" class="archives-field font-mono" />
-            </label>
-            <label><span class="archives-label">from</span><input v-model="form.from" type="text" class="archives-field font-mono" placeholder="2010" /></label>
-            <div class="flex items-end">
-              <UButton type="submit" color="primary" class="w-full justify-center" :loading="state.loading" icon="i-lucide-git-compare">Trace</UButton>
-            </div>
-          </div>
-          <p class="border-t border-muted px-5 py-3 font-mono text-[11px] text-dimmed">
-            Reads every listed capture once and diffs each pair in turn. Wayback lists one capture a year by default, so six captures span six years. Slow on purpose; the archive sees one reader.
-          </p>
-        </form>
-
-        <p v-if="state.loading" class="archives-frame flex items-center gap-2 rounded-xl px-5 py-4 text-sm text-muted">
-          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-          Reading captures and comparing pairs. This can take a minute.
-        </p>
-        <pre v-else-if="state.error" class="archives-body archives-frame rounded-xl" :style="{ color: 'var(--archives-del)' }">{{ state.error }}</pre>
-
-        <div v-else-if="state.result" class="archives-frame overflow-hidden rounded-xl">
-          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-muted px-5 py-3">
-            <p class="font-mono text-xs text-muted">
-              <span class="text-highlighted">{{ state.result.pages.length }}</span> captures · <span class="text-highlighted">{{ state.result.steps.length }}</span> comparisons
-            </p>
-            <p v-if="biggest" class="font-mono text-[11px] text-dimmed">
-              biggest change {{ shortStamp(biggest.before.timestamp).slice(0, 10) }} → {{ shortStamp(biggest.after.timestamp).slice(0, 10) }}
-            </p>
-          </div>
-          <ol class="divide-y divide-muted">
-            <li v-for="step in state.result.steps" :key="`${step.before.snapshot}->${step.after.snapshot}`" class="grid gap-3 px-5 py-4 lg:grid-cols-[14rem_1fr_auto] lg:items-center">
-              <p class="font-mono text-xs">
-                <NuxtLink :to="captureLink(step.before)" class="text-primary hover:underline">{{ shortStamp(step.before.timestamp).slice(0, 10) }}</NuxtLink>
-                <span class="mx-1.5 text-dimmed">→</span>
-                <NuxtLink :to="captureLink(step.after)" class="text-primary hover:underline">{{ shortStamp(step.after.timestamp).slice(0, 10) }}</NuxtLink>
-              </p>
-              <div>
-                <div class="archives-change-bar" :title="`+${step.additions} −${step.deletions}`">
-                  <span class="archives-change-add" :style="{ width: width(step.additions, step) }" />
-                  <span class="archives-change-del" :style="{ width: width(step.deletions, step) }" />
-                </div>
-                <p class="mt-1.5 font-mono text-[11px] text-dimmed">
-                  <span v-if="step.error" :style="{ color: 'var(--archives-del)' }">{{ step.error }}</span>
-                  <template v-else>
-                    <span :style="{ color: 'var(--archives-add)' }">+{{ step.additions }}</span>
-                    <span class="ms-2" :style="{ color: 'var(--archives-del)' }">−{{ step.deletions }}</span>
-                    <span v-if="step.identical" class="ms-2">identical</span>
-                    <span v-if="step.partial" class="ms-2" :style="{ color: 'var(--archives-del)' }">partial</span>
-                    <span v-if="biggest === step" class="ms-2 text-primary">biggest change</span>
-                  </template>
-                </p>
+      circuit="history"
+    >
+      <template #instrument>
+        <div class="history-stack">
+          <ExplorerPanel
+            as="form"
+            tag="Call"
+            role="search"
+            label="Trace one page"
+            :busy="state.loading"
+            :meta="pickedProvider?.label"
+            @submit.prevent="load"
+          >
+            <template #title>history(<span class="tok-str">"{{ form.target || "https://example.com/" }}"</span>)</template>
+            <div class="archives-band history-form">
+              <div class="console-readout">
+                <dl class="console-readout-rows">
+                  <div>
+                    <dt><label for="history-target">Page</label></dt>
+                    <dd><UInput id="history-target" v-model="form.target" variant="none" placeholder="https://example.com/" autocomplete="off" spellcheck="false" class="w-full" /></dd>
+                  </div>
+                  <div>
+                    <dt>Provider</dt>
+                    <dd>
+                      <USelectMenu v-model="form.provider" :items="providerItems" value-key="value" :icon="pickedProvider?.icon" variant="none" :search-input="false" aria-label="Provider" class="w-full" />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Captures</dt>
+                    <dd>
+                      <USelectMenu v-model="form.limit" :items="limitItems" value-key="value" variant="none" :search-input="false" aria-label="Captures" class="w-full" />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt><label for="history-from">From</label></dt>
+                    <dd><UInput id="history-from" v-model="form.from" variant="none" placeholder="2010" autocomplete="off" class="w-full" /></dd>
+                  </div>
+                </dl>
               </div>
-              <NuxtLink :to="compareLink(step.before, step.after)" class="archives-btn h-7 px-2 text-xs">
-                <UIcon name="i-lucide-columns-2" class="size-3.5" />
-                side by side
-              </NuxtLink>
-            </li>
-          </ol>
+              <div class="history-actions">
+                <UButton type="submit" color="primary" variant="solid" :loading="state.loading" trailing-icon="i-lucide-git-compare" label="Trace" />
+              </div>
+            </div>
+            <template #footer>
+              <span>Reads every listed capture once and diffs each pair in turn. Slow on purpose: the archive sees one reader.</span>
+            </template>
+          </ExplorerPanel>
+
+          <ExplorerPanel
+            v-if="state.loading || state.error || state.result"
+            tag="Log"
+            label="Changes between consecutive captures"
+            :busy="state.loading"
+            :sweep="state.result?.fetchedAt"
+            :meta="state.result ? `${state.result.pages.length} captures · ${state.result.steps.length} comparisons` : 'reading'"
+          >
+            <template #title>{{ state.result?.target ?? form.target }}</template>
+            <div v-if="state.loading" class="archives-band">
+              <p class="archives-note">
+                <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
+                Reading captures and comparing pairs. This can take a minute.
+              </p>
+            </div>
+            <div v-else-if="state.error" class="archives-band">
+              <p class="archives-error" role="alert"><span class="console-tag">Failed</span>{{ state.error }}</p>
+            </div>
+            <ol v-else-if="state.result" class="archives-rows history-rows">
+              <li
+                v-for="step in state.result.steps"
+                :key="`${step.before.snapshot}->${step.after.snapshot}`"
+                :data-biggest="biggest === step"
+              >
+                <span class="history-pair">
+                  <NuxtLink :to="captureLink(step.before)">{{ shortStamp(step.before.timestamp).slice(0, 10) }}</NuxtLink>
+                  <span class="archives-dim" aria-hidden="true">→</span>
+                  <NuxtLink :to="captureLink(step.after)">{{ shortStamp(step.after.timestamp).slice(0, 10) }}</NuxtLink>
+                </span>
+                <span class="history-change">
+                  <UTooltip :text="`+${step.additions} −${step.deletions}`">
+                    <span class="history-bar" tabindex="0">
+                      <span class="history-bar-add" :style="{ width: width(step.additions, step) }" />
+                      <span class="history-bar-del" :style="{ width: width(step.deletions, step) }" />
+                    </span>
+                  </UTooltip>
+                  <span class="history-counts">
+                    <span v-if="step.error" class="history-del">{{ step.error }}</span>
+                    <template v-else>
+                      <span class="history-add">+{{ step.additions }}</span>
+                      <span class="history-del">−{{ step.deletions }}</span>
+                      <span v-if="step.identical">identical</span>
+                      <span v-if="step.partial" class="history-del">partial</span>
+                      <span v-if="biggest === step" class="console-accent">biggest change</span>
+                    </template>
+                  </span>
+                </span>
+                <UButton :to="compareLink(step.before, step.after)" color="neutral" variant="subtle" icon="i-lucide-columns-2" label="side by side" />
+              </li>
+            </ol>
+            <template v-if="state.result && biggest" #footer>
+              <span>biggest change {{ shortStamp(biggest.before.timestamp).slice(0, 10) }} → {{ shortStamp(biggest.after.timestamp).slice(0, 10) }}</span>
+              <span class="console-meta">visible text, one archive</span>
+            </template>
+          </ExplorerPanel>
         </div>
-      </div>
-    </section>
+      </template>
+    </ToolHero>
   </div>
 </template>
+
+<style scoped>
+.history-stack {
+  display: grid;
+  gap: 28px;
+}
+.history-stack > :deep(.explorer-panel + .explorer-panel) {
+  margin-top: 0;
+}
+.history-form {
+  display: grid;
+  gap: 16px;
+}
+.history-form .console-readout-rows > div {
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+}
+.history-rows > li {
+  grid-template-columns: 14rem minmax(0, 1fr) auto;
+  align-items: center;
+}
+.history-rows > li[data-biggest="true"] {
+  box-shadow: inset 2px 0 0 var(--console-accent);
+}
+.history-rows > li + li[data-biggest="true"] {
+  box-shadow:
+    inset 2px 0 0 var(--console-accent),
+    inset 0 1px 0 var(--console-line);
+}
+.history-pair {
+  display: inline-flex;
+  gap: 8px;
+}
+.history-change {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+/* How much moved: additions and deletions side by side on one track, scaled to the biggest step. */
+.history-bar {
+  display: flex;
+  height: 6px;
+  box-shadow: inset 0 0 0 1px var(--console-line);
+}
+.history-bar-add {
+  background: color-mix(in srgb, var(--archives-add) 70%, transparent);
+}
+.history-bar-del {
+  background: color-mix(in srgb, var(--archives-del) 70%, transparent);
+}
+.history-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: var(--ui-text-dimmed);
+}
+.history-add {
+  color: var(--archives-add);
+}
+.history-del {
+  color: var(--archives-del);
+}
+@media (width < 52rem) {
+  .history-rows > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .history-change {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+@media (width < 640px) {
+  .history-form .console-readout-rows > div {
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+}
+</style>
