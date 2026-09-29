@@ -9,14 +9,19 @@ interface FakeEvent {
   readonly context: Readonly<{ cloudflare?: Readonly<{ env: Env }>; clientAddress?: string }>;
 }
 
-type H3Event = Parameters<typeof assertRateLimit>[0];
-
 /** Headers the code under test set on the response, reset before each test. */
 const sentHeaders = new Map<string, unknown>();
 
-function fakeEvent(headers: Readonly<Record<string, string>>, env?: Env): H3Event {
+/**
+ * A request as the worker receives it, cast the way the other docs tests pass an event.
+ *
+ * @param {Readonly<Record<string, string>>} headers - Request headers, lowercase names.
+ * @param {Env} [env] - Worker bindings; left out, the request runs without them.
+ * @returns {never} The event, typed to fit any `H3Event` parameter.
+ */
+function fakeEvent(headers: Readonly<Record<string, string>>, env?: Env): never {
   const event: FakeEvent = { headers, context: env ? { cloudflare: { env } } : {} };
-  return event as unknown as H3Event;
+  return event as never;
 }
 
 /**
