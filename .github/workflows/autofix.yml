@@ -16,7 +16,7 @@ jobs:
       - run: npm i -fg corepack && corepack enable
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 26
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm lint:fix
