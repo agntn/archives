@@ -21,6 +21,13 @@
       "id": "06c8056b5d1c4d8ca16b3969ff8fbb92"
     }
   ],
+  "ratelimits": [
+    {
+      "name": "ARCHIVE_LIMIT",
+      "namespace_id": "3303",
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ],
   "triggers": {
     "crons": ["17 */6 * * *"]
   },
