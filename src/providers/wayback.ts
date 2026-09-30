@@ -61,6 +61,9 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
   readonly name = "Internet Archive Wayback Machine";
   readonly slug = "wayback";
 
+  /** CDX lookups took 11 to 57 s in September 2026, past the ten second default. */
+  protected override readonly defaultTimeout = 60_000;
+
   /**
    * Cache key extension for options that change the CDX result set.
 

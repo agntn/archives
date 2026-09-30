@@ -48,6 +48,32 @@ function isProviderArray(providers: ProviderInput): providers is readonly Archiv
   return Array.isArray(providers);
 }
 
+/** Settings `mergeOptions` takes from the config when no layer names them. */
+const CONFIG_PERFORMANCE_KEYS: ReadonlySet<string> = new Set([
+  "concurrency",
+  "batchSize",
+  "timeout",
+  "retries",
+]);
+
+/**
+ * Drops performance values only the config set, so they can't outrank provider factory options.
+ *
+ * @param merged - Options after the full cascade.
+ * @param layers - Archive and call options, as the caller passed them.
+ * @returns {T} The merged options without the performance values only the config supplied.
+ */
+function namedOptions<T extends ArchiveOptions>(
+  merged: Readonly<T>,
+  ...layers: readonly (Readonly<Partial<T>> | undefined)[]
+): T {
+  const named = (key: string): boolean =>
+    layers.some((layer) => layer?.[key as keyof T] !== undefined);
+  return Object.fromEntries(
+    Object.entries(merged).filter(([key]) => !CONFIG_PERFORMANCE_KEYS.has(key) || named(key)),
+  ) as T;
+}
+
 interface ListingMergeState {
   pages: ArchivedPage[];
   priorPageKeys: Set<string>;
@@ -454,11 +480,12 @@ export class Archive implements ArchiveInterface {
     domain: string,
     listOptions?: Readonly<ArchiveOptions>,
   ): Promise<ArchiveResponse> {
+    const merged = await mergeOptions(this.options, listOptions);
     const {
       from: rawFrom,
       to: rawTo,
       ...restOptions
-    } = await mergeOptions(this.options, listOptions);
+    } = namedOptions(merged, this.options, listOptions);
 
     const from = resolveRequestedTimestamp(rawFrom, "from");
     const to = resolveRequestedTimestamp(rawTo, "to");
@@ -523,8 +550,8 @@ export class Archive implements ArchiveInterface {
 
     // For multiple providers, fetch in parallel with concurrency control
     const responses = await processInParallel(windowed, fetchWindowed, {
-      concurrency: restOptions.concurrency,
-      batchSize: restOptions.batchSize,
+      concurrency: merged.concurrency,
+      batchSize: merged.batchSize,
     });
 
     return combineResults(responses, restOptions.limit);
@@ -640,7 +667,11 @@ export class Archive implements ArchiveInterface {
     url: string,
     contentOptions?: Readonly<ArchiveContentOptions>,
   ): Promise<ArchiveContentResponse> {
-    const mergedOptions = await mergeOptions<ArchiveContentOptions>(this.options, contentOptions);
+    const mergedOptions = namedOptions(
+      await mergeOptions<ArchiveContentOptions>(this.options, contentOptions),
+      this.options,
+      contentOptions,
+    );
     const providerArray = await this.resolveProviders();
 
     // An explicit timestamp wins over one embedded in a playback URL: the caller

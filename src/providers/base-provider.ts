@@ -39,8 +39,14 @@ export abstract class BaseProvider<
     }
   }
 
-  protected resolveOptions(reqOptions: Partial<TOptions> = {}): Promise<TOptions> {
-    return mergeOptions<TOptions>(this.options, reqOptions);
+  /** Floor in ms for the configured timeout; a factory or call timeout wins, and `0` stays `0`. */
+  protected readonly defaultTimeout?: number;
+
+  protected async resolveOptions(reqOptions: Partial<TOptions> = {}): Promise<TOptions> {
+    return this.applyDefaultTimeout(
+      await mergeOptions<TOptions>(this.options, reqOptions),
+      reqOptions,
+    );
   }
 
   /**
@@ -49,10 +55,30 @@ export abstract class BaseProvider<
    * @param reqOptions - Req Options.
    * @returns {Promise<TOptions & ArchiveContentOptions>} A promise resolving to the operation result.
    */
-  protected resolveContentOptions(
+  protected async resolveContentOptions(
     reqOptions?: Readonly<Partial<TOptions & ArchiveContentOptions>>,
   ): Promise<TOptions & ArchiveContentOptions> {
-    return mergeOptions<TOptions & ArchiveContentOptions>(this.options, reqOptions ?? {});
+    return this.applyDefaultTimeout(
+      await mergeOptions<TOptions & ArchiveContentOptions>(this.options, reqOptions ?? {}),
+      reqOptions,
+    );
+  }
+
+  /**
+   * Raises an unnamed timeout to {@link defaultTimeout}.
+   *
+   * @param merged - Options after the cascade.
+   * @param reqOptions - Options of the call, as the caller passed them.
+   * @returns {T} The options with the provider's timeout floor applied.
+   */
+  private applyDefaultTimeout<T extends ArchiveOptions>(
+    merged: T,
+    reqOptions?: Readonly<ArchiveOptions>,
+  ): T {
+    const floor = this.defaultTimeout;
+    if (floor === undefined || this.options.timeout !== undefined) return merged;
+    if (reqOptions?.timeout !== undefined || merged.timeout === 0) return merged;
+    return { ...merged, timeout: Math.max(merged.timeout ?? 0, floor) };
   }
 
   abstract snapshots(domain: string, options?: Readonly<ArchiveOptions>): Promise<ArchiveResponse>;

@@ -39,7 +39,7 @@ Node.js 26 or newer.
 ```ts
 import { createArchive, providers } from "@agntn/archives";
 
-const archive = createArchive(providers.wayback({ timeout: 30_000 }));
+const archive = createArchive(providers.wayback());
 
 const { pages } = await archive.snapshots("example.com", { limit: 3 });
 for (const page of pages) console.log(page.timestamp, page.snapshot);
@@ -69,14 +69,14 @@ available
 
 No key, no config. That's the HTML example.com served in 2002. Still not for sale, by the way.
 
-Wayback keeps one capture per year by default, so three rows are three years. The `timeout` is there because its index is in no hurry. The default ten seconds is not always enough. More on listings and reading: [Snapshots](https://archives.agntn.dev/guide/snapshots), [Reading content](https://archives.agntn.dev/guide/content).
+Wayback keeps one capture per year by default, so three rows are three years. Its index is in no hurry. Lookups close to a minute happen, so Wayback waits 60 seconds where the other archives get ten. More on listings and reading: [Snapshots](https://archives.agntn.dev/guide/snapshots), [Reading content](https://archives.agntn.dev/guide/content).
 
 ## 🔍 What changed?
 
 ```ts
 import { createArchive, diffArchivedContent, providers } from "@agntn/archives";
 
-const archive = createArchive(providers.wayback({ timeout: 30_000 }));
+const archive = createArchive(providers.wayback());
 const before = await archive.getContent("https://example.com/", { timestamp: "2020" });
 const after = await archive.getContent("https://example.com/", { timestamp: "2026" });
 
