@@ -1,5 +1,54 @@
 # Changelog
 
+## v0.6.0
+
+[compare changes](https://github.com/agntn/archives/compare/v0.5.4...v0.6.0)
+
+### 🚀 Enhancements
+
+- **snapshots:** Look up several targets at once ([#99](https://github.com/agntn/archives/pull/99))
+- **mcp:** A restart is enough after src edits ([#102](https://github.com/agntn/archives/pull/102))
+- **docs:** Every page on the instrument shell ([#106](https://github.com/agntn/archives/pull/106))
+
+### 🩹 Fixes
+
+- Fail fast on invalid processing limits ([#72](https://github.com/agntn/archives/pull/72))
+- Keep archived redirects from going live ([#73](https://github.com/agntn/archives/pull/73))
+- Compose request deadlines with cancellation ([#82](https://github.com/agntn/archives/pull/82))
+- **diff:** Skip the digest check on a first slice ([#91](https://github.com/agntn/archives/pull/91))
+- **pi:** Mark failed archive reads as errors ([#93](https://github.com/agntn/archives/pull/93))
+- **docs:** Build without the parent dist ([#97](https://github.com/agntn/archives/pull/97))
+- **archive-today:** Read a 404 timemap as empty ([#96](https://github.com/agntn/archives/pull/96))
+- **content:** Keep archived redirect targets ([#100](https://github.com/agntn/archives/pull/100))
+- **wayback:** Read pinned captures without CDX ([#101](https://github.com/agntn/archives/pull/101))
+- **docs:** Make the query limit hold ([#114](https://github.com/agntn/archives/pull/114))
+- **diff:** Show both sides of a refused pair ([#115](https://github.com/agntn/archives/pull/115))
+- **pi:** Catch up with Pi 0.99 ([#116](https://github.com/agntn/archives/pull/116))
+- **wayback:** Stop timing out on a slow index ([#117](https://github.com/agntn/archives/pull/117))
+- **providers:** Give slow archives their minute ([#119](https://github.com/agntn/archives/pull/119))
+- **errors:** Say why a fetch failed ([#122](https://github.com/agntn/archives/pull/122))
+
+### 📖 Documentation
+
+- **readme:** Open with example.com in 2002 ([#107](https://github.com/agntn/archives/pull/107))
+
+### 📦 Build
+
+- Fold four tool configs into Vite+ ([#105](https://github.com/agntn/archives/pull/105))
+
+### 🏡 Chore
+
+- ⚠️  Require Node.js 26 ([#104](https://github.com/agntn/archives/pull/104))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Require Node.js 26 ([#104](https://github.com/agntn/archives/pull/104))
+
+### ❤️ Contributors
+
+- Aeitwoen ([@aeitwoen](https://github.com/aeitwoen))
+- Ori ([@oritwoen](https://github.com/oritwoen))
+
 ## v0.5.4
 
 [compare changes](https://github.com/agntn/archives/compare/v0.5.3...v0.5.4)
