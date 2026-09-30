@@ -1101,6 +1101,34 @@ describe("archives MCP server", () => {
     expect(rendered).toContain("wayback: after: Wayback has no later capture");
   });
 
+  it("names both recorded URLs when one archive filed the captures apart", async () => {
+    const content = vi
+      .fn()
+      .mockResolvedValueOnce(
+        capture({ url: "http://example.com:80/", timestamp: "2002-01-01T00:00:00Z" }),
+      )
+      .mockResolvedValueOnce(
+        capture({ url: "http://www.example.com/", timestamp: "2014-01-01T00:00:00Z" }),
+      );
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_diff",
+      arguments: { target: "example.com", provider: "wayback", before: "2002", after: "2014" },
+    });
+
+    expect(response.isError).toBe(true);
+    expect(text(response.content)).toContain(
+      'wayback: Cannot diff captures of different original URLs: before is "http://example.com/", after is "http://www.example.com/". Pass the full URL of the page',
+    );
+  });
+
   it("reports a complete body as one finished slice", async () => {
     stubContentProvider(providersMock.wayback, capture({ content: "short", mime: "text/plain" }));
     const client = await connectTestClient();
