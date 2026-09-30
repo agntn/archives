@@ -295,17 +295,59 @@ export function createErrorResponse(
   };
 }
 
-/**
- * Reduces a thrown value of unknown shape to one message.
+const MAX_CAUSE_DEPTH = 8;
 
+/**
+ * Reduces a thrown value of unknown shape to one message, causes included.
  *
  * @param error - Error.
  * @returns {string} The resulting string.
  */
 export function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  return String(error);
+  if (!(error instanceof Error)) return typeof error === "string" ? error : String(error);
+
+  let message = error.message;
+  for (const cause of causeChain(error)) {
+    const part = describeCause(cause);
+    if (part && !message.includes(part)) message = message ? `${message}: ${part}` : part;
+  }
+  return message;
+}
+
+/**
+ * Walks `error.cause`, where `fetch failed` keeps its DNS, TLS or connect reason.
+ *
+ * @param error - Error.
+ * @yields {unknown} Each cause once, outermost first.
+ */
+function* causeChain(error: Readonly<Error>): Generator<unknown> {
+  const seen = new Set<unknown>([error]);
+  let cause = error.cause;
+  for (let depth = 0; depth < MAX_CAUSE_DEPTH && cause !== undefined && !seen.has(cause); depth++) {
+    seen.add(cause);
+    yield cause;
+    cause = cause instanceof Error ? cause.cause : undefined;
+  }
+}
+
+/**
+ * Renders one cause as `CODE: message`, leaving out a code the message names.
+ *
+ * @param cause - Cause.
+ * @returns {string} The resulting string.
+ */
+function describeCause(cause: unknown): string {
+  if (!(cause instanceof Error)) return String(cause);
+  const text =
+    cause.message ||
+    (cause instanceof AggregateError
+      ? cause.errors
+          .map((inner: unknown) => (inner instanceof Error ? inner.message : String(inner)))
+          .join("; ")
+      : "");
+  const { code } = cause as { code?: unknown };
+  if (typeof code !== "string" || text.includes(code)) return text;
+  return text ? `${code}: ${text}` : code;
 }
 
 /**

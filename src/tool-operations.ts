@@ -34,6 +34,7 @@ import {
   resolveRequestedTimestamp,
   timestampLowerBound,
   timestampUpperBound,
+  toErrorMessage,
 } from "./utils/index.ts";
 
 /** One text block plus the details a harness renders next to it. */
@@ -1684,7 +1685,7 @@ export function sanitizeTerminalText(text: string): string {
  * @returns {string} The resulting string.
  */
 export function errorMessage(error: unknown): string {
-  return sanitizeTerminalText(error instanceof Error ? error.message : String(error));
+  return sanitizeTerminalText(toErrorMessage(error));
 }
 
 /**

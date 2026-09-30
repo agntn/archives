@@ -312,3 +312,39 @@ describe("request timeouts with cancellation", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("connection failures", () => {
+  function refuseConnections() {
+    const cause = Object.assign(
+      new Error("Connect Timeout Error (attempted address: archive.is:443, timeout: 10000ms)"),
+      { code: "UND_ERR_CONNECT_TIMEOUT" },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof globalThis.fetch>(async () => {
+        throw new TypeError("fetch failed", { cause });
+      }),
+    );
+  }
+
+  const reason =
+    "fetch failed: UND_ERR_CONNECT_TIMEOUT: Connect Timeout Error (attempted address: archive.is:443, timeout: 10000ms)";
+
+  it("keeps the undici cause in the library error", async () => {
+    refuseConnections();
+    const archive = createArchive(await providers.archiveToday());
+    const { error } = await archive.snapshots("github.com", { cache: false, retries: 0 });
+    expect(error).toContain(reason);
+  });
+
+  it("hands the cause to an MCP client", async () => {
+    refuseConnections();
+    const client = await connectClient();
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "github.com", provider: "archiveToday", cache: false },
+    });
+    const [first] = response.content as Array<{ text: string }>;
+    expect(first?.text).toContain(reason);
+  });
+});

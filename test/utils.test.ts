@@ -6,6 +6,7 @@ import {
   mapCdxRows,
   normalizeDomain,
   processInParallel,
+  toErrorMessage,
   waybackTimestampToISO,
   withUserAgent,
 } from "../src/utils";
@@ -233,5 +234,67 @@ describe("mapCdxRows", () => {
     expect(pages).toHaveLength(1);
     expect(pages[0].url).toBe("https://example.com/leap-valid");
     expect(pages[0].timestamp).toBe("2020-02-29T00:00:00Z");
+  });
+});
+
+describe("toErrorMessage", () => {
+  function codedError(message: string, code: string): Error {
+    return Object.assign(new Error(message), { code });
+  }
+
+  function fetchFailure(cause: unknown): Error {
+    return new Error(
+      '[GET] "https://archive.is/timemap/http://github.com": <no response> fetch failed',
+      {
+        cause: new TypeError("fetch failed", { cause }),
+      },
+    );
+  }
+
+  it("keeps the cause a failed connection carries", () => {
+    const cause = codedError(
+      "Connect Timeout Error (attempted address: archive.is:443, timeout: 10000ms)",
+      "UND_ERR_CONNECT_TIMEOUT",
+    );
+    expect(toErrorMessage(fetchFailure(cause))).toBe(
+      '[GET] "https://archive.is/timemap/http://github.com": <no response> fetch failed: ' +
+        "UND_ERR_CONNECT_TIMEOUT: Connect Timeout Error (attempted address: archive.is:443, timeout: 10000ms)",
+    );
+  });
+
+  it("does not repeat a code the cause message already names", () => {
+    const cause = codedError("getaddrinfo ENOTFOUND archive.is", "ENOTFOUND");
+    expect(toErrorMessage(fetchFailure(cause))).toMatch(
+      /fetch failed: getaddrinfo ENOTFOUND archive\.is$/,
+    );
+  });
+
+  it("spells out an aggregate cause with an empty message", () => {
+    const cause = Object.assign(
+      new AggregateError(
+        [
+          codedError("connect ECONNREFUSED ::1:443", "ECONNREFUSED"),
+          codedError("connect ECONNREFUSED 127.0.0.1:443", "ECONNREFUSED"),
+        ],
+        "",
+      ),
+      { code: "ECONNREFUSED" },
+    );
+    expect(toErrorMessage(fetchFailure(cause))).toMatch(
+      /fetch failed: connect ECONNREFUSED ::1:443; connect ECONNREFUSED 127\.0\.0\.1:443$/,
+    );
+  });
+
+  it("stops on a cause chain that loops", () => {
+    const error = new Error("outer");
+    const inner = new Error("inner", { cause: error });
+    Object.assign(error, { cause: inner });
+    expect(toErrorMessage(error)).toBe("outer: inner");
+  });
+
+  it("reads plain strings and other values as before", () => {
+    expect(toErrorMessage("boom")).toBe("boom");
+    expect(toErrorMessage(42)).toBe("42");
+    expect(toErrorMessage(new Error("plain"))).toBe("plain");
   });
 });
