@@ -4,7 +4,9 @@ import { loadConfig } from "c12";
 import { $fetch } from "ofetch";
 import { createArchive, resetConfig } from "../src";
 import type { ArchiveOptions } from "../src";
+import createArchiveToday from "../src/providers/archive-today";
 import createArquivo from "../src/providers/arquivo";
+import createCommonCrawl from "../src/providers/commoncrawl";
 import createWayback from "../src/providers/wayback";
 
 vi.mock("ofetch", () => ({
@@ -51,6 +53,20 @@ describe("provider timeouts inside createArchive", () => {
 
   it("gives the Wayback index a minute when nobody names a timeout", async () => {
     const archive = createArchive(createWayback(), { cache: false });
+
+    await archive.snapshots("example.com");
+    expect(sentTimeout()).toBe(60_000);
+
+    vi.mocked($fetch).mockClear();
+    await archive.content("https://example.com/", { timestamp: "2026" });
+    expect(sentTimeout()).toBe(60_000);
+  });
+
+  it.each([
+    ["commoncrawl", createCommonCrawl],
+    ["archive-today", createArchiveToday],
+  ])("gives %s a minute when nobody names a timeout", async (_name, create) => {
+    const archive = createArchive(create(), { cache: false, retries: 0 });
 
     await archive.snapshots("example.com");
     expect(sentTimeout()).toBe(60_000);

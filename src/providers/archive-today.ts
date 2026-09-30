@@ -113,6 +113,9 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
   readonly name = "Archive.today";
   readonly slug = "archive-today";
 
+  /** Not timed yet: on 2026-09-30 no connection to it completed, so this keeps the minute the timemap request had. */
+  protected override readonly defaultTimeout = 60_000;
+
   /**
    * Fetch archived snapshots from Archive.today.
 
@@ -264,7 +267,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
           baseURL,
           signal: options.signal,
           retry: options.retries ?? 5,
-          timeout: options.timeout ?? 60000,
+          timeout: options.timeout,
           responseType: "text",
           headers: withUserAgent(),
         }),

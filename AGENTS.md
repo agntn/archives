@@ -163,7 +163,7 @@ pnpm release          # test + changelogen + publish
 ## NOTES
 
 - **Config is async**: `getConfig()`, `resolveConfig()`, `mergeOptions()`, `createFetchOptions()` are all async because c12 config loading is async. This propagates throughout.
-- **Defaults**: concurrency=3, batchSize=20, timeout=10000ms, retries=1, cache TTL=7 days. Wayback raises an unnamed timeout to 60000ms through `BaseProvider.defaultTimeout`. README and code must match.
+- **Defaults**: concurrency=3, batchSize=20, timeout=10000ms, retries=1, cache TTL=7 days. Wayback, Common Crawl and Archive.today raise an unnamed timeout to 60000ms through `BaseProvider.defaultTimeout`. README and code must match.
 - **Memento Time Travel is gone**: `mementoweb.org` remains a static documentation site after LANL discontinued the aggregator in 2025. `providers.memento()` defaults to the live public ODU MemGator endpoint and may be pointed at another compatible instance with `baseUrl`.
 - **Arquivo.pt is a direct provider**: query `https://arquivo.pt/wayback/cdx` as newline-delimited JSON and read raw bodies from `noFrame/replay/<timestamp>id_/<url>`. It belongs in `providers.all()` even though MemGator may also return Arquivo.pt captures, because Memento stays outside that fan-out.
 - **Webarchiv Österreich uses CDXJ for one URL at a time**: query `https://webarchiv.onb.ac.at/web/cdx` with the URL written as HTTP, because the index canonicalizes schemes but the HTTPS version can fail upstream. `from`, `to`, `limit` and `reverse=true` are supported; wildcard and `sort` queries are not. Read raw bodies from `/web/<timestamp>id_/<url>`. It requires no credentials and belongs in `providers.all()`.
