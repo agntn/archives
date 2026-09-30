@@ -45,16 +45,6 @@ function loadToolOperations(): Promise<typeof ArchivesTools> {
   return toolOperationsPromise;
 }
 
-/*
- * Pi records any value returned from `execute` as a successful call, whatever its
- * `isError` says; only a throw marks the result failed. The executor's text
- * becomes the message, so the model reads the same diagnostic either way.
- */
-function settle<TDetails>(result: ArchivesTools.ToolResult<TDetails>): AgentToolResult<TDetails> {
-  if (!result.isError) return result;
-  throw new Error(result.content.map((part) => part.text).join("\n"));
-}
-
 // Schema metadata is restated per surface: the parameters are declared before the
 // executors can be loaded. test/pi-extension.test.ts guards it against drift.
 const PROVIDERS = [
@@ -449,7 +439,9 @@ export default function archivesExtension(pi: ExtensionAPI) {
     },
     async execute(_toolCallId, params, signal): Promise<AgentToolResult<SnapshotToolDetails>> {
       const { snapshotBatchArchives } = await loadToolOperations();
-      return settle(await snapshotBatchArchives(params, signal));
+      // Pi 0.99 records a returned `isError` result as failed and keeps its details,
+      // which is why the Pi peer range starts there.
+      return snapshotBatchArchives(params, signal);
     },
   });
 
@@ -473,7 +465,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     },
     async execute(_toolCallId, params, signal): Promise<AgentToolResult<ContentDetails>> {
       const { contentArchives } = await loadToolOperations();
-      return settle(await contentArchives(params, signal));
+      return contentArchives(params, signal);
     },
   });
 
@@ -497,7 +489,7 @@ export default function archivesExtension(pi: ExtensionAPI) {
     },
     async execute(_toolCallId, params, signal): Promise<AgentToolResult<DiffDetails>> {
       const { diffArchives } = await loadToolOperations();
-      return settle(await diffArchives(params, signal));
+      return diffArchives(params, signal);
     },
   });
 

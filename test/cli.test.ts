@@ -1,5 +1,14 @@
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, globSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  globSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -105,6 +114,17 @@ describe("src under plain Node", () => {
 });
 
 describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp from the built bin", () => {
+  // typebox is only an optional peer, so the CLI, the MCP server and their types carry their own copy.
+  it("bundles typebox instead of importing it", () => {
+    const importers = globSync("dist/**/*.{mjs,d.mts}", { cwd: root }).filter((file) =>
+      /(?:from|import)\s*\(?\s*["']typebox(?:\/[^"']*)?["']/u.test(
+        readFileSync(join(root, file), "utf8"),
+      ),
+    );
+
+    expect(importers).toEqual([]);
+  });
+
   it.skipIf(!stripsTypes)("serves the live source inside a checkout", () => {
     expect(serve(root)).toMatchObject(served("source"));
   });
