@@ -17,6 +17,7 @@ import {
   DEFAULT_LIMIT,
   DEFAULT_MAX_CHARS,
   diffArchives,
+  errorMessage,
   listArchiveProviders,
   MAX_CONTENT_CHARS,
   MAX_CONTENT_OFFSET,
@@ -514,9 +515,7 @@ export function createMcpServer(): Server {
     try {
       return toCallToolResult(await tool.execute(args, extra.signal));
     } catch (error) {
-      return errorResult(
-        `${tool.name} failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      return errorResult(`${tool.name} failed: ${errorMessage(error)}`);
     }
   });
 

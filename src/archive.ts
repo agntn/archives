@@ -431,7 +431,7 @@ export class Archive implements ArchiveInterface {
       return {
         success: false,
         pages: [],
-        error: error instanceof Error ? error.message : String(error),
+        error: toErrorMessage(error),
         _meta: {
           source: provider.name,
           provider: provider.name,

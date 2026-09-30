@@ -14,6 +14,7 @@ import {
   createErrorResponse,
   createFetchOptions,
   createUnsupportedContentResponse,
+  toErrorMessage,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -253,7 +254,7 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
         meta: permaccResponseMetadata(payload.meta),
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = toErrorMessage(error);
       const errorName = error instanceof Error ? error.name : "UnknownError";
       return createErrorResponse(message, "permacc", { errorName });
     }
