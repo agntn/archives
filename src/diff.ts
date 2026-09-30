@@ -121,12 +121,14 @@ function assertComparable(before: ArchivedContentView, after: ArchivedContentVie
 }
 
 function assertSameSource(before: ArchivedContentView, after: ArchivedContentView): void {
-  if (canonicalUrl(before.url) !== canonicalUrl(after.url)) {
-    throw new Error("Cannot diff captures of different original URLs");
+  const beforeUrl = canonicalUrl(before.url);
+  const afterUrl = canonicalUrl(after.url);
+  if (beforeUrl !== afterUrl) {
+    throw new Error(
+      `Cannot diff captures of different original URLs: ${pair(JSON.stringify(beforeUrl), JSON.stringify(afterUrl))}. Pass the full URL of the page so both reads resolve to one record`,
+    );
   }
-  if (!isTextualMime(before.mime) || !isTextualMime(after.mime)) {
-    throw new TypeError("Cannot diff archived bodies that are not textual");
-  }
+  assertTextual(before, after);
 
   const beforeProvider = captureProvider(before);
   const afterProvider = captureProvider(after);
@@ -134,9 +136,19 @@ function assertSameSource(before: ArchivedContentView, after: ArchivedContentVie
     throw new Error("Cannot diff captures without provider provenance");
   }
   if (beforeProvider !== afterProvider) {
-    throw new Error("Cannot diff captures from different providers");
+    throw new Error(
+      `Cannot diff captures from different providers: ${pair(beforeProvider, afterProvider)}`,
+    );
   }
   if (beforeProvider === "memento") assertSameMementoArchive(before, after);
+}
+
+function assertTextual(before: ArchivedContentView, after: ArchivedContentView): void {
+  if (!isTextualMime(before.mime) || !isTextualMime(after.mime)) {
+    throw new TypeError(
+      `Cannot diff archived bodies that are not textual: ${pair(before.mime ?? "unknown", after.mime ?? "unknown")}`,
+    );
+  }
 }
 
 function assertSameMementoArchive(before: ArchivedContentView, after: ArchivedContentView): void {
@@ -146,8 +158,14 @@ function assertSameMementoArchive(before: ArchivedContentView, after: ArchivedCo
     throw new Error("Cannot diff Memento captures without underlying archive provenance");
   }
   if (beforeArchive !== afterArchive) {
-    throw new Error("Cannot diff Memento captures from different underlying archives");
+    throw new Error(
+      `Cannot diff Memento captures from different underlying archives: ${pair(beforeArchive, afterArchive)}`,
+    );
   }
+}
+
+function pair(before: string, after: string): string {
+  return `before is ${before}, after is ${after}`;
 }
 
 function assertChronological(before: string, after: string): void {

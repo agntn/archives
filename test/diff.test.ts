@@ -93,6 +93,47 @@ describe("archived content diff", () => {
     ).toThrow("without provider provenance");
   });
 
+  it("names the values each provenance guard compared", () => {
+    const before = capture("2002-01-01T00:00:00Z", "before", {
+      url: "http://example.com:80/",
+    });
+
+    expect(() =>
+      diffArchivedContent(
+        before,
+        capture("2014-01-01T00:00:00Z", "after", { url: "http://www.example.com/#top" }),
+      ),
+    ).toThrow(
+      'Cannot diff captures of different original URLs: before is "http://example.com/", after is "http://www.example.com/". Pass the full URL of the page so both reads resolve to one record',
+    );
+    expect(() =>
+      diffArchivedContent(
+        capture("2020-01-01T00:00:00Z", "before", { mime: "image/png" }),
+        capture("2021-01-01T00:00:00Z", "after"),
+      ),
+    ).toThrow(
+      "Cannot diff archived bodies that are not textual: before is image/png, after is text/html",
+    );
+    expect(() =>
+      diffArchivedContent(
+        capture("2020-01-01T00:00:00Z", "before"),
+        capture("2021-01-01T00:00:00Z", "after", { _meta: { provider: "arquivo" } }),
+      ),
+    ).toThrow("Cannot diff captures from different providers: before is wayback, after is arquivo");
+    expect(() =>
+      diffArchivedContent(
+        capture("2020-01-01T00:00:00Z", "before", {
+          _meta: { provider: "memento", archive: "web.archive.org" },
+        }),
+        capture("2021-01-01T00:00:00Z", "after", {
+          _meta: { provider: "memento", archive: "arquivo.pt" },
+        }),
+      ),
+    ).toThrow(
+      "Cannot diff Memento captures from different underlying archives: before is web.archive.org, after is arquivo.pt",
+    );
+  });
+
   it("requires one underlying archive for Memento comparisons", () => {
     const before = capture("2020-01-01T00:00:00Z", "before", {
       _meta: { provider: "memento", archive: "web.archive.org" },
