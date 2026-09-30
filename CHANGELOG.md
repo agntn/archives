@@ -38,11 +38,11 @@
 
 ### 🏡 Chore
 
-- ⚠️  Require Node.js 26 ([#104](https://github.com/agntn/archives/pull/104))
+- ⚠️ Require Node.js 26 ([#104](https://github.com/agntn/archives/pull/104))
 
 #### ⚠️ Breaking Changes
 
-- ⚠️  Require Node.js 26 ([#104](https://github.com/agntn/archives/pull/104))
+- ⚠️ Require Node.js 26 ([#104](https://github.com/agntn/archives/pull/104))
 
 ### ❤️ Contributors
 
