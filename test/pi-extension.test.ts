@@ -1,4 +1,5 @@
-import { objectContaining, rangeDescription } from "./_matchers";
+import { readFileSync } from "node:fs";
+import { objectContaining, rangeDescription, stringContaining } from "./_matchers";
 import type {
   AgentToolResult,
   ExtensionAPI,
@@ -299,43 +300,48 @@ describe("Pi extension", () => {
     );
   });
 
-  // Pi ignores a returned `isError`; only a throw marks the tool result failed.
-  it("throws a failed read so Pi records it as an error", async () => {
+  // Pi 0.99 records a returned `isError` as a failed call and keeps the details.
+  it("returns a failed read as an error result with its details", async () => {
     archivesMock.content.mockRejectedValue(new Error("fixture CDX 503"));
     const tool = getExecutableTool(loadExtension().tools, "archives_content");
 
-    await expect(
-      tool.execute(
-        "test",
-        { target: "https://example.com/old", provider: "wayback", cache: false },
-        undefined,
-        undefined,
-        {} as ExtensionContext,
-      ),
-    ).rejects.toThrow(
+    const result = await tool.execute(
+      "test",
+      { target: "https://example.com/old", provider: "wayback", cache: false },
+      undefined,
+      undefined,
+      {} as ExtensionContext,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content.map((part) => (part.type === "text" ? part.text : "")).join("\n")).toBe(
       '[provider=wayback] no capture read for "https://example.com/old"\n\nError: fixture CDX 503',
     );
+    expect(result.details).toMatchObject({ target: "https://example.com/old" });
   });
 
-  it("throws when no capture pair can be compared", async () => {
+  it("returns an error result when no capture pair can be compared", async () => {
     archivesMock.content.mockRejectedValue(new Error("fixture CDX 503"));
     const tool = getExecutableTool(loadExtension().tools, "archives_diff");
 
-    await expect(
-      tool.execute(
-        "test",
-        {
-          target: "https://example.com/old",
-          provider: "wayback",
-          before: "2019",
-          after: "2021",
-          cache: false,
-        },
-        undefined,
-        undefined,
-        {} as ExtensionContext,
-      ),
-    ).rejects.toThrow('no comparable capture pair for "https://example.com/old"');
+    const result = await tool.execute(
+      "test",
+      {
+        target: "https://example.com/old",
+        provider: "wayback",
+        before: "2019",
+        after: "2021",
+        cache: false,
+      },
+      undefined,
+      undefined,
+      {} as ExtensionContext,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toMatchObject({
+      text: stringContaining('no comparable capture pair for "https://example.com/old"'),
+    });
   });
 
   it("rejects an offset beyond the shared executor bound", async () => {
@@ -405,7 +411,11 @@ describe("Pi extension", () => {
     );
     controller.abort(new Error("cancelled by test"));
 
-    await expect(execution).rejects.toThrow("cancelled by test");
+    const cancelled = await execution;
+    expect(cancelled.isError).toBe(true);
+    expect(cancelled.content[0]).toMatchObject({
+      text: stringContaining("cancelled by test"),
+    });
     // OMP still receives the failed result itself, so its details must not carry the signal.
     const failed = await snapshotArchives(
       { target: "example.com", provider: "wayback", cache: false },
@@ -414,7 +424,7 @@ describe("Pi extension", () => {
     expect(failed.isError).toBe(true);
     expect(failed.details.options).not.toHaveProperty("signal");
   });
-  it("looks up a batch of targets and throws only when none of them answered", async () => {
+  it("looks up a batch of targets and fails only when none of them answered", async () => {
     archivesMock.snapshots.mockImplementation((target: string) =>
       Promise.resolve<ArchiveResponse>(
         target === "down.example"
@@ -436,15 +446,19 @@ describe("Pi extension", () => {
       items: [{ target: "example.com" }, { target: "down.example" }],
     });
 
-    await expect(
-      tool.execute(
-        "test",
-        { target: ["down.example", "down.example"], provider: "wayback", cache: false },
-        undefined,
-        undefined,
-        {} as ExtensionContext,
-      ),
-    ).rejects.toThrow('0 snapshot(s) for "down.example"; error=HTTP 503');
+    expect(mixed.isError).toBeFalsy();
+
+    const failed = await tool.execute(
+      "test",
+      { target: ["down.example", "down.example"], provider: "wayback", cache: false },
+      undefined,
+      undefined,
+      {} as ExtensionContext,
+    );
+    expect(failed.isError).toBe(true);
+    expect(failed.content[0]).toMatchObject({
+      text: stringContaining('0 snapshot(s) for "down.example"; error=HTTP 503'),
+    });
   });
 
   it("declares the schema bounds the shared executors enforce", () => {
@@ -701,5 +715,44 @@ describe("Pi extension", () => {
     expect(notify).toHaveBeenCalledWith("archives failed: Wayback unavailable", "error");
     expect(select).not.toHaveBeenCalled();
     expect(pasteToEditor).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Packages Pi hands its extensions (`HOST_PROVIDED_EXTENSION_PACKAGES` in Pi's resource loader).
+ * A copy in "dependencies" can bypass the host's module mapping, and Pi 0.99 warns on every load
+ * of such a package.
+ */
+const hostProvidedPackages = [
+  "@earendil-works/pi-agent-core",
+  "@earendil-works/pi-ai",
+  "@earendil-works/pi-coding-agent",
+  "@earendil-works/pi-tui",
+  "@mariozechner/pi-agent-core",
+  "@mariozechner/pi-ai",
+  "@mariozechner/pi-coding-agent",
+  "@mariozechner/pi-tui",
+  "@sinclair/typebox",
+  "typebox",
+];
+
+describe("Pi package manifest", () => {
+  const manifest = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ) as Readonly<{
+    dependencies?: Readonly<Record<string, string>>;
+    peerDependencies?: Readonly<Record<string, string>>;
+  }>;
+
+  it("leaves the packages Pi supplies to the host", () => {
+    expect(hostProvidedPackages.filter((name) => name in (manifest.dependencies ?? {}))).toEqual(
+      [],
+    );
+    expect(manifest.peerDependencies?.["typebox"]).toBe("*");
+  });
+
+  // The tools return failures instead of throwing, which older Pi records as successes.
+  it("starts the Pi peer range where a returned isError counts", () => {
+    expect(manifest.peerDependencies?.["@earendil-works/pi-coding-agent"]).toBe(">=0.99.0");
   });
 });
