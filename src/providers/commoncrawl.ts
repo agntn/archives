@@ -238,7 +238,7 @@ async function fetchIndexRecords(
   const fetchOptions = await createFetchOptions(BASE_URL, params, {
     retries: options.retries,
     signal: options.signal,
-    timeout: options.timeout ?? 60_000,
+    timeout: options.timeout,
     responseType: "text",
   });
   try {
@@ -284,6 +284,9 @@ function parseByteRange(capture: Readonly<CrawlCapture>): { start: number; lengt
 export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
   readonly name = "Common Crawl";
   readonly slug = "commoncrawl";
+
+  /** Index lookups took up to 17.5 s in September 2026, and a busy one answers 504 after about 11 s. */
+  protected override readonly defaultTimeout = 60_000;
 
   /**
    * Cache key extension that separates storage entries by collection.
@@ -415,7 +418,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       {
         retries: options.retries,
         signal: options.signal,
-        timeout: options.timeout ?? 60_000,
+        timeout: options.timeout,
       },
     );
     const response: unknown = await $fetch("/collinfo.json", fetchOptions);
@@ -474,7 +477,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
         responseType: "stream",
         retries: options.retries,
         signal: options.signal,
-        timeout: options.timeout ?? 60_000,
+        timeout: options.timeout,
         headers: { range: `bytes=${start}-${start + length - 1}` },
       },
     );

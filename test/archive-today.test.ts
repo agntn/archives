@@ -50,7 +50,7 @@ describe("archive.today", () => {
         signal: controller.signal,
         responseType: "text",
         retry: 1,
-        timeout: 10000,
+        timeout: 60_000,
       }),
     );
   });

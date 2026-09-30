@@ -69,7 +69,7 @@ available
 
 No key, no config. That's the HTML example.com served in 2002. Still not for sale, by the way.
 
-Wayback keeps one capture per year by default, so three rows are three years. Its index is in no hurry. Lookups close to a minute happen, so Wayback waits 60 seconds where the other archives get ten. More on listings and reading: [Snapshots](https://archives.agntn.dev/guide/snapshots), [Reading content](https://archives.agntn.dev/guide/content).
+Wayback keeps one capture per year by default, so three rows are three years. Its index is in no hurry. Lookups close to a minute happen, so Wayback waits 60 seconds. So do Common Crawl, whose index likes to think it over, and Archive.today. The rest get ten. More on listings and reading: [Snapshots](https://archives.agntn.dev/guide/snapshots), [Reading content](https://archives.agntn.dev/guide/content).
 
 ## 🔍 What changed?
 
