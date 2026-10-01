@@ -1,4 +1,4 @@
-import { $fetch } from "ofetch";
+import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -156,7 +156,7 @@ async function fetchCaptures(
     responseType: "text",
   });
   try {
-    const raw: unknown = await $fetch("/web/cdx", fetchOptions);
+    const raw: unknown = await fetchData("/web/cdx", fetchOptions);
     return { captures: parseCaptures(raw), queryParams: fetchOptions.params };
   } catch (error) {
     if (

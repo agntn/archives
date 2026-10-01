@@ -1,11 +1,13 @@
 import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { $fetch } from "ofetch";
+import { fetchData } from "../src/utils/_fetch";
 import { createArchive, resetConfig, storage } from "../src";
 import createArchiveIt from "../src/providers/archive-it";
 
-vi.mock("ofetch", () => ({
-  $fetch: vi.fn(),
+vi.mock("../src/utils/_fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
+  fetchData: vi.fn(),
+  fetchResponse: vi.fn(),
 }));
 
 describe("Archive-It", () => {
@@ -37,7 +39,7 @@ describe("Archive-It", () => {
    * have to come out of the provider's own normalization then.
    */
   it("normalizes ISO bounds when the provider is called directly", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce("");
+    vi.mocked(fetchData).mockResolvedValueOnce("");
 
     const result = await createArchiveIt({ collection: 4399 }).snapshots("example.com", {
       from: "2019-03-01",
@@ -45,7 +47,7 @@ describe("Archive-It", () => {
     });
 
     expect(result.success).toBe(true);
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/4399/timemap/cdx",
       objectContaining({
         params: objectContaining({ from: "20190301", to: "201906" }),
@@ -54,7 +56,7 @@ describe("Archive-It", () => {
   });
 
   it("lists pages from a collection CDX index", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce(
+    vi.mocked(fetchData).mockResolvedValueOnce(
       [
         "https://example.com/ 20220101000000 200",
         "https://example.com/page 20220201000000 404",
@@ -77,7 +79,7 @@ describe("Archive-It", () => {
       },
     });
     expect(result._meta).toMatchObject({ source: "archive-it", collection: "4399" });
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/4399/timemap/cdx",
       objectContaining({
         baseURL: "https://wayback.archive-it.org",
@@ -92,7 +94,7 @@ describe("Archive-It", () => {
   });
 
   it("passes collection-specific CDX filters", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce("");
+    vi.mocked(fetchData).mockResolvedValueOnce("");
 
     const archive = createArchive(
       createArchiveIt({
@@ -105,7 +107,7 @@ describe("Archive-It", () => {
     );
     await archive.snapshots("https://example.com/page");
 
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/4399/timemap/cdx",
       objectContaining({
         params: objectContaining({
@@ -120,7 +122,7 @@ describe("Archive-It", () => {
   });
 
   it("returns an empty success response for an empty CDX result", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce("");
+    vi.mocked(fetchData).mockResolvedValueOnce("");
 
     const result = await createArchive(createArchiveIt({ collection: 4399 })).snapshots(
       "missing.example",
@@ -137,6 +139,6 @@ describe("Archive-It", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Archive-It collection must be a numeric collection ID");
-    expect($fetch).not.toHaveBeenCalled();
+    expect(fetchData).not.toHaveBeenCalled();
   });
 });

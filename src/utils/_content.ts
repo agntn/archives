@@ -11,7 +11,7 @@
 
 import { sha256 } from "@agntn/hashes";
 import { consola } from "consola";
-import { $fetch, type FetchResponse } from "ofetch";
+import { fetchResponse } from "./_fetch.ts";
 import type { ArchiveContentOptions, ArchivedContent } from "../types.ts";
 import { createFetchOptions, waybackTimestampToISO } from "./_utils.ts";
 
@@ -392,13 +392,13 @@ function rawPlaybackPolicy(baseURL: string, prefix: string): FetchBodyPolicy {
 
 /* Converts one final raw response into the bounded body contract. */
 async function decodeFetchedResponse(
-  response: FetchResponse<unknown>,
+  response: Readonly<Response>,
   maxBytes: number,
   fallbackURL: string,
 ): Promise<FetchedBody> {
   const contentType = headerValue(response.headers, "content-type");
-  const { bytes, truncated } = await readCappedBytes(response._data, maxBytes);
-  const status = typeof response.status === "number" ? response.status : 200;
+  const { bytes, truncated } = await readCappedBytes(response.body, maxBytes);
+  const { status } = response;
   const location = REDIRECT_STATUSES.has(status) ? headerValue(response.headers, "location") : "";
 
   return {
@@ -408,7 +408,7 @@ async function decodeFetchedResponse(
     truncated,
     mime: baseMime(contentType),
     status,
-    url: typeof response.url === "string" && response.url ? response.url : fallbackURL,
+    url: response.url || fallbackURL,
     capturedAt: parseMementoDatetime(headerValue(response.headers, "memento-datetime")),
     ...(location ? { redirect: location.slice(0, MAX_REDIRECT_LENGTH) } : {}),
   };
@@ -424,7 +424,6 @@ async function fetchUnredirectedBody(
     baseURL,
     {},
     {
-      responseType: "stream",
       redirect: "manual",
       retries: options.retries,
       signal: options.signal,
@@ -432,17 +431,15 @@ async function fetchUnredirectedBody(
       ...(options.headers ? { headers: options.headers } : {}),
     },
   );
-  const response = await $fetch.raw(path, fetchOptions);
+  const response = await fetchResponse(path, fetchOptions);
   return decodeFetchedResponse(response, maxBytes, `${baseURL}${path}`);
 }
 
-async function cancelResponseBody(response: FetchResponse<unknown>): Promise<void> {
-  if (isReadableStream(response._data)) {
-    await response._data.cancel().catch(() => undefined);
-  }
+async function cancelResponseBody(response: Readonly<Response>): Promise<void> {
+  await response.body?.cancel().catch(() => undefined);
 }
 
-function redirectDestination(response: FetchResponse<unknown>, current: URL): URL {
+function redirectDestination(response: Readonly<Response>, current: URL): URL {
   const location = headerValue(response.headers, "location");
   if (!location) throw new Error("Archive playback redirected without a Location header");
   return new URL(location, current);
@@ -463,7 +460,6 @@ async function fetchPolicyBody(
       current.origin,
       {},
       {
-        responseType: "stream",
         redirect: "manual",
         retries: options.retries,
         signal: options.signal,
@@ -471,7 +467,7 @@ async function fetchPolicyBody(
         ...(options.headers ? { headers: options.headers } : {}),
       },
     );
-    const response = await $fetch.raw(`${current.pathname}${current.search}`, fetchOptions);
+    const response = await fetchResponse(`${current.pathname}${current.search}`, fetchOptions);
     if (!REDIRECT_STATUSES.has(response.status)) {
       return decodeFetchedResponse(response, maxBytes, current.href);
     }
@@ -1101,7 +1097,7 @@ function headerValue(headers: unknown, name: string): string | undefined {
 }
 
 /*
- * Reads at most `maxBytes` from whatever ofetch produced for the body.
+ * Reads at most `maxBytes` of a body.
  *
  * A stream is the normal case; the buffer and string branches keep the helper
  * usable against hosts (and test doubles) that hand back an already-read body.

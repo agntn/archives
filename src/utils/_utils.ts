@@ -1,4 +1,3 @@
-import type { FetchOptions } from "ofetch";
 import { version } from "../version.ts";
 import { withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
 import { consola } from "consola";
@@ -12,7 +11,7 @@ import type {
   ResponseMetadata,
 } from "../types.ts";
 import { getConfig } from "../config.ts";
-import { withRequestTimeout } from "./_fetch.ts";
+import { timeoutMilliseconds, type FetchOptions } from "./_fetch.ts";
 
 const ALLOWED_WAYBACK_TIMESTAMP_LENGTHS = new Set([4, 6, 8, 10, 12, 14]);
 
@@ -455,47 +454,39 @@ export function createContentErrorResponse(
   };
 }
 
-function requestLabel(request: unknown): string {
-  if (typeof request === "string") return request;
-  if (typeof request === "object" && request !== null && "url" in request) {
-    return typeof request.url === "string" ? request.url : "<request>";
-  }
-  return "<request>";
-}
-
 /**
- * Creates common fetch options with standard defaults
+ * Request options every archive call starts from; a bad timeout fails here, before any request.
+ *
  * @param baseURL Base URL for the API
  * @param params Query parameters
- * @param options Additional options
- * @returns {Promise<FetchOptions>} FetchOptions object
+ * @param options Request options, plus the shared archive options they come from
+ * @returns {Promise<FetchOptions>} Options for `fetchData` or `fetchResponse`
  */
 export async function createFetchOptions(
   baseURL: string,
   params: Readonly<Record<string, unknown>> = {},
-  options: FetchOptions & ArchiveOptions = {},
+  options: Readonly<FetchOptions & ArchiveOptions> = {},
 ): Promise<FetchOptions> {
   const config = await getConfig();
+  const timeout = options.timeout ?? config.performance.timeout;
+  timeoutMilliseconds(timeout);
 
-  return withRequestTimeout({
+  return {
     method: "GET",
     baseURL,
     params,
-    retry: options.retries ?? config.performance.retries,
-    signal: options.signal,
-    retryDelay: 300, // Add delay between retries
-    retryStatusCodes: [408, 409, 425, 429, 500, 502, 503, 504], // Standard retry status codes
-    onResponseError: ({ request, response, options }) => {
-      consola.error(
-        `[fetch error] ${options.method} ${requestLabel(request)} failed with status ${response.status}`,
-      );
+    retry: options.retry ?? options.retries ?? config.performance.retries,
+    retryDelay: options.retryDelay ?? 300,
+    retryStatusCodes: options.retryStatusCodes,
+    onResponseError: ({ method, url, status }) => {
+      consola.error(`[fetch error] ${method} ${url} failed with status ${status}`);
     },
-    ...options,
-    timeout: options.timeout ?? config.performance.timeout,
-    headers: withUserAgent(
-      options.headers as Readonly<Record<string, string>> | Headers | undefined,
-    ),
-  });
+    signal: options.signal,
+    redirect: options.redirect,
+    responseType: options.responseType,
+    timeout,
+    headers: withUserAgent(options.headers),
+  };
 }
 
 /** How every request introduces itself; the Wayback CDX API answers 400 to a request without one. */

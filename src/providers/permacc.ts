@@ -1,5 +1,5 @@
 import { sha256 } from "@agntn/hashes";
-import { $fetch } from "ofetch";
+import { fetchData } from "../utils/_fetch.ts";
 import { hasProtocol } from "ufo";
 import type { PermaccOptions } from "../_providers.ts";
 import type {
@@ -247,7 +247,7 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
         },
       );
 
-      const payload = parsePermaccPayload(await $fetch("/v1/archives/", fetchOptions));
+      const payload = parsePermaccPayload(await fetchData("/v1/archives/", fetchOptions));
       const pages = payload.objects
         .map((archive) => mapArchive(archive))
         .filter((page): page is ArchivedPage => page !== undefined);

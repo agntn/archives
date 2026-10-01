@@ -1,4 +1,4 @@
-import { $fetch } from "ofetch";
+import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -125,7 +125,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
         signal: options.signal,
         timeout: options.timeout,
       });
-      const response: string = await $fetch(`/${collection}/timemap/cdx`, {
+      const response: string = await fetchData(`/${collection}/timemap/cdx`, {
         ...fetchOptions,
         responseType: "text",
       });
@@ -232,7 +232,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
       signal: options.signal,
       timeout: options.timeout,
     });
-    const response: string = await $fetch(`/${collection}/timemap/cdx`, {
+    const response: string = await fetchData(`/${collection}/timemap/cdx`, {
       ...fetchOptions,
       responseType: "text",
     });

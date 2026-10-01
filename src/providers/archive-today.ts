@@ -1,6 +1,5 @@
 import { consola } from "consola";
-import { $fetch } from "ofetch";
-import { withRequestTimeout } from "../utils/_fetch.ts";
+import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -262,17 +261,14 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
 
     let timemapResponse: string;
     try {
-      timemapResponse = await $fetch(
-        timemapUrl,
-        withRequestTimeout({
-          baseURL,
-          signal: options.signal,
-          retry: options.retries ?? 5,
-          timeout: options.timeout,
-          responseType: "text",
-          headers: withUserAgent(),
-        }),
-      );
+      timemapResponse = await fetchData(timemapUrl, {
+        baseURL,
+        signal: options.signal,
+        retry: options.retries ?? 5,
+        timeout: options.timeout,
+        responseType: "text",
+        headers: withUserAgent(),
+      });
     } catch (error) {
       if (!isNoCaptureError(error, NO_MEMENTOS)) throw error;
       return [];

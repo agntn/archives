@@ -2,7 +2,8 @@ import { objectContaining } from "./_matchers";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
-import { $fetch, type FetchResponse } from "ofetch";
+import { fetchData, fetchResponse } from "../src/utils/_fetch";
+import { rawResponse } from "./_responses";
 import { createArchive, resetConfig, storage, UnsupportedOperationError } from "../src";
 import type { ArchiveContentOptions, ArchiveContentResponse, ArchiveProvider } from "../src/types";
 import createWayback from "../src/providers/wayback";
@@ -12,34 +13,17 @@ import createWebcite from "../src/providers/webcite";
 import createArchiveIt from "../src/providers/archive-it";
 import { fetchBody, htmlToText, unwrapSnapshotUrl } from "../src/utils";
 
-vi.mock("ofetch", () => {
-  const raw = vi.fn();
-  return { $fetch: Object.assign(vi.fn(), { raw }) };
-});
+vi.mock("../src/utils/_fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
+  fetchData: vi.fn(),
+  fetchResponse: vi.fn(),
+}));
 
-const fetchMock = vi.mocked($fetch);
-/* oxlint-disable-next-line typescript/unbound-method -- ofetch.raw is a standalone callable and the mock has no receiver state. */
-const rawMock = fetchMock.raw;
+const fetchMock = vi.mocked(fetchData);
+const rawMock = vi.mocked(fetchResponse);
 
 function cdxRows(rows: readonly (readonly string[])[]): string[][] {
   return [["original", "timestamp", "statuscode"], ...rows];
-}
-
-function rawResponse(
-  body: string | Uint8Array | ReadableStream<Uint8Array>,
-  init: Readonly<{
-    url?: string;
-    status?: number;
-    headers?: Readonly<Record<string, string>>;
-  }> = {},
-) {
-  // SAFETY: the helpers under test read only these four fields of a response.
-  return {
-    status: init.status ?? 200,
-    url: init.url ?? "",
-    headers: new Headers(init.headers ?? {}),
-    _data: body,
-  } as unknown as FetchResponse<unknown>;
 }
 
 function textStream(chunks: readonly string[]): ReadableStream<Uint8Array> {
@@ -170,7 +154,7 @@ describe("wayback content", () => {
 
   it("keeps the destination a captured redirect recorded, without visiting it", async () => {
     fetchMock.mockResolvedValue(cdxRows([["https://example.com/old", "20200202000000", "301"]]));
-    rawMock.mockResolvedValue(
+    rawMock.mockImplementation(async () =>
       rawResponse("<h1>301 Moved Permanently</h1>", {
         status: 301,
         url: "https://web.archive.org/web/20200202000000id_/https://example.com/old",
@@ -717,7 +701,7 @@ describe("wayback content", () => {
   it("prints the same body digest on every slice of one capture", async () => {
     const body = "abcdefghij";
     fetchMock.mockResolvedValue(cdxRows([["https://example.com/", "20200202000000", "200"]]));
-    rawMock.mockResolvedValue(
+    rawMock.mockImplementation(async () =>
       rawResponse(body, {
         url: "https://web.archive.org/web/20200202000000id_/https://example.com/",
         headers: { "content-type": "text/plain" },
@@ -750,7 +734,9 @@ describe("wayback content", () => {
   it("says when the printed digest covers only the bytes under the tool's cap", async () => {
     const body = "a".repeat(2_000_001);
     fetchMock.mockResolvedValue(cdxRows([["https://example.com/", "20200202000000", "200"]]));
-    rawMock.mockResolvedValue(rawResponse(body, { headers: { "content-type": "text/plain" } }));
+    rawMock.mockImplementation(async () =>
+      rawResponse(body, { headers: { "content-type": "text/plain" } }),
+    );
     const { contentArchives } = await import("../src/tool-operations");
 
     const tool = await contentArchives({
@@ -1402,9 +1388,8 @@ describe("multi-provider content", () => {
 });
 
 describe("failed reads", () => {
+  /** A transport error can carry its request headers, so the diagnostic field is a credential channel. */
   it("keeps the raw error object out of the response that reaches a transcript", async () => {
-    // An ofetch error carries the request it failed on, headers included, so the
-    // diagnostic field is a credential channel rather than a detail.
     const failure = Object.assign(new Error("Request failed"), {
       request: "https://web.archive.org/cdx/search/cdx",
       options: { headers: { authorization: "ApiKey super-secret-test-key" } },

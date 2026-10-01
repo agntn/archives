@@ -1,7 +1,7 @@
 import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { loadConfig } from "c12";
-import { $fetch } from "ofetch";
+import { fetchData } from "../src/utils/_fetch";
 import { createArchive, resetConfig } from "../src";
 import type { ArchiveOptions } from "../src";
 import createArchiveToday from "../src/providers/archive-today";
@@ -9,8 +9,10 @@ import createArquivo from "../src/providers/arquivo";
 import createCommonCrawl from "../src/providers/commoncrawl";
 import createWayback from "../src/providers/wayback";
 
-vi.mock("ofetch", () => ({
-  $fetch: vi.fn(),
+vi.mock("../src/utils/_fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
+  fetchData: vi.fn(),
+  fetchResponse: vi.fn(),
 }));
 
 vi.mock("c12", () => ({
@@ -29,7 +31,7 @@ function configTimeout(timeout?: number): void {
 
 /* The timeout of the first request the provider sent. */
 function sentTimeout(): unknown {
-  const [, options] = vi.mocked($fetch).mock.calls[0] ?? [];
+  const [, options] = vi.mocked(fetchData).mock.calls[0] ?? [];
   return (options as { timeout?: unknown } | undefined)?.timeout;
 }
 
@@ -37,7 +39,7 @@ describe("provider timeouts inside createArchive", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     configTimeout();
-    vi.mocked($fetch).mockResolvedValue(EMPTY_CDX);
+    vi.mocked(fetchData).mockResolvedValue(EMPTY_CDX);
   });
 
   it.each([
@@ -57,7 +59,7 @@ describe("provider timeouts inside createArchive", () => {
     await archive.snapshots("example.com");
     expect(sentTimeout()).toBe(60_000);
 
-    vi.mocked($fetch).mockClear();
+    vi.mocked(fetchData).mockClear();
     await archive.content("https://example.com/", { timestamp: "2026" });
     expect(sentTimeout()).toBe(60_000);
   });
@@ -71,7 +73,7 @@ describe("provider timeouts inside createArchive", () => {
     await archive.snapshots("example.com");
     expect(sentTimeout()).toBe(60_000);
 
-    vi.mocked($fetch).mockClear();
+    vi.mocked(fetchData).mockClear();
     await archive.content("https://example.com/", { timestamp: "2026" });
     expect(sentTimeout()).toBe(60_000);
   });
@@ -95,6 +97,9 @@ describe("provider timeouts inside createArchive", () => {
 
     await archive.snapshots("example.com", call);
 
-    expect($fetch).toHaveBeenCalledWith("/cdx/search/cdx", objectContaining({ timeout: expected }));
+    expect(fetchData).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      objectContaining({ timeout: expected }),
+    );
   });
 });

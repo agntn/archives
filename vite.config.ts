@@ -82,15 +82,11 @@ export default defineConfig({
                 "Headers",
                 "ReadableStream",
                 "ReadonlyMap",
+                "Response",
                 "RegExp",
                 "Uint8Array",
                 "URL",
               ],
-            },
-            {
-              from: "package",
-              name: ["FetchOptions", "FetchResponse"],
-              package: "ofetch",
             },
             { from: "package", name: "Driver", package: "unstorage" },
             {
