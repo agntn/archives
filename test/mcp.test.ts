@@ -160,8 +160,10 @@ describe("archives MCP server", () => {
     expect(contentProperties["format"]?.["description"]).toContain(
       "decoded capture body without stripping markup",
     );
+    expect(contentProperties["path"]).toMatchObject({ minLength: 1, maxLength: 1024 });
     expect(content.annotations).toMatchObject({
-      readOnlyHint: true,
+      readOnlyHint: false,
+      destructiveHint: false,
       openWorldHint: true,
     });
     expect(diff.inputSchema).toMatchObject({

@@ -1,5 +1,8 @@
 import { objectContaining } from "./_matchers";
 import { createHash } from "node:crypto";
+import { mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { fetchData, fetchResponse } from "../src/utils/_fetch";
@@ -1481,5 +1484,181 @@ describe("content helpers", () => {
       htmlToText(body);
       expect(performance.now() - started).toBeLessThan(budgetMs);
     }
+  });
+});
+
+describe("capture bytes", () => {
+  const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff, 0x80]);
+  let root: string;
+
+  beforeEach(async () => {
+    root = await realpath(await mkdtemp(join(tmpdir(), "capture-bytes-")));
+    vi.stubEnv("ARCHIVES_CAPTURE_DIR", root);
+    return async () => {
+      vi.unstubAllEnvs();
+      await rm(root, { recursive: true, force: true });
+    };
+  });
+
+  function servePng(): void {
+    fetchMock.mockResolvedValue(cdxRows([["https://example.com/a.png", "20200202000000", "200"]]));
+    rawMock.mockImplementation(async () =>
+      rawResponse(png, {
+        url: "https://web.archive.org/web/20200202000000id_/https://example.com/a.png",
+        headers: { "content-type": "image/png" },
+      }),
+    );
+  }
+
+  async function readPng(path: string) {
+    const { contentArchives } = await import("../src/tool-operations");
+    return contentArchives({ target: "https://example.com/a.png", provider: "wayback", path });
+  }
+
+  it("returns the bytes behind the digest only when the read asks for them", async () => {
+    servePng();
+    const archive = createArchive(createWayback());
+
+    const plain = await archive.content("https://example.com/a.png", { cache: false });
+    const withBody = await archive.content("https://example.com/a.png", { body: true });
+
+    expect(plain.content?.body).toBeUndefined();
+    expect(withBody.content?.body).toEqual(png);
+    expect(withBody.content?.sha256).toBe(sha256Hex(png));
+  });
+
+  it("reads bytes from the archive every time instead of the cache", async () => {
+    servePng();
+    const archive = createArchive(createWayback());
+
+    await archive.content("https://example.com/a.png");
+    const withBody = await archive.content("https://example.com/a.png", { body: true });
+    const again = await archive.content("https://example.com/a.png", { body: true });
+
+    expect(withBody.fromCache).toBeUndefined();
+    expect(again.content?.body).toEqual(png);
+    expect(rawMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("returns a Common Crawl body with its transfer and content encodings undone", async () => {
+    const page = "<html><body>Encoded body</body></html>";
+    const record = Buffer.concat([
+      Buffer.from("WARC/1.0\r\nWARC-Type: response\r\n\r\n"),
+      Buffer.from("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Encoding: gzip\r\n\r\n"),
+      gzipSync(page),
+    ]);
+    fetchMock
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          url: "https://example.com/",
+          timestamp: "20240101000000",
+          status: "200",
+          length: "512",
+          offset: "0",
+          filename: "segment.warc.gz",
+        }),
+      )
+      .mockResolvedValueOnce(gzipSync(record));
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com", { body: true });
+
+    expect(new TextDecoder().decode(response.content?.body)).toBe(page);
+    expect(response.content?.sha256).toBe(sha256Hex(page));
+  });
+
+  it("writes a binary capture to a new file whose hash is the one reported", async () => {
+    servePng();
+
+    const result = await readPng("shots/a.png");
+
+    const file = join(root, "shots", "a.png");
+    const text = result.content[0]?.text ?? "";
+    expect(result.isError).toBeUndefined();
+    expect(new Uint8Array(await readFile(file))).toEqual(png);
+    expect(text).toContain(`\nsha256: ${sha256Hex(png)}\n`);
+    expect(text).toContain(`\nfile: ${file}; ${png.byteLength} bytes written\n`);
+    expect(text).toContain("The file above holds its bytes.");
+    expect(result.details.path).toBe(file);
+    expect(result.details.response.content).not.toHaveProperty("body");
+  });
+
+  it("points at path when a binary capture is read without one", async () => {
+    servePng();
+    const { contentArchives } = await import("../src/tool-operations");
+
+    const result = await contentArchives({
+      target: "https://example.com/a.png",
+      provider: "wayback",
+    });
+
+    expect(result.content[0]?.text).toContain("Pass path to write them to a file.");
+  });
+
+  it.each([
+    ["a parent directory", "../outside.png"],
+    ["an absolute path elsewhere", "/etc/outside.png"],
+    ["the directory itself", "."],
+  ])("refuses %s before asking any archive", async (_label, path) => {
+    servePng();
+
+    await expect(readPng(path)).rejects.toThrow("leaves the capture directory");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(rawMock).not.toHaveBeenCalled();
+  });
+
+  it("escapes line separators and bidi controls when it names a refused path", async () => {
+    servePng();
+
+    const error: unknown = await readPng("a\u2028\u202Eb/../../c.png").catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(String(error)).toContain(String.raw`a\u{2028}\u{202e}b`);
+    expect(String(error)).not.toMatch(/[\u2028\u202E]/u);
+  });
+
+  it("refuses a link inside the directory that points out of it", async () => {
+    const outside = await realpath(await mkdtemp(join(tmpdir(), "capture-outside-")));
+    await symlink(outside, join(root, "out"));
+    servePng();
+
+    try {
+      await expect(readPng("out/a.png")).rejects.toThrow("through a link");
+      expect(await readdir(outside)).toEqual([]);
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves an existing file alone", async () => {
+    await writeFile(join(root, "a.png"), "kept");
+    servePng();
+
+    await expect(readPng("a.png")).rejects.toThrow("already exists");
+    expect(await readFile(join(root, "a.png"), "utf8")).toBe("kept");
+    expect(rawMock).not.toHaveBeenCalled();
+  });
+
+  it("does not write a body cut at the byte cap and fails the call", async () => {
+    fetchMock.mockResolvedValue(cdxRows([["https://example.com/a.png", "20200202000000", "200"]]));
+    rawMock.mockImplementation(async () =>
+      rawResponse(new Uint8Array(2_000_001), { headers: { "content-type": "image/png" } }),
+    );
+
+    const result = await readPng("big.png");
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain(
+      "file: not written, the body is longer than the 2000000 bytes one call reads",
+    );
+    expect(await readdir(root)).toEqual([]);
+  });
+
+  it("names a capture directory that does not exist", async () => {
+    vi.stubEnv("ARCHIVES_CAPTURE_DIR", join(root, "missing"));
+
+    await expect(readPng("a.png")).rejects.toThrow("ARCHIVES_CAPTURE_DIR names");
   });
 });

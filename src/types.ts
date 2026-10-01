@@ -130,15 +130,11 @@ export interface ArchiveContentOptions extends ArchiveOptions {
   timestamp?: string;
   // Hard cap on the bytes read from the archived body (default 2 MiB).
   maxBytes?: number;
+  /** Also return the bytes read as `body`. Such a read skips the cache. */
+  body?: boolean;
 }
 
-// One archived capture together with its body.
-//
-// The body is text. A capture that is not text decodes lossily here, and the
-// bytes stay where they are: `_meta.rawSnapshot` for a playback provider, and
-// `snapshot` with `_meta.filename`/`offset`/`length` for a WARC record. Reading
-// pages is what this operation is for; a bytes channel can be added beside it
-// without changing this one.
+/** One capture and its body as text. `body: true` adds the bytes the text was decoded from. */
 export interface ArchivedContent {
   url: string; // Original URL that was archived
   timestamp: string; // ISO 8601 date of the capture actually returned
@@ -149,6 +145,8 @@ export interface ArchivedContent {
   /** Hex SHA-256 of those bytes, taken before charset decoding. */
   sha256?: string;
   truncated: boolean; // Body was cut off at maxBytes
+  /** Those bytes themselves, present only when the read asked for `body`. */
+  body?: Uint8Array;
   _meta: ArchivedPageMetadata;
 }
 

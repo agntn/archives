@@ -14,6 +14,7 @@ import { createArchive } from "./archive.ts";
 import { getConfig } from "./config.ts";
 import { diffArchivedContent } from "./diff.ts";
 import { providers } from "./providers/index.ts";
+import type { CaptureFile } from "./utils/_capture-file.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -48,6 +49,7 @@ import {
   MAX_DIFF_OFFSET,
   MAX_LIMIT,
   MAX_PARAMETER_LENGTH,
+  MAX_PATH_LENGTH,
   MAX_RETRIES,
   MAX_SNAPSHOT_TARGETS,
   MAX_TARGET_LENGTH,
@@ -63,8 +65,10 @@ import {
 } from "./tool-contract.ts";
 
 export {
+  CAPTURE_DIR_ENV,
   CONTENT_FORMAT_HINT,
   CONTENT_FORMATS,
+  CONTENT_PATH_HINT,
   CONTENT_PROVIDER_HINT,
   DEFAULT_CONTENT_TIMEOUT,
   DEFAULT_DIFF_CONTEXT,
@@ -76,6 +80,7 @@ export {
   MAX_DIFF_OFFSET,
   MAX_LIMIT,
   MAX_PARAMETER_LENGTH,
+  MAX_PATH_LENGTH,
   MAX_RETRIES,
   MAX_SNAPSHOT_TARGETS,
   MAX_TARGET_LENGTH,
@@ -196,6 +201,8 @@ export interface ContentParams {
   retries?: number;
   collection?: string;
   user?: string;
+  /** File to write the capture's bytes to, inside the capture directory. */
+  path?: string;
 }
 
 /** The capture that was read, plus how much of it the caller received. */
@@ -228,6 +235,8 @@ export interface ContentDetails {
   continuation?: Readonly<ContentContinuation>;
   /** Body text was clipped to `maxChars` while rendering. */
   clipped: boolean;
+  /** File the capture's bytes were written to. */
+  path?: string;
   response: ArchiveContentResponse;
 }
 
@@ -496,22 +505,14 @@ export async function contentArchives(
   params: Readonly<ContentParams>,
   signal?: Readonly<AbortSignal>,
 ): Promise<ToolResult<ContentDetails>> {
-  const target = params.target.trim();
-  if (!target) {
-    throw new Error("Target cannot be empty");
-  }
-  if (target.length > MAX_TARGET_LENGTH) {
-    throw new Error(`Target must be at most ${MAX_TARGET_LENGTH} characters`);
-  }
-
+  const target = requireContentTarget(params.target);
   const provider = normalizeProvider(params.provider);
   const format = normalizeFormat(params.format);
   const maxChars = params.maxChars ?? DEFAULT_MAX_CHARS;
   const offset = params.offset ?? 0;
-  const requestedOptions = {
-    ...(await buildContentOptions(params, format, maxChars, offset)),
-    signal,
-  };
+  const baseOptions = await buildContentOptions(params, format, maxChars, offset);
+  const file = await prepareCaptureFile(params.path);
+  const requestedOptions = { ...baseOptions, ...captureFileOptions(file), signal };
   const archiveProvider = await createProvider(provider, requestedOptions);
   const archive = createArchive(archiveProvider, requestedOptions);
   const { response, options } = await readContentForPaging(
@@ -522,6 +523,7 @@ export async function contentArchives(
   );
 
   const capture = response.success ? response.content : undefined;
+  const saved = await saveCapture(file, capture);
   // A capture that is not text is described rather than decoded, so nothing of
   // its body is rendered and the counts have to say so.
   const rendered =
@@ -550,17 +552,18 @@ export async function contentArchives(
         text: sanitizeTerminalText(
           [
             buildContentHeader(provider, target, response, rendered, continuation),
+            ...saved.lines,
             // Named even on a successful fan-out: which archive answered, and
             // which one could not, is part of how much the body is worth.
             ...contentFailures(response),
-            ...contentBody(capture, rendered),
+            ...contentBody(capture, rendered, saved.written),
           ].join("\n"),
         ),
       },
     ],
     // No body is a failed read, not an empty page: a caller branching on
     // `isError` must not record "the archived page said nothing".
-    ...(capture ? {} : { isError: true }),
+    ...(capture && !saved.failed ? {} : { isError: true }),
     details: {
       mode: "content",
       target,
@@ -573,6 +576,7 @@ export async function contentArchives(
       hasMore: rendered.hasMore,
       ...continuationDetails(continuation),
       clipped: rendered.clipped,
+      ...saved.details,
       response: detailsResponse(response, rendered.body),
     },
   };
@@ -938,6 +942,7 @@ const TEXT_BOUNDS = {
   from: MAX_TIMESTAMP_LENGTH,
   to: MAX_TIMESTAMP_LENGTH,
   digest: 64,
+  path: MAX_PATH_LENGTH,
 } as const satisfies Record<string, number>;
 
 /* Validates every bounded argument an operation's parameters happen to carry. */
@@ -1310,6 +1315,93 @@ function sanitizeResponse<TResponse extends { _meta?: ArchiveResponse["_meta"] }
   return { ...response, _meta: { ...safeMeta, errorDetails: "<redacted>" } };
 }
 
+/**
+ * Trims the content target and rejects one that is empty or too long.
+ *
+ * @param raw - Target as the caller gave it
+ * @returns {string} The trimmed target
+ */
+function requireContentTarget(raw: string): string {
+  const target = raw.trim();
+  if (!target) {
+    throw new Error("Target cannot be empty");
+  }
+  if (target.length > MAX_TARGET_LENGTH) {
+    throw new Error(`Target must be at most ${MAX_TARGET_LENGTH} characters`);
+  }
+  return target;
+}
+
+/** What the call did with a requested capture file, for the text, `isError` and details. */
+interface SavedCapture {
+  lines: string[];
+  written: boolean;
+  failed: boolean;
+  details: { path?: string };
+}
+
+const NO_CAPTURE_FILE: SavedCapture = { lines: [], written: false, failed: false, details: {} };
+
+/**
+ * Validates the destination of a capture file before the read.
+ *
+ * @param path - Path as the caller gave it, if any
+ * @returns {Promise<CaptureFile | undefined>} The checked directory and file, if any
+ */
+async function prepareCaptureFile(path: string | undefined): Promise<CaptureFile | undefined> {
+  if (path === undefined) return undefined;
+  if (!path.trim()) throw new Error("path cannot be empty");
+  if (path.includes("\0")) throw new Error("path cannot contain a NUL byte");
+  const { resolveCapturePath } = await import("./utils/_capture-file.ts");
+  return resolveCapturePath(path);
+}
+
+/**
+ * Read options a capture file needs: the bytes, and the whole tool ceiling at once.
+ *
+ * @param file - Destination, if the call names one
+ * @returns {Partial<ContentOptions>} Options to spread over the read
+ */
+function captureFileOptions(file: Readonly<CaptureFile> | undefined): Partial<ContentOptions> {
+  return file ? { body: true, maxBytes: MAX_CONTENT_FETCH_BYTES } : {};
+}
+
+/**
+ * Writes a capture's bytes or says why not. A file not written fails the call.
+ *
+ * @param file - Destination checked before the read, if the call names one
+ * @param capture - Capture read with `body` requested
+ * @returns {Promise<SavedCapture>} The result line and whether the file exists now
+ */
+async function saveCapture(
+  file: Readonly<CaptureFile> | undefined,
+  capture: ArchivedContent | undefined,
+): Promise<SavedCapture> {
+  if (!file || !capture) return NO_CAPTURE_FILE;
+  const failure = (reason: string): SavedCapture => ({
+    lines: [`file: not written, ${reason}`],
+    written: false,
+    failed: true,
+    details: {},
+  });
+  if (capture.truncated) {
+    return failure(`the body is longer than the ${MAX_CONTENT_FETCH_BYTES} bytes one call reads`);
+  }
+  if (!capture.body) return failure("the provider returned no bytes for this capture");
+  try {
+    const { writeCaptureFile } = await import("./utils/_capture-file.ts");
+    await writeCaptureFile(file, capture.body);
+  } catch (error) {
+    return failure(sanitizeField(toErrorMessage(error)));
+  }
+  return {
+    lines: [`file: ${sanitizeField(file.target)}; ${capture.body.byteLength} bytes written`],
+    written: true,
+    failed: false,
+    details: { path: file.target },
+  };
+}
+
 /*
  * The capture as the transcript keeps it: metadata intact, body replaced by the
  * text the caller was handed.
@@ -1323,7 +1415,8 @@ function detailsResponse(
 ): ArchiveContentResponse {
   const sanitized = sanitizeResponse(response);
   if (!sanitized.content) return sanitized;
-  return { ...sanitized, content: { ...sanitized.content, content: renderedBody } };
+  const { body: _body, ...capture } = sanitized.content;
+  return { ...sanitized, content: { ...capture, content: renderedBody } };
 }
 
 interface RenderedBody {
@@ -1508,6 +1601,7 @@ function buildContentHeader(
 function contentBody(
   capture: ArchivedContent | undefined,
   rendered: Readonly<RenderedBody>,
+  saved: boolean,
 ): string[] {
   if (!capture) return [];
 
@@ -1517,8 +1611,11 @@ function contentBody(
     // WARC file that has to be range-requested, so pointing there would send the
     // caller after a download that cannot give them the file either way.
     const raw = capture._meta.rawSnapshot;
-    const where =
-      typeof raw === "string" && raw ? ` Its raw bytes are at ${sanitizeField(raw)}.` : "";
+    const where = saved
+      ? " The file above holds its bytes."
+      : typeof raw === "string" && raw
+        ? ` Its raw bytes are at ${sanitizeField(raw)}. Pass path to write them to a file.`
+        : " Pass path to write its bytes to a file.";
     return [
       "",
       `The capture is ${sanitizeField(capture.mime ?? "of an unknown type")}, which this tool does not return as text.${where}`,

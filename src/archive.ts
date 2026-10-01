@@ -589,7 +589,7 @@ export class Archive implements ArchiveInterface {
   }
 
   /**
-   * Read one archived capture's body from a single provider, honoring the cache.
+   * Read one capture's body from one provider, through the cache unless it wants bytes.
 
    *
    * @param provider - Provider.
@@ -615,7 +615,8 @@ export class Archive implements ArchiveInterface {
       };
     }
 
-    if (requestOptions.cache !== false) {
+    const useCache = requestOptions.cache !== false && !requestOptions.body;
+    if (useCache) {
       const cached = await getStoredContent(provider, url, requestOptions);
       if (cached) return cached;
     }
@@ -623,7 +624,7 @@ export class Archive implements ArchiveInterface {
     try {
       const response = await provider.content(url, requestOptions);
 
-      if (response.success && requestOptions.cache !== false) {
+      if (response.success && useCache) {
         await storeContent(provider, url, response, requestOptions);
       }
 

@@ -14,6 +14,7 @@ import {
   fetchBody,
   type FetchedBody,
   preferSameUrl,
+  requestedBody,
   resolveRequestedTimestamp,
   selectCapture,
   toWaybackTimestamp,
@@ -241,6 +242,7 @@ function mementoContentResponse(
   capture: Readonly<MementoCapture>,
   playback: MementoPlayback,
   wanted: string | undefined,
+  options: Readonly<ArchiveContentOptions>,
 ): ArchiveContentResponse {
   const { baseURL, body, proxyFallback } = playback;
   const servedDifferent = body.capturedAt !== capture.page.timestamp;
@@ -254,6 +256,7 @@ function mementoContentResponse(
       bytes: body.bytes,
       sha256: body.sha256,
       truncated: body.truncated,
+      ...requestedBody(body.data, options),
       _meta: playbackMetadata(playback),
     },
     "memento",
@@ -376,7 +379,7 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
       }
 
       const playback = await this.readCapture(capture, options);
-      return mementoContentResponse(capture, playback, wanted);
+      return mementoContentResponse(capture, playback, wanted, options);
     } catch (error) {
       return createContentErrorResponse(error, "memento");
     }

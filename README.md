@@ -155,7 +155,7 @@ pi install git:github.com/agntn/archives
 }
 ```
 
-Four read-only tools: snapshots, content, diff and providers. An archived body comes back fenced as untrusted data. It's a recording of a web page, not a message for the model. The Perma.cc key lives in `PERMA_CC_API_KEY`, never in a tool argument.
+Four tools: snapshots, content, diff and providers. Only content writes, and only when you give it a `path`. That file stays inside `ARCHIVES_CAPTURE_DIR`, or the working directory without it. An archived body comes back fenced as untrusted data. It's a recording of a web page, not a message for the model. The Perma.cc key lives in `PERMA_CC_API_KEY`, never in a tool argument.
 
 One thing to know. `archives mcp` reads its config from your home directory, not from the project your client has open. Browsing someone's repo shouldn't run their `archives.config.ts`. [Agents guide](https://archives.agntn.dev/guide/agents).
 

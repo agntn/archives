@@ -17,6 +17,7 @@ import {
   isNoCaptureError,
   normalizeDomain,
   preferSameUrl,
+  requestedBody,
   resolveRequestedTimestamp,
   selectCapture,
   waybackTimestampToISO,
@@ -211,6 +212,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
           bytes: body.bytes,
           sha256: body.sha256,
           truncated: body.truncated,
+          ...requestedBody(body.data, options),
           _meta: {
             timestamp: capture.timestamp,
             status: body.status,

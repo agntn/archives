@@ -58,6 +58,11 @@ export const DEFAULT_DIFF_CONTEXT = 3;
 export const MAX_DIFF_CONTEXT = 100;
 /** Ceiling on what one content call may pull over the network. */
 export const MAX_CONTENT_FETCH_BYTES = 2_000_000;
+/** Variable naming the directory archives_content writes capture files into. */
+export const CAPTURE_DIR_ENV = "ARCHIVES_CAPTURE_DIR";
+export const MAX_PATH_LENGTH = 1024;
+
+export const CONTENT_PATH_HINT = `File to write the capture's bytes to, with transfer and content encodings undone, so the sha256 line is the file's hash. Relative to ${CAPTURE_DIR_ENV}, or to the working directory when it is unset. The path must stay inside that directory and must not exist yet. A body longer than ${MAX_CONTENT_FETCH_BYTES} bytes is not written.`;
 /** Largest UTF-16 position accepted within the fixed fetched prefix. */
 export const MAX_CONTENT_OFFSET = MAX_CONTENT_FETCH_BYTES;
 /** Largest position in a derived patch, which can contain both complete bodies. */
