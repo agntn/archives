@@ -153,9 +153,9 @@ describe("docs WebMCP tools", () => {
         (error: unknown) => ({ status: "rejected" as const, error }),
       );
       const second = coverage("example.com", secondController.signal);
-      await vi.waitFor(() => expect(storage.getItem).toHaveBeenCalledTimes(14));
-      await vi.waitFor(() => expect(snapshotArchivesMock).toHaveBeenCalledTimes(16));
-      await vi.waitFor(() => expect(pending).toHaveLength(16));
+      await vi.waitFor(() => expect(storage.getItem).toHaveBeenCalledTimes(12));
+      await vi.waitFor(() => expect(snapshotArchivesMock).toHaveBeenCalledTimes(14));
+      await vi.waitFor(() => expect(pending).toHaveLength(14));
 
       firstController.abort(new DOMException("first caller left", "AbortError"));
       for (const call of pending.filter(({ signal }) => signal === secondController.signal)) {
@@ -173,10 +173,18 @@ describe("docs WebMCP tools", () => {
 
       const firstResult = await first;
       expect(firstResult).toMatchObject({ status: "rejected", error: { name: "AbortError" } });
-      expect((await second).providers.every(({ state }) => state === "ok")).toBe(true);
+      const states = Object.fromEntries(
+        (await second).providers.map(({ provider, state }) => [provider, state]),
+      );
+      expect(states).toMatchObject({ wayback: "ok", archiveToday: "unreachable" });
+      expect(Object.values(states).filter((state) => state !== "ok")).toEqual(["unreachable"]);
+      expect(snapshotArchivesMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ provider: "archiveToday" }),
+        expect.anything(),
+      );
       expect(new Set(pending.map(({ signal }) => signal)).size).toBe(2);
-      expect(storage.getItem).toHaveBeenCalledTimes(14);
-      expect(storage.setItem).toHaveBeenCalledTimes(7);
+      expect(storage.getItem).toHaveBeenCalledTimes(12);
+      expect(storage.setItem).toHaveBeenCalledTimes(6);
     } finally {
       vi.unstubAllGlobals();
       snapshotArchivesMock.mockReset();

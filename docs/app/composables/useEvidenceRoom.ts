@@ -32,7 +32,7 @@ export type WebMcpAvailability = "checking" | "ready" | "unavailable" | "error";
 
 export interface EvidenceCoverage {
   readonly provider: string;
-  readonly state: "ok" | "empty" | "unsupported" | "failed";
+  readonly state: "ok" | "empty" | "unsupported" | "unreachable" | "failed";
   readonly count: number;
   readonly first?: string;
   readonly last?: string;

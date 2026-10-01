@@ -18,12 +18,12 @@ export default defineEventHandler(async (event) => {
     collection: readString(query, "collection", LIMITS.parameter),
     ...(provider === "wayback" || provider === "archiveIt" ? { collapse: "urlkey" } : {}),
   };
+  assertReachable(provider);
   try {
     return await cachedAnswer(event, "urls", params, TTL, async () => {
       const result = await snapshotArchives({ ...params, timeout: LIMITS.timeout });
       const response = result.details.response;
-      const errors = response._meta?.errors;
-      return { value: toolAnswer(result, !response.success), degraded: Array.isArray(errors) && errors.length > 0 };
+      return { value: toolAnswer(result, !response.success), degraded: hasReachableFailure(response._meta?.errors) };
     });
   } catch (error) {
     return toHttpError(error);

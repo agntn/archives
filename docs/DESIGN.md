@@ -33,7 +33,7 @@ The same mapping as web and registries, plus three controls archives needs:
 | `UButton` primary solid, neutral outline | action segment, glyph in its own cell | search, load, trace, get started |
 | `UButton` neutral subtle | boxed control, `square` for a step | open, view, copy, previous and next |
 | `UButton` variant `chip` | chip, primary for the picked one | warm domains, diff format |
-| `UBadge` neutral subtle, neutral outline, error outline | boxed mono word: bright, quiet, red | archive state (`ok`, `empty`, `unsupported`, `failed`), finding relation |
+| `UBadge` neutral subtle, neutral outline, error outline | boxed mono word: bright, quiet, red | archive state (`ok`, `empty`, `unsupported`, `unreachable`, `failed`), finding relation |
 | `UTabs` link | mono capitals over an accent segment | viewer mode, agent tool, export format |
 | `UInput`, `USelectMenu`, `UTextarea` none | the readout row is the frame | every explorer field |
 | `UCheckbox` | square box, the accent once picked | picking two captures to diff |

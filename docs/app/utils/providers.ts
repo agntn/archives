@@ -84,7 +84,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     inAll: true,
     frame: false,
     caveat:
-      "Archive.today throttles automated readers and often answers 429. Reads from here can fail; the capture always opens in a new tab.",
+      "Archive.today doesn't answer connections from Cloudflare Workers, so this site can't list or read it. Run providers.archiveToday() from your own machine.",
     about: "Memento TimeMap on archive.is. Bodies are the rendered wrapper page, not the original bytes.",
     to: "/providers/archive-today",
   },

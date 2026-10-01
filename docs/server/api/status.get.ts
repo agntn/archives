@@ -6,13 +6,13 @@ const PROBE_TIMEOUT = 15_000;
 
 export interface ProviderProbe {
   provider: string;
-  state: "ok" | "empty" | "unsupported" | "failed" | "needs-config";
+  state: "ok" | "empty" | "unsupported" | "unreachable" | "failed" | "needs-config";
   ms: number;
   note: string;
   reason?: string;
 }
 
-/** One small listing per provider, timed; providers that need a collection, a user or a key are reported, not probed. */
+/** One timed listing per provider; unconfigured or unreachable ones are reported, not probed. */
 export default defineCachedEventHandler(
   async (event) => {
     const statuses = listArchiveProviders().details.providers.filter((status) => status.name !== "all");
@@ -21,6 +21,10 @@ export default defineCachedEventHandler(
         const needsConfig = /\{/u.test(status.factory) || status.requiresApiKey;
         if (needsConfig) {
           return { provider: status.name, state: "needs-config", ms: 0, note: status.note };
+        }
+        const unreachable = unreachableReason(status.name);
+        if (unreachable) {
+          return { provider: status.name, state: "unreachable", ms: 0, note: status.note, reason: unreachable };
         }
         const started = Date.now();
         try {

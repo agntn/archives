@@ -1,6 +1,7 @@
 import { snapshotArchives } from "@agntn/archives/tool-operations";
 import type { ArchivedPage } from "@agntn/archives";
 import { hash } from "ohash";
+import { unreachableReason } from "./reach";
 
 /** Providers that can list a domain without a collection, a user, or a key. */
 export const COVERAGE_PROVIDERS = [
@@ -13,7 +14,7 @@ export const COVERAGE_PROVIDERS = [
   "webcite",
 ] as const;
 
-export type CoverageState = "ok" | "empty" | "unsupported" | "failed";
+export type CoverageState = "ok" | "empty" | "unsupported" | "unreachable" | "failed";
 
 export interface ProviderCoverage {
   provider: (typeof COVERAGE_PROVIDERS)[number];
@@ -148,6 +149,8 @@ async function cachedProviderCoverage(
   signal?: Readonly<AbortSignal>,
 ): Promise<ProviderCoverage> {
   if (signal?.aborted) throw abortError(signal);
+  const unreachable = unreachableReason(provider);
+  if (unreachable) return { provider, state: "unreachable", count: 0, years: {}, reason: unreachable, ms: 0, sample: [] };
   const storage = useStorage("cache");
   const key = `docs:coverage:${provider}:${hash(target)}`;
   const cached = await storage.getItem<CachedProviderCoverage>(key).catch(() => null);

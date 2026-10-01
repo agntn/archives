@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
     collection: readString(query, "collection", LIMITS.parameter),
     user: readString(query, "user", LIMITS.parameter),
   };
+  assertReachable(params.provider);
   try {
     return await cachedAnswer(event, "content", params, TTL, async () => {
       const result = await contentArchives({ ...params, timeout: LIMITS.bodyTimeout });
