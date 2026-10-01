@@ -5,7 +5,7 @@ export default defineAppConfig({
   seo: {
     title: "@agntn/archives",
     description:
-      "One TypeScript interface over ten web archives: list captures, read what a page said, diff two versions, and hand the same tools to an agent.",
+      "One TypeScript interface for web archives: list captures, read what a page said, diff two versions, and hand the same tools to an agent.",
   },
   header: {
     title: "@agntn/archives",

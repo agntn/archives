@@ -59,6 +59,14 @@ export interface WebarchivMetadata extends ArchiveMetadata {
   provider: "webarchiv";
 }
 
+export interface VefsafnMetadata extends ArchiveMetadata {
+  timestamp: string;
+  status?: number;
+  mime?: string;
+  digest?: string;
+  provider: "vefsafn";
+}
+
 export interface CommonCrawlMetadata extends ArchiveMetadata {
   timestamp: string;
   status: number;

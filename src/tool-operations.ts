@@ -880,6 +880,7 @@ const PROVIDER_FACTORIES: Readonly<Record<SingleProviderName, ProviderFactory>> 
   wayback: (options) => providers.wayback(options),
   arquivo: (options) => providers.arquivo(options),
   webarchiv: (options) => providers.webarchiv(options),
+  vefsafn: (options) => providers.vefsafn(options),
   archiveIt: archiveItFactory,
   conifer: coniferFactory,
   archiveToday: (options) => providers.archiveToday(options),
@@ -1178,7 +1179,7 @@ function getProviderStatuses(): ProviderStatus[] {
       includedInAll: false,
       requiresApiKey: false,
       configured: true,
-      note: "Queries Wayback, Arquivo.pt, Webarchiv Österreich, Archive.today, Common Crawl, and WebCite; excludes Archive-It, Conifer, Memento, and Perma.cc.",
+      note: "Queries Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, Archive.today, Common Crawl, and WebCite; excludes Archive-It, Conifer, Memento, and Perma.cc.",
     },
     {
       name: "wayback",
@@ -1203,6 +1204,14 @@ function getProviderStatuses(): ProviderStatus[] {
       requiresApiKey: false,
       configured: true,
       note: "Webarchiv Österreich public CDXJ index with raw replay support; exact URL lookup.",
+    },
+    {
+      name: "vefsafn",
+      factory: "providers.vefsafn()",
+      includedInAll: true,
+      requiresApiKey: false,
+      configured: true,
+      note: "Vefsafn, the Icelandic web archive: public CDX index with raw replay support; exact URL lookup.",
     },
     {
       name: "archiveIt",

@@ -9,6 +9,8 @@ export type ArquivoOptions = ArchiveOptions;
 
 export type WebarchivOptions = ArchiveOptions;
 
+export type VefsafnOptions = ArchiveOptions;
+
 export interface ArchiveItOptions extends ArchiveOptions {
   collection: number | string;
   collapse?: string;

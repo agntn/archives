@@ -22,6 +22,7 @@ const RECOMMENDATION_ORDER: readonly EvidenceProvider[] = [
   "arquivo",
   "wayback",
   "webarchiv",
+  "vefsafn",
   "commoncrawl",
   "archiveToday",
 ];

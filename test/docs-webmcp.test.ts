@@ -12,7 +12,7 @@ import {
 import { providerInfo } from "../docs/app/utils/providers";
 import { useEvidenceRoom } from "../docs/app/composables/useEvidenceRoom";
 import { archiveRequestAbort } from "../docs/server/utils/query";
-import { coverage } from "../docs/server/utils/coverage";
+import { COVERAGE_PROVIDERS, coverage } from "../docs/server/utils/coverage";
 
 const { snapshotArchivesMock } = vi.hoisted(() => ({ snapshotArchivesMock: vi.fn() }));
 vi.mock("@agntn/archives/tool-operations", () => ({ snapshotArchives: snapshotArchivesMock }));
@@ -131,6 +131,7 @@ describe("docs WebMCP tools", () => {
       readonly reject: (reason: unknown) => void;
     }
 
+    const probed = COVERAGE_PROVIDERS.filter((provider) => provider !== "archiveToday").length;
     const pending: PendingCall[] = [];
     snapshotArchivesMock.mockImplementation(
       (_options: Readonly<{ target: string; provider: string }>, signal: AbortSignal) =>
@@ -153,9 +154,9 @@ describe("docs WebMCP tools", () => {
         (error: unknown) => ({ status: "rejected" as const, error }),
       );
       const second = coverage("example.com", secondController.signal);
-      await vi.waitFor(() => expect(storage.getItem).toHaveBeenCalledTimes(12));
-      await vi.waitFor(() => expect(snapshotArchivesMock).toHaveBeenCalledTimes(14));
-      await vi.waitFor(() => expect(pending).toHaveLength(14));
+      await vi.waitFor(() => expect(storage.getItem).toHaveBeenCalledTimes(2 * probed));
+      await vi.waitFor(() => expect(snapshotArchivesMock).toHaveBeenCalledTimes(2 * (probed + 1)));
+      await vi.waitFor(() => expect(pending).toHaveLength(2 * (probed + 1)));
 
       firstController.abort(new DOMException("first caller left", "AbortError"));
       for (const call of pending.filter(({ signal }) => signal === secondController.signal)) {
@@ -183,8 +184,8 @@ describe("docs WebMCP tools", () => {
         expect.anything(),
       );
       expect(new Set(pending.map(({ signal }) => signal)).size).toBe(2);
-      expect(storage.getItem).toHaveBeenCalledTimes(12);
-      expect(storage.setItem).toHaveBeenCalledTimes(6);
+      expect(storage.getItem).toHaveBeenCalledTimes(2 * probed);
+      expect(storage.setItem).toHaveBeenCalledTimes(probed);
     } finally {
       vi.unstubAllGlobals();
       snapshotArchivesMock.mockReset();

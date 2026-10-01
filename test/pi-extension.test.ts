@@ -65,6 +65,12 @@ vi.mock("../src/providers", () => ({
       snapshots: archivesMock.snapshots,
       content: archivesMock.content,
     }),
+    vefsafn: async () => ({
+      name: "Vefsafn",
+      slug: "vefsafn",
+      snapshots: archivesMock.snapshots,
+      content: archivesMock.content,
+    }),
     archiveIt: archivesMock.archiveIt,
     conifer: archivesMock.conifer,
     archiveToday: async () => ({

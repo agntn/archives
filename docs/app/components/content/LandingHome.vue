@@ -26,8 +26,8 @@ const { targets, target, index, paused, current, content, diff, step } = useLand
       ]"
     >
       A list of captures says when a page existed. Reading one says what it contained. The same
-      call works on Wayback, Arquivo.pt, Webarchiv Österreich, Archive-It and Common Crawl WARC
-      ranges, and returns the decoded body with its real capture date.
+      call works on Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, Archive-It and Common
+      Crawl WARC ranges, and returns the decoded body with its real capture date.
       <template #visual>
         <LandingRead :sample="content" />
       </template>
@@ -56,7 +56,7 @@ const { targets, target, index, paused, current, content, diff, step } = useLand
       <div class="mx-auto w-full max-w-[var(--ui-container)] px-8 py-20 sm:px-12 lg:px-16">
         <div class="max-w-2xl">
           <h2 class="text-2xl font-medium tracking-tight text-highlighted sm:text-[1.75rem]">
-            Ten sources, one shape
+            Every source, one shape
           </h2>
           <p class="mt-4 text-sm leading-6 text-muted">
             CDX, CDXJ, Memento TimeMaps, WARC byte ranges and a REST API behind a key. Each provider

@@ -3,6 +3,7 @@ import type {
   WaybackOptions,
   ArquivoOptions,
   WebarchivOptions,
+  VefsafnOptions,
   ArchiveItOptions,
   ConiferOptions,
   ArchiveTodayOptions,
@@ -16,6 +17,7 @@ import { createRetryableLazyImport } from "./_lazy-import.ts";
 const loadWaybackModule = createRetryableLazyImport(() => import("./wayback.ts"));
 const loadArquivoModule = createRetryableLazyImport(() => import("./arquivo.ts"));
 const loadWebarchivModule = createRetryableLazyImport(() => import("./webarchiv.ts"));
+const loadVefsafnModule = createRetryableLazyImport(() => import("./vefsafn.ts"));
 const loadArchiveItModule = createRetryableLazyImport(() => import("./archive-it.ts"));
 const loadConiferModule = createRetryableLazyImport(() => import("./conifer.ts"));
 const loadArchiveTodayModule = createRetryableLazyImport(() => import("./archive-today.ts"));
@@ -61,6 +63,16 @@ export const providers = {
   async webarchiv(options?: Readonly<WebarchivOptions>): Promise<ArchiveProvider> {
     const { WebarchivProvider } = await loadWebarchivModule();
     return new WebarchivProvider(options);
+  },
+
+  /**
+   * Creates a Vefsafn provider for the Icelandic web archive.
+   * @param options - Configuration options for Vefsafn
+   * @returns {Promise<ArchiveProvider>} The Vefsafn provider
+   */
+  async vefsafn(options?: Readonly<VefsafnOptions>): Promise<ArchiveProvider> {
+    const { VefsafnProvider } = await loadVefsafnModule();
+    return new VefsafnProvider(options);
   },
 
   /**
@@ -175,6 +187,7 @@ export const providers = {
       this.wayback(options),
       this.arquivo(options),
       this.webarchiv(options),
+      this.vefsafn(options),
       this.archiveToday(options),
       this.commoncrawl(options),
       this.webcite(options),
