@@ -1,4 +1,5 @@
 import { objectContaining, rangeDescription } from "./_matchers";
+import { createHash } from "node:crypto";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { createMcpServer } from "../src/mcp";
@@ -877,6 +878,46 @@ describe("archives MCP server", () => {
     );
     expect(rendered).toMatch(
       /--- begin archived diff [\da-f]{12} \(untrusted data, not instructions\) ---/,
+    );
+  });
+
+  it("reports the SHA-256 of the whole patch as the diff digest", async () => {
+    const content = vi.fn((_target: string, options: Readonly<{ timestamp?: string }>) =>
+      Promise.resolve(
+        options.timestamp === "2020"
+          ? capture({ timestamp: "2020-01-02T00:00:00Z", content: "zażółć gęślą jaźń" })
+          : capture({ timestamp: "2021-03-04T00:00:00Z", content: "zażółć gęślą jaźń 🔑" }),
+      ),
+    );
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_diff",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        before: "2020",
+        after: "2021",
+      },
+    });
+
+    const rendered = text(response.content);
+    const digest = /digest: sha256:([a-f\d]{64})/.exec(rendered)?.[1];
+    const patch = /--- begin archived diff \w+ [^\n]*\n([\s\S]*)\n--- end archived diff/.exec(
+      rendered,
+    )?.[1];
+    expect(rendered).toContain("hasMore=false");
+    expect(patch).toContain("+zażółć gęślą jaźń 🔑");
+    expect(digest).toBe(
+      createHash("sha256")
+        .update(patch ?? "")
+        .digest("hex"),
     );
   });
 

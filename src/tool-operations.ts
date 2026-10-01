@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 /**
  * Tool executors shared by the MCP server and the Pi and OMP extensions.
  *
@@ -11,6 +9,7 @@ import { createHash } from "node:crypto";
  * surface never reaches past `providers` into a provider module.
  */
 
+import { sha256 } from "@agntn/hashes";
 import { createArchive } from "./archive.ts";
 import { getConfig } from "./config.ts";
 import { diffArchivedContent } from "./diff.ts";
@@ -1576,7 +1575,7 @@ function withoutPatch(diff: ArchivedContentDiff): Omit<ArchivedContentDiff, "pat
 }
 
 function diffDigest(patch: string): string {
-  return createHash("sha256").update(patch).digest("hex");
+  return sha256(new TextEncoder().encode(patch)).toHex();
 }
 
 function createDiffContinuation(

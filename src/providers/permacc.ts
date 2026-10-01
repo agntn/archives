@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256 } from "@agntn/hashes";
 import { $fetch } from "ofetch";
 import { hasProtocol } from "ufo";
 import type { PermaccOptions } from "../_providers.ts";
@@ -200,7 +200,10 @@ export class PermaccProvider extends BaseProvider<PermaccOptions> {
     const apiKey = options?.apiKey ?? this.options.apiKey;
     if (!apiKey) return undefined;
 
-    const fingerprint = createHash("sha256").update(apiKey).digest("base64url");
+    const fingerprint = sha256(new TextEncoder().encode(apiKey)).toBase64({
+      alphabet: "base64url",
+      omitPadding: true,
+    });
     const limit = options?.limit ?? this.options.limit ?? 100;
     return `apiKey=${fingerprint},limit=${limit}`;
   }
