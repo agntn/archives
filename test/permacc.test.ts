@@ -1,4 +1,5 @@
 import { objectContaining } from "./_matchers";
+import { createHash } from "node:crypto";
 import { $fetch } from "ofetch";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { createArchive, resetConfig, storage } from "../src";
@@ -231,6 +232,14 @@ describe("Perma.cc Platform", () => {
     const cacheKeys = (await storage.getKeys()).join("\n");
     expect(cacheKeys).not.toContain("first-secret-key");
     expect(cacheKeys).not.toContain("second-secret-key");
+  });
+
+  it("keys the cache partition by the SHA-256 of the API key", () => {
+    for (const apiKey of ["test-secret-key", "klucz-zażółć-🔑"]) {
+      const fingerprint = createHash("sha256").update(apiKey).digest("base64url");
+
+      expect(createPermacc({ apiKey }).cacheKey()).toBe(`apiKey=${fingerprint},limit=100`);
+    }
   });
 
   it("isolates cache entries between provider instances", async () => {
