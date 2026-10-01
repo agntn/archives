@@ -198,6 +198,7 @@ export function unreadableTargetReason(url: string): string | undefined {
  * returns captures of `http://sample@example.com/`. The archive considers them
  * the same page; a caller does not, and replaying one reports a URL that was
  * never asked about. They stay as a fallback for when nothing matches exactly.
+ * Captures spelled like the request come first, whatever order the index listed them in.
  *
  * @param captures - Candidates from the index
  * @param target - URL the caller asked for
@@ -220,10 +221,14 @@ export function preferSameUrl<T>(
   // and only when they wrote one; a site that was only ever archived over HTTP
   // still answers a request that asks for HTTPS.
   const wantedScheme = schemeOf(target);
-  if (!wantedScheme) return sameUrl;
+  const sameScheme = wantedScheme
+    ? sameUrl.filter((capture) => schemeOf(urlOf(capture)) === wantedScheme)
+    : [];
+  const narrowed = sameScheme.length > 0 ? sameScheme : sameUrl;
 
-  const sameScheme = sameUrl.filter((capture) => schemeOf(urlOf(capture)) === wantedScheme);
-  return sameScheme.length > 0 ? sameScheme : sameUrl;
+  const spelled = spelledUrlKey(target);
+  const isSpelled = (capture: T) => spelledUrlKey(urlOf(capture)) === spelled;
+  return narrowed.toSorted((a, b) => Number(isSpelled(b)) - Number(isSpelled(a)));
 }
 
 function schemeOf(value: string): string {
@@ -233,21 +238,28 @@ function schemeOf(value: string): string {
 /* Reduces a URL to the differences that matter when comparing two spellings of it. */
 function canonicalUrlKey(value: string): string {
   return (
-    value
-      .trim()
-      .replace(/^[a-z][\w+.-]*:\/\//i, "")
+    spelledUrlKey(value)
       // Archives canonicalize `www.` away, so a capture under it answers a request
       // without it; a userinfo prefix is left in place, being a different URL.
-      .replace(/^www\./i, "")
+      .replace(/^www\./, "")
       .replace(/\/+$/, "")
-      .toLowerCase()
   );
+}
+
+/* A URL as written, minus its scheme, its case and the slash after a bare host. */
+function spelledUrlKey(value: string): string {
+  const key = value
+    .trim()
+    .replace(/^[a-z][\w+.-]*:\/\//i, "")
+    .toLowerCase();
+  return key.indexOf("/") === key.length - 1 ? key.slice(0, -1) : key;
 }
 
 /**
  * Picks the capture a `timestamp` request means: the newest one at or before it,
  * or, when the archive only holds later captures, the oldest one after it.
  * Without a requested timestamp the newest capture wins.
+ * Captures sharing a timestamp keep the order `preferSameUrl` gave them.
  *
  * @param captures - Candidates carrying Wayback-style timestamp digits
  * @param timestamp - Validated timestamp digits, possibly partial
@@ -261,8 +273,8 @@ export function selectCapture<T extends { timestamp: string; status?: number }>(
 ): T | undefined {
   if (captures.length === 0) return undefined;
 
-  const ordered = [...captures].sort((a, b) => compareTimestamps(a.timestamp, b.timestamp));
-  const newestFirst = [...ordered].reverse();
+  const ordered = captures.toSorted((a, b) => compareTimestamps(a.timestamp, b.timestamp));
+  const newestFirst = captures.toSorted((a, b) => compareTimestamps(b.timestamp, a.timestamp));
   if (!timestamp) return pickPreferred(newestFirst);
 
   // A request that names the instant exactly names one capture, and it outranks
