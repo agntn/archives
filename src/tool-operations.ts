@@ -1469,6 +1469,19 @@ function captureStatusLine(meta: Readonly<Record<string, unknown>>): string[] {
   return [`status: ${status}${redirectNote}`];
 }
 
+/**
+ * Digest of the whole read rather than the slice, so it holds across offsets.
+ *
+ * @param sha256 - Digest the provider reported for the bytes it read
+ * @param truncated - Whether those bytes stop at the byte cap
+ * @returns {string[]} The `sha256:` line, or nothing when the provider sent no digest
+ */
+function bodyDigestLine(sha256: string | undefined, truncated: boolean): string[] {
+  if (!sha256) return [];
+  const scope = truncated ? " (of the bytes read, not the whole body)" : "";
+  return [`sha256: ${sanitizeField(sha256)}${scope}`];
+}
+
 function buildContentHeader(
   provider: ProviderName,
   target: string,
@@ -1495,6 +1508,7 @@ function buildContentHeader(
     `snapshot: ${sanitizeField(capture.snapshot)}`,
     ...captureStatusLine(capture._meta),
     `type: ${sanitizeField(capture.mime ?? "unknown")}; ${capture.bytes} bytes read${truncatedNote}${sliceNote}`,
+    ...bodyDigestLine(capture.sha256, capture.truncated),
     ...continuationLine,
   ].join("\n");
 }

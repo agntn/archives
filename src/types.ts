@@ -146,6 +146,8 @@ export interface ArchivedContent {
   content: string; // Decoded body of the archived response, as text
   mime?: string; // Content type the archive reports for the capture
   bytes: number; // Bytes read from the body, after any cap
+  /** Hex SHA-256 of those bytes, taken before charset decoding. */
+  sha256?: string;
   truncated: boolean; // Body was cut off at maxBytes
   _meta: ArchivedPageMetadata;
 }

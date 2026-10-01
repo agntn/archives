@@ -11,3 +11,4 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - webmcp-types@0.1.6
+  - '@agntn/*'

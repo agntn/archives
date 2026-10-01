@@ -10,6 +10,7 @@
     "deploy": "pnpm build && wrangler deploy"
   },
   "dependencies": {
+    "@agntn/hashes": "0.5.0",
     "better-sqlite3": "12.11.1",
     "consola": "3.4.2",
     "diff": "8.0.4",

@@ -1,4 +1,5 @@
 import { objectContaining } from "./_matchers";
+import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { $fetch, type FetchResponse } from "ofetch";
@@ -49,6 +50,11 @@ function textStream(chunks: readonly string[]): ReadableStream<Uint8Array> {
       controller.close();
     },
   });
+}
+
+/* An oracle independent of the `@agntn/hashes` digest the library computes. */
+function sha256Hex(data: string | Uint8Array): string {
+  return createHash("sha256").update(data).digest("hex");
 }
 
 /* A provider stub with only the methods a given test needs. */
@@ -678,6 +684,86 @@ describe("wayback content", () => {
     expect(response.content?.content).toContain("ąćę");
   });
 
+  it("hashes the bytes it read, not the text they decode to", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.pl/", "20030101000000", "200"]]));
+    const body = Uint8Array.from([0x3c, 0x70, 0x3e, 0xb1, 0xe6, 0xea]);
+    rawMock.mockResolvedValueOnce(
+      rawResponse(body, { headers: { "content-type": "text/html; charset=iso-8859-2" } }),
+    );
+
+    const response = await createArchive(createWayback()).content("example.pl");
+
+    expect(response.content?.content).toBe("<p>ąćę");
+    expect(response.content?.sha256).toBe(sha256Hex(body));
+    expect(response.content?.sha256).not.toBe(sha256Hex("<p>ąćę"));
+  });
+
+  it("hashes only the bytes kept under the byte cap", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20200101000000", "200"]]));
+    rawMock.mockResolvedValueOnce(
+      rawResponse(textStream(["0123456789", "abcdefghij"]), {
+        headers: { "content-type": "text/plain" },
+      }),
+    );
+
+    const response = await createArchive(createWayback()).content("example.com", {
+      maxBytes: 15,
+    });
+
+    expect(response.content?.truncated).toBe(true);
+    expect(response.content?.sha256).toBe(sha256Hex("0123456789abcde"));
+  });
+
+  it("prints the same body digest on every slice of one capture", async () => {
+    const body = "abcdefghij";
+    fetchMock.mockResolvedValue(cdxRows([["https://example.com/", "20200202000000", "200"]]));
+    rawMock.mockResolvedValue(
+      rawResponse(body, {
+        url: "https://web.archive.org/web/20200202000000id_/https://example.com/",
+        headers: { "content-type": "text/plain" },
+      }),
+    );
+    const { contentArchives } = await import("../src/tool-operations");
+
+    const first = await contentArchives({
+      target: "https://example.com/",
+      provider: "wayback",
+      maxChars: 4,
+      cache: false,
+    });
+    const second = await contentArchives({
+      target: "https://example.com/",
+      provider: "wayback",
+      maxChars: 4,
+      offset: 4,
+      timestamp: "2020-02-02T00:00:00Z",
+      cache: false,
+    });
+
+    const line = `\nsha256: ${sha256Hex(body)}\n`;
+    expect(first.content[0]?.text).toContain("slice: 0..4");
+    expect(first.content[0]?.text).toContain(line);
+    expect(second.content[0]?.text).toContain("slice: 4..8");
+    expect(second.content[0]?.text).toContain(line);
+  });
+
+  it("says when the printed digest covers only the bytes under the tool's cap", async () => {
+    const body = "a".repeat(2_000_001);
+    fetchMock.mockResolvedValue(cdxRows([["https://example.com/", "20200202000000", "200"]]));
+    rawMock.mockResolvedValue(rawResponse(body, { headers: { "content-type": "text/plain" } }));
+    const { contentArchives } = await import("../src/tool-operations");
+
+    const tool = await contentArchives({
+      target: "https://example.com/",
+      provider: "wayback",
+      cache: false,
+    });
+
+    expect(tool.content[0]?.text).toContain(
+      `\nsha256: ${sha256Hex(body.slice(0, 2_000_000))} (of the bytes read, not the whole body)\n`,
+    );
+  });
+
   it("serves a repeated read from the cache without touching the archive", async () => {
     fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20200101000000", "200"]]));
     rawMock.mockResolvedValueOnce(rawResponse("cached body", { url: "" }));
@@ -1142,6 +1228,7 @@ describe("common crawl content", () => {
     // A record keeps the response as it went over the wire, so the chunk sizes
     // and the compression are part of the stored bytes.
     expect(response.content?.content).toBe("<html><body>Encoded body</body></html>");
+    expect(response.content?.sha256).toBe(sha256Hex("<html><body>Encoded body</body></html>"));
   });
 
   it("truncates an encoded body past the cap and keeps its opening", async () => {

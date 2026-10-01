@@ -210,6 +210,7 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
           content: body.text,
           ...(body.mime ? { mime: body.mime } : {}),
           bytes: body.bytes,
+          sha256: body.sha256,
           truncated: body.truncated,
           _meta: {
             timestamp: capture.timestamp,

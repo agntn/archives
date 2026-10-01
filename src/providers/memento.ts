@@ -253,6 +253,7 @@ function mementoContentResponse(
       content: body.text,
       ...(body.mime ? { mime: body.mime } : {}),
       bytes: body.bytes,
+      sha256: body.sha256,
       truncated: body.truncated,
       _meta: playbackMetadata(playback),
     },
