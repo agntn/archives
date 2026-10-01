@@ -16,7 +16,7 @@ useSeoMeta({
 
 interface ProviderCoverage {
   provider: string;
-  state: "ok" | "empty" | "unsupported" | "failed";
+  state: "ok" | "empty" | "unsupported" | "unreachable" | "failed";
   count: number;
   first?: string;
   last?: string;
@@ -86,6 +86,7 @@ const STATE: Record<ProviderCoverage["state"], { color: BadgeColor; variant: Bad
   ok: { color: "neutral", variant: "subtle" },
   empty: { color: "neutral", variant: "outline" },
   unsupported: { color: "neutral", variant: "outline" },
+  unreachable: { color: "neutral", variant: "outline" },
   failed: { color: "error", variant: "outline" },
 };
 

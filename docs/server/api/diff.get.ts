@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
     retries: readInt(query, "retries", 0, LIMITS.retries) ?? LIMITS.retries,
     budget: readInt(query, "budget", 1_000, LIMITS.operationBudget),
   };
+  assertReachable(params.provider);
   try {
     return await cachedAnswer(event, "diff", params, TTL, async () => {
       const { budget, ...request } = params;

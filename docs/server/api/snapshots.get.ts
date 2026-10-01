@@ -17,16 +17,16 @@ export default defineEventHandler(async (event) => {
     timeout: readInt(query, "timeout", 1_000, LIMITS.timeout) ?? LIMITS.timeout,
     retries: readInt(query, "retries", 0, LIMITS.retries) ?? LIMITS.retries,
   };
+  assertReachable(params.provider);
   try {
     return await cachedAnswer(event, "snapshots", params, TTL, async () => {
       const abort = archiveRequestAbort(event);
       try {
         const result = await snapshotArchives(params, abort.signal);
         const response = result.details.response;
-        const errors = response._meta?.errors;
         return {
           value: toolAnswer(result, !response.success),
-          degraded: Array.isArray(errors) && errors.length > 0,
+          degraded: hasReachableFailure(response._meta?.errors),
         };
       } finally {
         abort.dispose();

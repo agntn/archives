@@ -8,7 +8,7 @@ useSeoMeta({ title: "Provider status · @agntn/archives", description: "Which ar
 
 interface Probe {
   provider: string;
-  state: "ok" | "empty" | "unsupported" | "failed" | "needs-config";
+  state: "ok" | "empty" | "unsupported" | "unreachable" | "failed" | "needs-config";
   ms: number;
   note: string;
   reason?: string;
@@ -37,12 +37,13 @@ async function load() {
 type BadgeColor = "neutral" | "error" | "primary";
 type BadgeVariant = "subtle" | "outline";
 
-/** How each probe state reads: answered bright, empty and unconfigured quiet, a failure red. */
+/** How each probe state reads: answered bright, a failure red, everything else quiet. */
 const STATE: Record<Probe["state"], { label: string; color: BadgeColor; variant: BadgeVariant }> = {
   ok: { label: "ok", color: "neutral", variant: "subtle" },
   empty: { label: "empty", color: "neutral", variant: "outline" },
   unsupported: { label: "unsupported", color: "neutral", variant: "outline" },
   failed: { label: "failed", color: "error", variant: "outline" },
+  unreachable: { label: "unreachable", color: "neutral", variant: "outline" },
   "needs-config": { label: "needs config", color: "neutral", variant: "outline" },
 };
 

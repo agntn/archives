@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
     to: readString(query, "to", LIMITS.parameter),
   };
   const { target, provider } = params;
+  assertReachable(provider);
   try {
     return await cachedAnswer(event, "history", params, TTL, async () => {
       const listing = await snapshotArchives({ ...params, timeout: LIMITS.timeout });
