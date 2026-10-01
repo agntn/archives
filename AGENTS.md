@@ -7,7 +7,7 @@
 
 ## OVERVIEW
 
-Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Built on the unjs ecosystem: ofetch, unstorage, c12, consola, ufo, changelogen, with obuild for the build and Vite+ (`vite-plus`) for lint, format and tests.
+Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Requests go through native `fetch` (`src/utils/_fetch.ts`); built on the unjs ecosystem: unstorage, c12, consola, ufo, changelogen, with obuild for the build and Vite+ (`vite-plus`) for lint, format and tests.
 
 ## STRUCTURE
 
@@ -31,6 +31,7 @@ archives/
 │   ├── providers/        # one file per archive source + barrel
 │   └── utils/            # _utils.ts: parallel work, response helpers, domain/timestamp
 │                         # _content.ts: capture reading, WARC, charset, html-to-text
+│                         # _fetch.ts: native fetch, retries, a deadline per attempt
 ├── build.config.ts       # obuild: one bundle, five inputs
 ├── vite.config.ts        # Vite+: lint, fmt, test
 ├── test/                 # mirrors src/ structure, one .test.ts per module

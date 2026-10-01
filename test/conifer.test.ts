@@ -1,11 +1,13 @@
 import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { $fetch } from "ofetch";
+import { fetchData } from "../src/utils/_fetch";
 import { createArchive, resetConfig, storage } from "../src";
 import createConifer from "../src/providers/conifer";
 
-vi.mock("ofetch", () => ({
-  $fetch: vi.fn(),
+vi.mock("../src/utils/_fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
+  fetchData: vi.fn(),
+  fetchResponse: vi.fn(),
 }));
 
 describe("Conifer", () => {
@@ -22,7 +24,7 @@ describe("Conifer", () => {
   });
 
   it("lists matching pages from a public collection", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce({
+    vi.mocked(fetchData).mockResolvedValueOnce({
       results: [
         {
           id: "page-id",
@@ -59,7 +61,7 @@ describe("Conifer", () => {
       user: "imamuseum",
       collection: "imamuseumorg",
     });
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/api/v1/url_search",
       objectContaining({
         baseURL: "https://conifer.rhizome.org",
@@ -73,7 +75,7 @@ describe("Conifer", () => {
   });
 
   it("forwards the caller's cancellation signal to the search request", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce({ results: [] });
+    vi.mocked(fetchData).mockResolvedValueOnce({ results: [] });
 
     const controller = new AbortController();
     await createArchive(createConifer({ user: "user", collection: "collection" })).snapshots(
@@ -81,14 +83,14 @@ describe("Conifer", () => {
       { signal: controller.signal },
     );
 
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/api/v1/url_search",
       objectContaining({ signal: controller.signal }),
     );
   });
 
   it.each([1, 1.5])("applies a requested limit of %s to Conifer results", async (limit) => {
-    vi.mocked($fetch).mockResolvedValueOnce({
+    vi.mocked(fetchData).mockResolvedValueOnce({
       results: [
         { url: "https://example.com/one", timestamp: "20200101000000" },
         { url: "https://example.com/two", timestamp: "20200102000000" },
@@ -109,7 +111,7 @@ describe("Conifer", () => {
 
     expect(result.success).toBe(true);
     expect(result.pages).toEqual([]);
-    expect($fetch).not.toHaveBeenCalled();
+    expect(fetchData).not.toHaveBeenCalled();
   });
 
   it("rejects an empty collection identity without making a request", async () => {
@@ -119,7 +121,7 @@ describe("Conifer", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Conifer user and collection are required");
-    expect($fetch).not.toHaveBeenCalled();
+    expect(fetchData).not.toHaveBeenCalled();
   });
 
   it("rejects an empty target instead of requesting every collection page", async () => {
@@ -129,6 +131,6 @@ describe("Conifer", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Conifer target must not be empty");
-    expect($fetch).not.toHaveBeenCalled();
+    expect(fetchData).not.toHaveBeenCalled();
   });
 });

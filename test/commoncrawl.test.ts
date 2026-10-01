@@ -1,12 +1,14 @@
 import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
-import { $fetch } from "ofetch";
+import { fetchData } from "../src/utils/_fetch";
 import { createArchive, resetConfig, storage } from "../src";
 import type { CommonCrawlOptions } from "../src/_providers";
 import createCommonCrawl from "../src/providers/commoncrawl";
 
-vi.mock("ofetch", () => ({
-  $fetch: vi.fn(),
+vi.mock("../src/utils/_fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
+  fetchData: vi.fn(),
+  fetchResponse: vi.fn(),
 }));
 
 describe("Common Crawl", () => {
@@ -42,7 +44,7 @@ describe("Common Crawl", () => {
     const ndjson = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
     // Mock collection info first, then NDJSON lines
     const collInfo = [{ name: "CC-MAIN-2023-50" }];
-    vi.mocked($fetch).mockResolvedValueOnce(collInfo).mockResolvedValueOnce(ndjson);
+    vi.mocked(fetchData).mockResolvedValueOnce(collInfo).mockResolvedValueOnce(ndjson);
 
     const ccInstance = createCommonCrawl();
     const archive = createArchive(ccInstance);
@@ -67,12 +69,12 @@ describe("Common Crawl", () => {
     );
 
     // Check calls: first to fetch collections, then to fetch index
-    expect($fetch).toHaveBeenNthCalledWith(
+    expect(fetchData).toHaveBeenNthCalledWith(
       1,
       "/collinfo.json",
       objectContaining({ baseURL: "https://index.commoncrawl.org" }),
     );
-    expect($fetch).toHaveBeenNthCalledWith(
+    expect(fetchData).toHaveBeenNthCalledWith(
       2,
       "/CC-MAIN-2023-50-index",
       objectContaining({
@@ -87,7 +89,7 @@ describe("Common Crawl", () => {
   });
 
   it("uses the alternate CDX field when the primary field is empty", async () => {
-    vi.mocked($fetch)
+    vi.mocked(fetchData)
       .mockResolvedValueOnce([
         {
           "cdx-api": "",
@@ -99,7 +101,7 @@ describe("Common Crawl", () => {
     const result = await createArchive(createCommonCrawl()).snapshots("example.com");
 
     expect(result.success).toBe(true);
-    expect($fetch).toHaveBeenNthCalledWith(
+    expect(fetchData).toHaveBeenNthCalledWith(
       2,
       "/CC-MAIN-2024-10-index",
       objectContaining({ baseURL: "https://index.commoncrawl.org" }),
@@ -107,13 +109,13 @@ describe("Common Crawl", () => {
   });
 
   it("surfaces a collinfo fetch failure without querying a fake latest index", async () => {
-    vi.mocked($fetch).mockRejectedValueOnce(new Error("collinfo unavailable"));
+    vi.mocked(fetchData).mockRejectedValueOnce(new Error("collinfo unavailable"));
 
     const result = await createArchive(createCommonCrawl()).snapshots("example.com");
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("collinfo unavailable");
-    expect($fetch).toHaveBeenCalledTimes(1);
+    expect(fetchData).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -121,20 +123,20 @@ describe("Common Crawl", () => {
     ["a non-list response", {}],
     ["an unusable entry", [{}]],
   ])("rejects %s from collinfo without querying a fake latest index", async (_label, collInfo) => {
-    vi.mocked($fetch).mockResolvedValueOnce(collInfo);
+    vi.mocked(fetchData).mockResolvedValueOnce(collInfo);
 
     const result = await createArchive(createCommonCrawl()).snapshots("example.com");
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Common Crawl collinfo.json returned no usable collection");
-    expect($fetch).toHaveBeenCalledTimes(1);
+    expect(fetchData).toHaveBeenCalledTimes(1);
   });
 
   it("handles empty results", async () => {
     // CommonCrawl returns no data for empty results
     // Mock collection info then empty NDJSON
     const collInfo = [{ name: "CC-MAIN-2023-50" }];
-    vi.mocked($fetch).mockResolvedValueOnce(collInfo).mockResolvedValueOnce("");
+    vi.mocked(fetchData).mockResolvedValueOnce(collInfo).mockResolvedValueOnce("");
 
     const ccInstance = createCommonCrawl();
     const archive = createArchive(ccInstance);
@@ -151,7 +153,7 @@ describe("Common Crawl", () => {
       statusCode: 404,
       data: '{"message": "No Captures found for: definitely-not-real.example/"}',
     });
-    vi.mocked($fetch).mockResolvedValueOnce(collInfo).mockRejectedValueOnce(noCaptures);
+    vi.mocked(fetchData).mockResolvedValueOnce(collInfo).mockRejectedValueOnce(noCaptures);
 
     const archive = createArchive(createCommonCrawl());
     const result = await archive.snapshots("definitely-not-real.example");
@@ -166,7 +168,7 @@ describe("Common Crawl", () => {
       statusCode: 404,
       data: "Not Found",
     });
-    vi.mocked($fetch).mockRejectedValueOnce(missingIndex);
+    vi.mocked(fetchData).mockRejectedValueOnce(missingIndex);
 
     const options: CommonCrawlOptions = { collection: "CC-MAIN-2019-04" };
     const archive = createArchive(createCommonCrawl());
@@ -202,7 +204,7 @@ describe("Common Crawl", () => {
 
     const ndjson = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
     const collInfo = [{ name: "CC-MAIN-2023-50" }];
-    vi.mocked($fetch).mockResolvedValueOnce(collInfo).mockResolvedValueOnce(ndjson);
+    vi.mocked(fetchData).mockResolvedValueOnce(collInfo).mockResolvedValueOnce(ndjson);
 
     const ccInstance = createCommonCrawl();
     const archive = createArchive(ccInstance);
@@ -214,7 +216,7 @@ describe("Common Crawl", () => {
   });
 
   it("returns an error response when fetching the selected index fails", async () => {
-    vi.mocked($fetch).mockRejectedValueOnce(new Error("API error"));
+    vi.mocked(fetchData).mockRejectedValueOnce(new Error("API error"));
 
     const archive = createArchive(createCommonCrawl());
     const result = await archive.snapshots("example.com", { collection: "CC-MAIN-2023-50" });
@@ -224,7 +226,7 @@ describe("Common Crawl", () => {
     expect(result.error).toBe("API error");
     expect(result._meta?.source).toBe("commoncrawl");
     expect(result._meta?.collection).toBe("CC-MAIN-2023-50");
-    expect($fetch).toHaveBeenCalledTimes(1);
+    expect(fetchData).toHaveBeenCalledTimes(1);
   });
 
   it("separates cache entries for different collection options", async () => {
@@ -240,7 +242,7 @@ describe("Common Crawl", () => {
         filename: `warc/${collection}/AAAABBBCCCDD`,
       }) + "\n";
 
-    vi.mocked($fetch)
+    vi.mocked(fetchData)
       .mockResolvedValueOnce(record("CC-MAIN-2023-50"))
       .mockResolvedValueOnce(record("CC-MAIN-2024-10"));
 
@@ -256,6 +258,6 @@ describe("Common Crawl", () => {
     expect(second.pages[0]._meta.collection).toBe("CC-MAIN-2024-10");
     expect(cachedFirst.fromCache).toBe(true);
     expect(cachedFirst.pages[0]._meta.collection).toBe("CC-MAIN-2023-50");
-    expect($fetch).toHaveBeenCalledTimes(2);
+    expect(fetchData).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,12 +1,14 @@
 import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
-import { $fetch } from "ofetch";
+import { fetchData } from "../src/utils/_fetch";
 import { createArchive, resetConfig, storage } from "../src";
 import createWayback from "../src/providers/wayback";
 import type { WaybackOptions } from "../src/_providers";
 
-vi.mock("ofetch", () => ({
-  $fetch: vi.fn(),
+vi.mock("../src/utils/_fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
+  fetchData: vi.fn(),
+  fetchResponse: vi.fn(),
 }));
 
 describe("wayback machine", () => {
@@ -23,7 +25,7 @@ describe("wayback machine", () => {
       ["https://example.com/page1", "20220201000000", "200"],
     ];
 
-    vi.mocked($fetch).mockResolvedValueOnce(mockResponse);
+    vi.mocked(fetchData).mockResolvedValueOnce(mockResponse);
 
     const waybackInstance = createWayback();
     const archive = createArchive(waybackInstance);
@@ -45,7 +47,7 @@ describe("wayback machine", () => {
     );
     expect(result.pages[1]._meta.timestamp).toBe("20220201000000");
     expect(result.pages[1]._meta.status).toBe(200);
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/cdx/search/cdx",
       objectContaining({
         baseURL: "https://web.archive.org",
@@ -56,7 +58,7 @@ describe("wayback machine", () => {
   });
 
   it("keeps snapshots callable when passed as a callback", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
     /* oxlint-disable-next-line typescript/unbound-method -- extraction is the behavior under test; BaseProvider binds this method. */
     const snapshots = createWayback().snapshots;
 
@@ -68,7 +70,7 @@ describe("wayback machine", () => {
 
   it("handles empty results", async () => {
     // Mock an empty response (only headers, no data rows)
-    vi.mocked($fetch).mockResolvedValueOnce([
+    vi.mocked(fetchData).mockResolvedValueOnce([
       ["original", "timestamp", "statuscode"],
       // No data rows
     ]);
@@ -83,7 +85,7 @@ describe("wayback machine", () => {
   });
 
   it("passes CDX collapse and filter options", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
 
     const archive = createArchive(
       createWayback({ collapse: "digest", filter: "statuscode:200", limit: 25 }),
@@ -91,7 +93,7 @@ describe("wayback machine", () => {
     const result = await archive.snapshots("example.com");
 
     expect(result.success).toBe(true);
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/cdx/search/cdx",
       objectContaining({
         params: objectContaining({
@@ -104,13 +106,13 @@ describe("wayback machine", () => {
   });
 
   it("narrows the CDX query to the requested window", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
 
     const archive = createArchive(createWayback());
     const result = await archive.snapshots("example.com", { from: "2019-03-01", to: "2019-06" });
 
     expect(result.success).toBe(true);
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/cdx/search/cdx",
       objectContaining({
         params: objectContaining({ from: "20190301", to: "201906" }),
@@ -124,7 +126,7 @@ describe("wayback machine", () => {
    * have to come out of the provider's own normalization then.
    */
   it("normalizes ISO bounds when the provider is called directly", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
 
     const result = await createWayback().snapshots("example.com", {
       from: "2019-03-01",
@@ -132,7 +134,7 @@ describe("wayback machine", () => {
     });
 
     expect(result.success).toBe(true);
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/cdx/search/cdx",
       objectContaining({
         params: objectContaining({ from: "20190301", to: "201906" }),
@@ -145,13 +147,13 @@ describe("wayback machine", () => {
    * the index does not read as an instant.
    */
   it("normalizes an init-level ISO bound before it reaches the CDX query", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
 
     const archive = createArchive(createWayback({ from: "2019-03-01" }));
     const result = await archive.snapshots("example.com");
 
     expect(result.success).toBe(true);
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/cdx/search/cdx",
       objectContaining({
         params: objectContaining({ from: "20190301" }),
@@ -161,7 +163,7 @@ describe("wayback machine", () => {
 
   /** The third query repeats the first window, so it must replay that answer rather than the other window's entry or a fresh fetch. */
   it("separates cache entries by window", async () => {
-    vi.mocked($fetch)
+    vi.mocked(fetchData)
       .mockResolvedValueOnce([
         ["original", "timestamp", "statuscode"],
         ["https://example.com/2019", "20190301000000", "200"],
@@ -180,11 +182,11 @@ describe("wayback machine", () => {
     expect(second.pages[0].url).toBe("https://example.com/2020");
     expect(replayed.fromCache).toBe(true);
     expect(replayed.pages[0].url).toBe("https://example.com/2019");
-    expect($fetch).toHaveBeenCalledTimes(2);
+    expect(fetchData).toHaveBeenCalledTimes(2);
   });
 
   it("separates cache entries for CDX collapse and filter options", async () => {
-    vi.mocked($fetch)
+    vi.mocked(fetchData)
       .mockResolvedValueOnce([
         ["original", "timestamp", "statuscode"],
         ["https://example.com/digest", "20220101000000", "200"],
@@ -212,11 +214,11 @@ describe("wayback machine", () => {
     expect(third.pages[0].url).toBe("https://example.com/not-found");
     expect(cachedFirst.fromCache).toBe(true);
     expect(cachedFirst.pages[0].url).toBe("https://example.com/digest");
-    expect($fetch).toHaveBeenCalledTimes(3);
+    expect(fetchData).toHaveBeenCalledTimes(3);
   });
 
   it("returns an error response when fetching fails", async () => {
-    vi.mocked($fetch).mockRejectedValueOnce(new Error("API error"));
+    vi.mocked(fetchData).mockRejectedValueOnce(new Error("API error"));
 
     const archive = createArchive(createWayback());
     const result = await archive.snapshots("example.com");

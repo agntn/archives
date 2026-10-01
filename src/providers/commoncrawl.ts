@@ -1,5 +1,5 @@
 import { consola } from "consola";
-import { $fetch } from "ofetch";
+import { fetchData } from "../utils/_fetch.ts";
 import { cleanDoubleSlashes } from "ufo";
 import type {
   ArchiveContentOptions,
@@ -245,7 +245,7 @@ async function fetchIndexRecords(
     responseType: "text",
   });
   try {
-    const raw: unknown = await $fetch(`/${path}`, fetchOptions);
+    const raw: unknown = await fetchData(`/${path}`, fetchOptions);
     return { records: parseIndexRecords(raw), queryParams: fetchOptions.params };
   } catch (error) {
     if (!isNoCaptureError(error, NO_CAPTURES)) throw error;
@@ -425,7 +425,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
         timeout: options.timeout,
       },
     );
-    const response: unknown = await $fetch("/collinfo.json", fetchOptions);
+    const response: unknown = await fetchData("/collinfo.json", fetchOptions);
     const index = parseCollinfo(response);
     if (!index) throw new Error("Common Crawl collinfo.json returned no usable collection");
     return index;
@@ -485,7 +485,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
         headers: { range: `bytes=${start}-${start + length - 1}` },
       },
     );
-    const segment: unknown = await $fetch(`/${capture.filename}`, fetchOptions);
+    const segment: unknown = await fetchData(`/${capture.filename}`, fetchOptions);
 
     // The record's own headers sit in front of the body, so the decompression
     // cap has to leave room for them or a small body would come back empty.

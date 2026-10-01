@@ -1,5 +1,5 @@
 import { consola } from "consola";
-import { $fetch } from "ofetch";
+import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -181,7 +181,7 @@ async function fetchCdxRecords(
     timeout: options.timeout,
     responseType: "text",
   });
-  const raw: unknown = await $fetch("/wayback/cdx", fetchOptions);
+  const raw: unknown = await fetchData("/wayback/cdx", fetchOptions);
   return { records: parseCdxRecords(raw), queryParams: fetchOptions.params };
 }
 

@@ -1,11 +1,13 @@
 import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
-import { $fetch } from "ofetch";
+import { fetchData } from "../src/utils/_fetch";
 import { createArchive as createArchiveClient, resetConfig, storage } from "../src";
 import createArchiveToday from "../src/providers/archive-today";
 
-vi.mock("ofetch", () => ({
-  $fetch: vi.fn(),
+vi.mock("../src/utils/_fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
+  fetchData: vi.fn(),
+  fetchResponse: vi.fn(),
 }));
 
 describe("archive.today", () => {
@@ -25,7 +27,7 @@ describe("archive.today", () => {
     <http://archive.md/20160810200921/https://example.com/>; rel="memento"; datetime="Wed, 10 Aug 2016 20:09:21 GMT"
     `;
 
-    vi.mocked($fetch).mockResolvedValueOnce(mockTimemapResponse);
+    vi.mocked(fetchData).mockResolvedValueOnce(mockTimemapResponse);
 
     const archiveInstance = createArchiveToday();
     const archive = createArchiveClient(archiveInstance);
@@ -43,7 +45,7 @@ describe("archive.today", () => {
     expect(result.pages[0]._meta.provider).toBe("archive-today");
 
     // Verify API call
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/timemap/http://example.com",
       objectContaining({
         baseURL: "https://archive.is",
@@ -58,7 +60,7 @@ describe("archive.today", () => {
   it("preserves the original and snapshot URLs reported by the timemap", async () => {
     const originalUrl = "http://example.com/path//?next=//cdn.example/";
     const snapshotUrl = `http://archive.md/20140101030405/${originalUrl}`;
-    vi.mocked($fetch).mockResolvedValueOnce(
+    vi.mocked(fetchData).mockResolvedValueOnce(
       `<${snapshotUrl}>; rel="memento"; datetime="Wed, 01 Jan 2014 03:04:05 GMT"`,
     );
 
@@ -82,7 +84,7 @@ describe("archive.today", () => {
     <http://archive.md/20190601000000/https://example.com/>; rel="memento"; datetime="Sat, 01 Jun 2019 00:00:00 GMT",
     <http://archive.md/20190901000000/https://example.com/>; rel="memento"; datetime="Sun, 01 Sep 2019 00:00:00 GMT"
     `;
-    vi.mocked($fetch).mockResolvedValueOnce(mockTimemapResponse);
+    vi.mocked(fetchData).mockResolvedValueOnce(mockTimemapResponse);
 
     const archive = createArchiveClient(createArchiveToday({ limit: 1 }));
     const result = await archive.snapshots("example.com", { from: "2019", to: "2019" });
@@ -98,7 +100,7 @@ describe("archive.today", () => {
     <http://archive.md/20160810200921/https://example.com/>; rel="memento"; datetime="Wed, 10 Aug 2016 20:09:21 GMT"
     `;
 
-    vi.mocked($fetch).mockResolvedValueOnce(mockTimemapResponse);
+    vi.mocked(fetchData).mockResolvedValueOnce(mockTimemapResponse);
 
     const archive = createArchiveClient(createArchiveToday());
     const result = await archive.snapshots("example.com");
@@ -127,7 +129,7 @@ describe("archive.today", () => {
     <http://archive.md/20160810200921/https://example.com/>; rel="last memento"; datetime="Wed, 10 Aug 2016 20:09:21 GMT"
     `;
 
-    vi.mocked($fetch).mockResolvedValueOnce(mockTimemapResponse);
+    vi.mocked(fetchData).mockResolvedValueOnce(mockTimemapResponse);
 
     const archive = createArchiveClient(createArchiveToday());
     const result = await archive.snapshots("example.com");
@@ -145,7 +147,7 @@ describe("archive.today", () => {
     <http://archive.md/20160810200921/https://example.com/>; rel="first last memento"; datetime="Wed, 10 Aug 2016 20:09:21 GMT"
     `;
 
-    vi.mocked($fetch).mockResolvedValueOnce(mockTimemapResponse);
+    vi.mocked(fetchData).mockResolvedValueOnce(mockTimemapResponse);
 
     const archive = createArchiveClient(createArchiveToday());
     const result = await archive.snapshots("example.com");
@@ -156,7 +158,7 @@ describe("archive.today", () => {
   });
 
   it("returns an error response when the Memento API fails", async () => {
-    vi.mocked($fetch).mockRejectedValueOnce(new Error("API error"));
+    vi.mocked(fetchData).mockRejectedValueOnce(new Error("API error"));
 
     const archive = createArchiveClient(createArchiveToday());
     const result = await archive.snapshots("example.com");
@@ -165,7 +167,7 @@ describe("archive.today", () => {
     expect(result.pages).toEqual([]);
     expect(result.error).toBe("API error");
     expect(result._meta?.source).toBe("archive-today");
-    expect($fetch).toHaveBeenCalledTimes(1);
+    expect(fetchData).toHaveBeenCalledTimes(1);
   });
 
   it("lists nothing for a URL the timemap answers 404 as never captured", async () => {
@@ -173,7 +175,7 @@ describe("archive.today", () => {
       statusCode: 404,
       data: "TimeMap does not exists. The archive has no Mementos for the requested URI\n",
     });
-    vi.mocked($fetch).mockRejectedValueOnce(noMementos);
+    vi.mocked(fetchData).mockRejectedValueOnce(noMementos);
 
     const archive = createArchiveClient(createArchiveToday());
     const result = await archive.snapshots("nonexistent-domain.com");
@@ -189,7 +191,7 @@ describe("archive.today", () => {
       statusCode: 404,
       data: "<html>Not Found</html>",
     });
-    vi.mocked($fetch).mockRejectedValueOnce(notFound);
+    vi.mocked(fetchData).mockRejectedValueOnce(notFound);
 
     const archive = createArchiveClient(createArchiveToday());
     const result = await archive.snapshots("example.com");
@@ -200,7 +202,7 @@ describe("archive.today", () => {
 
   it("handles empty response from both APIs", async () => {
     // Memento API returns empty response
-    vi.mocked($fetch).mockResolvedValueOnce("");
+    vi.mocked(fetchData).mockResolvedValueOnce("");
 
     const archiveInstance = createArchiveToday();
     const archive = createArchiveClient(archiveInstance);

@@ -1,4 +1,4 @@
-import { $fetch } from "ofetch";
+import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -108,7 +108,7 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
       });
 
       type WaybackResponse = [string[], ...string[][]];
-      const response = (await $fetch("/cdx/search/cdx", fetchOptions)) as WaybackResponse;
+      const response = (await fetchData("/cdx/search/cdx", fetchOptions)) as WaybackResponse;
 
       if (!Array.isArray(response) || response.length <= 1) {
         return createSuccessResponse([], "wayback", { queryParams: fetchOptions.params ?? {} });
@@ -274,7 +274,7 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
     });
 
     type WaybackResponse = [string[], ...string[][]];
-    const response = (await $fetch("/cdx/search/cdx", fetchOptions)) as WaybackResponse;
+    const response = (await fetchData("/cdx/search/cdx", fetchOptions)) as WaybackResponse;
     if (!Array.isArray(response) || response.length <= 1) return [];
 
     const captures: CdxCapture[] = [];

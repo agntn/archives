@@ -1,4 +1,4 @@
-import { $fetch } from "ofetch";
+import { fetchData } from "../utils/_fetch.ts";
 import type { ConiferOptions } from "../_providers.ts";
 import type { ArchiveOptions, ArchiveResponse, ArchivedPage } from "../types.ts";
 import {
@@ -112,7 +112,7 @@ export class ConiferProvider extends BaseProvider<ConiferOptions> {
         signal: options.signal,
         timeout: options.timeout,
       });
-      const response = await $fetch<ConiferSearchResponse>("/api/v1/url_search", {
+      const response = await fetchData<ConiferSearchResponse>("/api/v1/url_search", {
         ...fetchOptions,
         responseType: "json",
       });

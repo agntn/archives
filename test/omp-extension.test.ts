@@ -1,5 +1,5 @@
 import { objectContaining, rangeDescription } from "./_matchers";
-import { $fetch } from "ofetch";
+import { fetchData } from "../src/utils/_fetch";
 import { Value } from "typebox/value";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -16,8 +16,10 @@ import {
   SNAPSHOT_TARGET_HINT,
 } from "../src/tool-operations";
 
-vi.mock("ofetch", () => ({
-  $fetch: vi.fn(),
+vi.mock("../src/utils/_fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
+  fetchData: vi.fn(),
+  fetchResponse: vi.fn(),
 }));
 
 class TestText {
@@ -233,7 +235,7 @@ describe("archives OMP extension", () => {
   });
 
   it("answers a batch with one block per target", async () => {
-    vi.mocked($fetch)
+    vi.mocked(fetchData)
       .mockResolvedValueOnce([
         ["original", "timestamp", "statuscode"],
         ["https://example.com/", "20200101000000", "200"],
@@ -257,7 +259,7 @@ describe("archives OMP extension", () => {
   });
 
   it("narrows a Wayback query to the requested window", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+    vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
     const tool = requireTool((await registerExtension()).tools, "archives_snapshots");
 
     expect(accepts(tool, { target: "example.com", from: "2019", to: "2019-06" })).toBe(true);
@@ -276,7 +278,7 @@ describe("archives OMP extension", () => {
       unusedContext,
     );
 
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/cdx/search/cdx",
       objectContaining({
         params: objectContaining({ from: "20190301", to: "201906" }),
@@ -285,7 +287,7 @@ describe("archives OMP extension", () => {
   });
 
   it("dispatches Archive-It requests with the required collection", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce("https://example.com/ 20220101000000 200");
+    vi.mocked(fetchData).mockResolvedValueOnce("https://example.com/ 20220101000000 200");
     const tool = requireTool((await registerExtension()).tools, "archives_snapshots");
 
     const result = await tool.execute(
@@ -296,7 +298,7 @@ describe("archives OMP extension", () => {
       unusedContext,
     );
 
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/4399/timemap/cdx",
       objectContaining({ baseURL: "https://wayback.archive-it.org" }),
     );
@@ -318,11 +320,11 @@ describe("archives OMP extension", () => {
         unusedContext,
       ),
     ).rejects.toThrow("provider=archiveIt requires a numeric collection id");
-    expect($fetch).not.toHaveBeenCalled();
+    expect(fetchData).not.toHaveBeenCalled();
   });
 
   it("dispatches Conifer requests with the required collection identity", async () => {
-    vi.mocked($fetch).mockResolvedValueOnce({ results: [] });
+    vi.mocked(fetchData).mockResolvedValueOnce({ results: [] });
     const tool = requireTool((await registerExtension()).tools, "archives_snapshots");
 
     const result = await tool.execute(
@@ -339,7 +341,7 @@ describe("archives OMP extension", () => {
       unusedContext,
     );
 
-    expect($fetch).toHaveBeenCalledWith(
+    expect(fetchData).toHaveBeenCalledWith(
       "/api/v1/url_search",
       objectContaining({
         baseURL: "https://conifer.rhizome.org",
@@ -364,7 +366,7 @@ describe("archives OMP extension", () => {
         unusedContext,
       ),
     ).rejects.toThrow("provider=conifer requires user and collection slugs");
-    expect($fetch).not.toHaveBeenCalled();
+    expect(fetchData).not.toHaveBeenCalled();
   });
 
   it("removes terminal control bytes from rendered untrusted arguments", async () => {

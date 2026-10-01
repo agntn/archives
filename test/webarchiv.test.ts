@@ -1,18 +1,18 @@
 import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { $fetch, type FetchResponse } from "ofetch";
+import { fetchData, fetchResponse } from "../src/utils/_fetch";
+import { rawResponse } from "./_responses";
 import { WebarchivProvider, createArchive, providers, resetConfig, storage } from "../src";
 import createWebarchiv from "../src/providers/webarchiv";
 
-vi.mock("ofetch", async (importOriginal) => {
-  const original = await importOriginal<typeof import("ofetch")>();
-  const raw = vi.fn();
-  return { ...original, $fetch: Object.assign(vi.fn(), { raw }) };
-});
+vi.mock("../src/utils/_fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
+  fetchData: vi.fn(),
+  fetchResponse: vi.fn(),
+}));
 
-const fetchMock = vi.mocked($fetch);
-/* oxlint-disable-next-line typescript/unbound-method -- ofetch.raw is a standalone callable and the mock has no receiver state. */
-const rawMock = fetchMock.raw;
+const fetchMock = vi.mocked(fetchData);
+const rawMock = vi.mocked(fetchResponse);
 
 function cdx(timestamp: string, url = "https://www.onb.ac.at/", extra = {}) {
   return `at,ac,onb)/ ${timestamp} ${JSON.stringify({
@@ -23,22 +23,6 @@ function cdx(timestamp: string, url = "https://www.onb.ac.at/", extra = {}) {
     length: "512",
     ...extra,
   })}`;
-}
-
-function rawResponse(
-  body: string,
-  init: Readonly<{
-    url?: string;
-    status?: number;
-    headers?: Readonly<Record<string, string>>;
-  }> = {},
-) {
-  return {
-    status: init.status ?? 200,
-    url: init.url ?? "",
-    headers: new Headers(init.headers ?? {}),
-    _data: body,
-  } as unknown as FetchResponse<unknown>;
 }
 
 beforeEach(async () => {
@@ -192,7 +176,6 @@ describe("Webarchiv Österreich", () => {
       "/web/20190101000000id_/https://www.onb.ac.at/",
       objectContaining({
         baseURL: "https://webarchiv.onb.ac.at",
-        responseType: "stream",
         signal: controller.signal,
       }),
     );
