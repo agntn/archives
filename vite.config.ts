@@ -28,7 +28,8 @@ export default defineConfig({
   },
   fmt: {
     ...oxfmt,
-    ignorePatterns: ["dist", "coverage", ".nuxt", ".output", "docs"],
+    /** changelogen writes CHANGELOG.md after the release checks, in a shape oxfmt rejects. */
+    ignorePatterns: ["dist", "coverage", ".nuxt", ".output", "docs", "CHANGELOG.md"],
   },
   lint: {
     ...oxlint,
