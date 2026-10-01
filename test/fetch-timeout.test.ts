@@ -1,7 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { $fetch } from "ofetch";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createArchive, providers } from "../src/index";
 import { createMcpServer } from "../src/mcp";
@@ -282,7 +281,6 @@ describe("request timeouts with cancellation", () => {
             timeout: 1000,
           },
         },
-        undefined,
         { signal: controller.signal },
       ),
     ).rejects.toThrow();

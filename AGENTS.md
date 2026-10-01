@@ -22,14 +22,16 @@ archives/
 │   ├── config.ts         # c12-based config loading with caching
 │   ├── storage.ts        # unstorage caching layer
 │   ├── tool-operations.ts # executors shared by MCP, Pi and OMP
-│   ├── mcp.ts            # createMcpServer() over the shared executors
+│   ├── tools.ts          # one @agntn/tools definition per tool, for every surface
+│   ├── tool-contract.ts  # provider spellings, hints and bounds the tools declare
+│   ├── mcp.ts            # createMcpServer() over the tool list
 │   ├── cli.ts            # citty entry (bin: archives), lazy `mcp` subcommand
 │   ├── commands/mcp.ts   # `archives mcp` - stdio transport
 │   ├── version.ts        # package.json version, single source
 │   ├── providers/        # one file per archive source + barrel
 │   └── utils/            # _utils.ts: parallel work, response helpers, domain/timestamp
 │                         # _content.ts: capture reading, WARC, charset, html-to-text
-├── vite.config.ts        # Vite+: pack (one bundle, four inputs), lint, fmt, test
+├── vite.config.ts        # Vite+: pack (one bundle, five inputs), lint, fmt, test
 ├── test/                 # mirrors src/ structure, one .test.ts per module
 ├── packages/pi/extensions/
 │   └── archives.ts       # Pi tool/command surface shipped via package.json pi.extensions
@@ -60,50 +62,50 @@ archives/
 | Docs / timeline UI         | `docs/`                                                           | Docus: `content/` markdown, `server/api/` over tool-operations, explorer in `app/`                |
 | Extend Pi extension        | `packages/pi/extensions/archives.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb                          |
 | Change what a tool does    | `src/tool-operations.ts`                                          | One implementation for MCP, Pi and OMP. Never fix a tool in one surface only                      |
-| Add/change an MCP tool     | `src/mcp.ts` + `test/mcp.test.ts`                                 | Executor in tool-operations first, then the TypeBox schema and annotations here                   |
+| Add/change a tool          | `src/tools.ts` + `test/mcp.test.ts`                               | Executor in tool-operations first, then its definition here; MCP, Pi and OMP read the same list   |
 | Verify the shipped package | `pnpm pack` + install the tarball elsewhere                       | Catches missing `files`, a wrong `exports` map and absent runtime deps                            |
 
 ## CODE MAP
 
-| Symbol                      | Type      | Location                           | Role                                                                                                                   |
-| --------------------------- | --------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `createArchive`             | function  | archive.ts:56                      | Core factory. Accepts provider(s) + options, returns `ArchiveInterface`.                                               |
-| `UnsupportedOperationError` | class     | archive.ts:18                      | Thrown by `getPages()` when every queried provider is unsupported. Carries `providers` list.                           |
-| `providers`                 | object    | providers/index.ts:14              | Lazy-loading factory. Each method returns `Promise<ArchiveProvider>`.                                                  |
-| `ArquivoProvider`           | class     | providers/arquivo.ts               | Public Arquivo.pt CDX index and raw `noFrame/replay` capture reads.                                                    |
-| `WebarchivProvider`         | class     | providers/webarchiv.ts             | Austrian National Library public CDXJ index and raw `id_` replay for exact URLs.                                       |
-| `MementoProvider`           | class     | providers/memento.ts               | JSON TimeMap from several archives via ODU MemGator; reads exact Memento URI, then proxy fallback.                     |
-| `ArchiveInterface`          | interface | types.ts                           | Public API: `snapshots()`, `getPages()`, `content()`, `getContent()`, `use()`, `useAll()`.                             |
-| `ArchiveProvider`           | interface | types.ts:117                       | Provider contract: `name`, `slug?`, `snapshots()`.                                                                     |
-| `ArchiveResponse`           | interface | types.ts:100                       | `{ success, pages, error?, unsupported?, unsupportedReason?, _meta?, fromCache? }`.                                    |
-| `ArchivedPage`              | interface | types.ts:61                        | `{ url, timestamp, snapshot, _meta }`.                                                                                 |
-| `UnsupportedProviderRecord` | interface | types.ts:84                        | `{ provider, reason }` row used in `_meta.unsupportedProviders`.                                                       |
-| `ArchivesConfig`            | interface | config.ts:8                        | Config shape: `storage` + `performance` + env overrides.                                                               |
-| `processInParallel`         | function  | utils/_utils.ts:16                 | Generic parallel executor with concurrency + batching.                                                                 |
-| `createSuccessResponse`     | function  | utils/_utils.ts                    | Build a normalized success `ArchiveResponse`.                                                                          |
-| `createErrorResponse`       | function  | utils/_utils.ts                    | Build a normalized runtime-error `ArchiveResponse`.                                                                    |
-| `createUnsupportedResponse` | function  | utils/_utils.ts:184                | Build a response signalling the operation is outside the provider's API surface.                                       |
-| `configureStorage`          | function  | storage.ts:147                     | **@deprecated** - use config files or `createArchive` options.                                                         |
-| `archives`                  | Pi tool   | packages/pi/extensions/archives.ts | Query archive snapshots through Pi; delegates to the shared executors (source first, `dist/` in an installed package). |
-| `archives_providers`        | Pi tool   | packages/pi/extensions/archives.ts | List provider status and Perma.cc env configuration.                                                                   |
-| `snapshotArchives`          | function  | tool-operations.ts                 | Shared executor behind the snapshot tool on every surface. Throws on bad provider/prereqs.                             |
-| `snapshotBatchArchives`     | function  | tool-operations.ts                 | Executor behind the snapshot tool: one target, or up to 10 answered as one block each in input order.                  |
-| `listArchiveProviders`      | function  | tool-operations.ts                 | Shared executor listing providers, `provider=all` membership and Perma.cc key state.                                   |
-| `waybackSnapshots`          | function  | tool-operations.ts                 | Wayback-only lookup behind the interactive `/archive` command.                                                         |
-| `createMcpServer`           | function  | mcp.ts                             | Unconnected MCP server exposing snapshot, content, diff and provider tools.                                            |
-| `Archive.content`           | method    | archive.ts                         | Reads one capture. Tries providers in order; the first body wins.                                                      |
-| `Archive.getContent`        | method    | archive.ts                         | Throwing variant of `content()`, mirroring `getPages()`.                                                               |
-| `combineContentResults`     | function  | archive.ts                         | Picks the winning body and keeps the other providers' outcomes in `_meta`.                                             |
-| `ArchivedContent`           | interface | types.ts                           | `{ url, timestamp, snapshot, content, mime?, bytes, truncated, _meta }`.                                               |
-| `ArchiveContentOptions`     | interface | types.ts                           | `ArchiveOptions` + `timestamp` (capture to read) + `maxBytes` (read cap).                                              |
-| `readPlaybackCapture`       | function  | utils/_content.ts                  | Reads a Wayback-style `<prefix>/<stamp>id_/<url>` capture into `ArchivedContent`.                                      |
-| `selectCapture`             | function  | utils/_content.ts                  | An exact stamp names one capture; otherwise newest at or before, else closest after, preferring a 2xx one.             |
-| `preferSameUrl`             | function  | utils/_content.ts                  | Keeps candidates under the requested URL, the caller's scheme when named, exact spelling first.                        |
-| `unwrapSnapshotUrl`         | function  | utils/_content.ts                  | Splits a playback URL back into original URL + capture stamp.                                                          |
-| `htmlToText`                | function  | utils/_content.ts                  | Lossy markup stripping, applied by the surfaces, never by the library response.                                        |
-| `contentArchives`           | function  | tool-operations.ts                 | Shared executor behind the content tool on every surface.                                                              |
-| `diffArchivedContent`       | function  | diff.ts                            | Bounded unified diff for two chronological textual captures with matching URL/provider provenance.                     |
-| `diffArchives`              | function  | tool-operations.ts                 | Reads both captures from one provider and renders a pageable diff for MCP, Pi and OMP.                                 |
+| Symbol                      | Type      | Location               | Role                                                                                                         |
+| --------------------------- | --------- | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `createArchive`             | function  | archive.ts:56          | Core factory. Accepts provider(s) + options, returns `ArchiveInterface`.                                     |
+| `UnsupportedOperationError` | class     | archive.ts:18          | Thrown by `getPages()` when every queried provider is unsupported. Carries `providers` list.                 |
+| `providers`                 | object    | providers/index.ts:14  | Lazy-loading factory. Each method returns `Promise<ArchiveProvider>`.                                        |
+| `ArquivoProvider`           | class     | providers/arquivo.ts   | Public Arquivo.pt CDX index and raw `noFrame/replay` capture reads.                                          |
+| `WebarchivProvider`         | class     | providers/webarchiv.ts | Austrian National Library public CDXJ index and raw `id_` replay for exact URLs.                             |
+| `MementoProvider`           | class     | providers/memento.ts   | JSON TimeMap from several archives via ODU MemGator; reads exact Memento URI, then proxy fallback.           |
+| `ArchiveInterface`          | interface | types.ts               | Public API: `snapshots()`, `getPages()`, `content()`, `getContent()`, `use()`, `useAll()`.                   |
+| `ArchiveProvider`           | interface | types.ts:117           | Provider contract: `name`, `slug?`, `snapshots()`.                                                           |
+| `ArchiveResponse`           | interface | types.ts:100           | `{ success, pages, error?, unsupported?, unsupportedReason?, _meta?, fromCache? }`.                          |
+| `ArchivedPage`              | interface | types.ts:61            | `{ url, timestamp, snapshot, _meta }`.                                                                       |
+| `UnsupportedProviderRecord` | interface | types.ts:84            | `{ provider, reason }` row used in `_meta.unsupportedProviders`.                                             |
+| `ArchivesConfig`            | interface | config.ts:8            | Config shape: `storage` + `performance` + env overrides.                                                     |
+| `processInParallel`         | function  | utils/_utils.ts:16     | Generic parallel executor with concurrency + batching.                                                       |
+| `createSuccessResponse`     | function  | utils/_utils.ts        | Build a normalized success `ArchiveResponse`.                                                                |
+| `createErrorResponse`       | function  | utils/_utils.ts        | Build a normalized runtime-error `ArchiveResponse`.                                                          |
+| `createUnsupportedResponse` | function  | utils/_utils.ts:184    | Build a response signalling the operation is outside the provider's API surface.                             |
+| `configureStorage`          | function  | storage.ts:147         | **@deprecated** - use config files or `createArchive` options.                                               |
+| `archivesTools`             | const     | tools.ts               | The four tool definitions (`archives_snapshots`, `_content`, `_diff`, `_providers`) every surface registers. |
+| `loadOperations`            | function  | tools.ts               | Cached lazy import of the executors; a failed load is not kept.                                              |
+| `snapshotArchives`          | function  | tool-operations.ts     | Shared executor behind the snapshot tool on every surface. Throws on bad provider/prereqs.                   |
+| `snapshotBatchArchives`     | function  | tool-operations.ts     | Executor behind the snapshot tool: one target, or up to 10 answered as one block each in input order.        |
+| `listArchiveProviders`      | function  | tool-operations.ts     | Shared executor listing providers, `provider=all` membership and Perma.cc key state.                         |
+| `waybackSnapshots`          | function  | tool-operations.ts     | Wayback-only lookup behind the interactive `/archive` command.                                               |
+| `createMcpServer`           | function  | mcp.ts                 | Unconnected MCP server exposing snapshot, content, diff and provider tools.                                  |
+| `Archive.content`           | method    | archive.ts             | Reads one capture. Tries providers in order; the first body wins.                                            |
+| `Archive.getContent`        | method    | archive.ts             | Throwing variant of `content()`, mirroring `getPages()`.                                                     |
+| `combineContentResults`     | function  | archive.ts             | Picks the winning body and keeps the other providers' outcomes in `_meta`.                                   |
+| `ArchivedContent`           | interface | types.ts               | `{ url, timestamp, snapshot, content, mime?, bytes, truncated, _meta }`.                                     |
+| `ArchiveContentOptions`     | interface | types.ts               | `ArchiveOptions` + `timestamp` (capture to read) + `maxBytes` (read cap).                                    |
+| `readPlaybackCapture`       | function  | utils/_content.ts      | Reads a Wayback-style `<prefix>/<stamp>id_/<url>` capture into `ArchivedContent`.                            |
+| `selectCapture`             | function  | utils/_content.ts      | An exact stamp names one capture; otherwise newest at or before, else closest after, preferring a 2xx one.   |
+| `preferSameUrl`             | function  | utils/_content.ts      | Keeps candidates under the requested URL, the caller's scheme when named, exact spelling first.              |
+| `unwrapSnapshotUrl`         | function  | utils/_content.ts      | Splits a playback URL back into original URL + capture stamp.                                                |
+| `htmlToText`                | function  | utils/_content.ts      | Lossy markup stripping, applied by the surfaces, never by the library response.                              |
+| `contentArchives`           | function  | tool-operations.ts     | Shared executor behind the content tool on every surface.                                                    |
+| `diffArchivedContent`       | function  | diff.ts                | Bounded unified diff for two chronological textual captures with matching URL/provider provenance.           |
+| `diffArchives`              | function  | tool-operations.ts     | Reads both captures from one provider and renders a pageable diff for MCP, Pi and OMP.                       |
 
 ## CONVENTIONS
 
@@ -117,9 +119,9 @@ archives/
 - **Quality config**: the `lint` and `fmt` blocks of `vite.config.ts` spread the shared `@agntn/ox` policies; `vp lint` and `vp fmt` run them. Linting is type-aware; ESLint was removed intentionally.
 - **`src/` runs under plain Node type stripping**: relative imports end in `.ts` (a directory as `./dir/index.ts`), type-only imports use `import type`, and no `enum`, `namespace` or parameter properties. `erasableSyntaxOnly` and `verbatimModuleSyntax` enforce the syntax, `test/cli.test.ts` the imports. `moduleResolution` stays `Bundler`: under `NodeNext` the `unstorage` driver types import a directory and `Driver` turns into an error type.
 - **A local MCP server serves `src/`**: inside a checkout, `dist/cli.mjs mcp` loads the command from `src/`, like the Pi and OMP extensions, so a change needs a server restart, not `pnpm build`. The npm package, a copy under `node_modules` and a Node that does not strip types keep the bundle; `ARCHIVES_DIST=1` forces it. A change to `src/cli.ts` itself still needs `pnpm build`.
-- **Build**: `vp pack` reads the `pack` block of `vite.config.ts` → `dist/`. Four inputs in **one** bundle so the entrypoint, the CLI, the MCP server and the executors share chunks instead of each carrying a private copy of the provider factory. typebox is bundled inline with its license beside it, rolldown's `//#region` markers are stripped, and chunks keep stable names under `dist/_chunks/`, which `test/cli.test.ts` relies on.
-- **One executor per operation**: MCP, Pi and OMP all call `src/tool-operations.ts`. A surface owns only its schema, its call rendering and its result envelope. Schema metadata (`PROVIDER_HINT`, limits) is restated per surface because parameters are declared before the executors can be loaded — the extension tests guard it against drift.
-- **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tool-operations.ts")` and `import("../../../dist/tool-operations.mjs")`. Never `import(url.href)`. `tsc` resolves that dist specifier, so `test:types` builds before it type-checks.
+- **Build**: `vp pack` reads the `pack` block of `vite.config.ts` → `dist/`. Five inputs in **one** bundle so the entrypoint, the CLI, the MCP server, the tool list and the executors share chunks instead of each carrying a private copy of the provider factory. Chunks keep stable names under `dist/_chunks/`, which `test/cli.test.ts` relies on.
+- **One definition per tool**: `src/tools.ts` declares each tool once with `defineTool` from `@agntn/tools`, and MCP, Pi and OMP register that list through its adapters, which validate every call in the core. The executors stay in `src/tool-operations.ts` behind a lazy import, so the extensions register tools without loading the library. A surface owns only its call preview and its commands.
+- **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tools.ts")` and `import("../../../dist/tools.mjs")`. Never `import(url.href)`. `tsc` resolves that dist specifier, so `test:types` builds before it type-checks.
 - **MCP result is text only**: `details` never reaches an MCP client, so anything a caller needs for the next call belongs in `content[].text`.
 - **Listing fans out, reading falls back**: `snapshots()` queries providers in parallel and merges; `content()` walks them in order and stops at the first body, because there is one page to read rather than a set to merge. Providers that failed or cannot read are reported beside the body in `_meta`.
 - **A diff never mixes archives**: `archives_diff` tries providers sequentially until one returns both chronological captures of the same original URL. Memento requires the same underlying archive host on both sides. It reports actual selected timestamps, preserves truncation as `partial`, and pages only the derived patch. Continuation carries a SHA-256 of the complete patch and aborts if replay produces different bytes.
@@ -139,7 +141,8 @@ archives/
 - **Do not add Memento to `providers.all()`**: MemGator already fans out across archives, so nesting it duplicates results and multiplies upstream traffic.
 - **Do not put provider types in `providers/`**: provider-specific option types live in `src/_providers.ts`, not alongside implementations.
 - **Do not add deployable Pi package extensions under `.pi/extensions/`**: this project ships its Pi surface from `packages/pi/extensions/` via `package.json` `pi.extensions`, following askweb.
-- **Do not reimplement a tool inside a surface**: MCP, Pi and OMP delegate to `src/tool-operations.ts`. A fix applied in one extension only is a drift bug waiting to happen.
+- **Do not reimplement a tool inside a surface**: MCP, Pi and OMP register the definitions from `src/tools.ts`. A fix applied in one extension only is a drift bug waiting to happen.
+- **Do not import `Type` from `typebox`**: build schemas with `Type` from `@agntn/tools`. OMP rewrites a bare `typebox` import to its own facade, and validation then accepts any value.
 - **Do not fetch a playback URL without `id_`**: without the modifier the archive returns the capture inside its own toolbar with every link rewritten, which is the archive's rendition and not what the site served.
 - **Do not report a missing implementation as `unsupported`**: that flag means the provider's API has no such endpoint, and the reason string is read by callers deciding whether to try elsewhere.
 - **Do not put the whole body in a tool's `details`**: `content[].text` is the answer, and a second, longer copy in the transcript disagrees with what the caller was handed.

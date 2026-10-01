@@ -7,7 +7,7 @@ Core public API, archive orchestration, shared tool executors, configuration, st
 ## Conventions
 
 - Keep behavior independent of providers outside `providers/`.
-- Put shared operation logic in `tool-operations.ts`; MCP, Pi, and OMP own only schemas and rendering.
+- Put shared operation logic in `tool-operations.ts` and each tool definition in `tools.ts`; MCP, Pi, and OMP own only rendering and commands.
 - Export public library contracts through `types.ts` and `index.ts`.
 - Treat archived bodies and provider fields as untrusted input. Bound network reads, expensive transforms, and rendered output.
 - Preserve provider and capture provenance in every derived result.

@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { defineCommand } from "citty";
 import { consola, LogLevels } from "consola";
 import { setConfigCwd } from "../config.ts";

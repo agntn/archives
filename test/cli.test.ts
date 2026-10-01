@@ -114,7 +114,7 @@ describe("src under plain Node", () => {
 });
 
 describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp from the built bin", () => {
-  // typebox is only an optional peer, so the CLI, the MCP server and their types carry their own copy.
+  /** OMP rewrites a bare typebox import, so schemas take `Type` from @agntn/tools. */
   it("bundles typebox instead of importing it", () => {
     const importers = globSync("dist/**/*.{mjs,d.mts}", { cwd: root }).filter((file) =>
       /(?:from|import)\s*\(?\s*["']typebox(?:\/[^"']*)?["']/u.test(
