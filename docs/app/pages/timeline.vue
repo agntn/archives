@@ -3,7 +3,7 @@ definePageMeta({ layout: "default" });
 
 useSeoMeta({
   title: "Timeline · @agntn/archives",
-  description: "Query ten web archives for a domain, open any capture in place, and diff two versions, live.",
+  description: "Query the public web archives for a domain, open any capture in place, and diff two versions, live.",
 });
 </script>
 

@@ -5,7 +5,7 @@
 [![license](https://npmx.dev/api/registry/badge/license/@agntn/archives)](https://npmx.dev/package/@agntn/archives)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/agntn/archives)
 
-🗄️ Ten archive providers, one interface. Ask what a page said in 2002, you get what it said.
+🗄️ One interface over a pile of web archives. Ask what a page said in 2002, you get what it said.
 
 ## Why?
 
@@ -17,7 +17,7 @@ Docs and a live timeline explorer: [archives.agntn.dev](https://archives.agntn.d
 
 ## ✨ Features
 
-- 🗂️ **Ten providers, one shape.** Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive-It, Conifer, Archive.today, Memento, Common Crawl, Perma.cc and WebCite. Dates come back as ISO 8601 from every one of them.
+- 🗂️ **Every provider, one shape.** Wayback Machine, Arquivo.pt, Webarchiv Österreich, Vefsafn, Archive-It, Conifer, Archive.today, Memento, Common Crawl, Perma.cc and WebCite. Dates come back as ISO 8601 from every one of them.
 - 📄 **Reads captures, not just lists them.** `content()` goes through the raw `id_` replay or a WARC range where the archive has one. No toolbar, no rewritten links.
 - 🔀 **Diffs two versions of a page.** Both from the same archive, with the real capture dates on top.
 - 🕰️ **Time windows.** `from` and `to` take `2019`, `201903` or an ISO date. Both ends inclusive.
@@ -127,6 +127,7 @@ Want a few providers, not all? `createArchive(Promise.all([providers.wayback(), 
 | Wayback Machine      | `providers.wayback()`      | yes           | nothing                 | yes        |
 | Arquivo.pt           | `providers.arquivo()`      | yes           | nothing                 | yes        |
 | Webarchiv Österreich | `providers.webarchiv()`    | yes           | an exact URL            | yes        |
+| Vefsafn              | `providers.vefsafn()`      | yes           | an exact URL            | yes        |
 | Archive.today        | `providers.archiveToday()` | rendered page | nothing                 | yes        |
 | Common Crawl         | `providers.commoncrawl()`  | yes           | nothing                 | yes        |
 | WebCite              | `providers.webcite()`      | no            | no listing API at all   | yes        |
