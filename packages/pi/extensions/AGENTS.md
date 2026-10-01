@@ -6,9 +6,8 @@ Distributable Pi extension for `@agntn/archives`. Root `../../../AGENTS.md` rema
 
 ## Conventions
 
-- Delegate behavior to `src/tool-operations.ts`; keep this file to schemas, registration, call previews, and TUI commands.
-- Prefer source executors in a checkout and built executors in an installed package.
-- Keep local schema constants synchronized with the shared executor contract and cover drift in `test/pi-extension.test.ts`.
+- Register the definitions from `src/tools.ts` through `registerPiTools`; keep this file to registration, call previews, and TUI commands.
+- Prefer the source definitions in a checkout and the built ones in an installed package.
 - Every tool that reads the network is read only, passes cancellation through, and renders untrusted fields safely.
 
 ## Verification

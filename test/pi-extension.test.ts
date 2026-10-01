@@ -31,6 +31,7 @@ import {
   normalizeProvider,
   snapshotArchives,
 } from "../src/tool-operations";
+import { contentTool, snapshotsTool } from "../src/tools";
 import type { ArchiveContentResponse, ArchiveResponse } from "../src/types";
 
 const archivesMock = vi.hoisted(() => ({
@@ -109,7 +110,7 @@ type ExecutableTool = {
   ) => Promise<AgentToolResult<unknown>>;
 };
 
-function loadExtension(): CapturedRuntime {
+async function loadExtension(): Promise<CapturedRuntime> {
   const tools = new Map<string, ToolDefinition>();
   const commands = new Map<string, CommandDefinition>();
   const runtime: CapturedRuntime = { tools, commands };
@@ -122,7 +123,7 @@ function loadExtension(): CapturedRuntime {
     },
   } satisfies Partial<ExtensionAPI>;
 
-  archivesExtension(pi as ExtensionAPI);
+  await archivesExtension(pi as ExtensionAPI);
   return runtime;
 }
 
@@ -175,11 +176,11 @@ describe("Pi extension", () => {
     restoreEnv("PERMACC_API_KEY");
   });
 
-  it("registers the expected tools and commands", () => {
-    const runtime = loadExtension();
+  it("registers the expected tools and commands", async () => {
+    const runtime = await loadExtension();
 
-    expect([...runtime.tools.keys()].sort()).toEqual([
-      "archives",
+    expect([...runtime.tools.keys()]).toEqual([
+      "archives_snapshots",
       "archives_content",
       "archives_diff",
       "archives_providers",
@@ -187,9 +188,9 @@ describe("Pi extension", () => {
     expect([...runtime.commands.keys()].sort()).toEqual(["archive", "archive-providers"]);
   });
 
-  it("routes snapshot URL discovery to the listing tool", () => {
-    const runtime = loadExtension();
-    const snapshots = runtime.tools.get("archives");
+  it("routes snapshot URL discovery to the listing tool", async () => {
+    const runtime = await loadExtension();
+    const snapshots = runtime.tools.get("archives_snapshots");
     const content = runtime.tools.get("archives_content");
     const diff = runtime.tools.get("archives_diff");
 
@@ -200,11 +201,13 @@ describe("Pi extension", () => {
       "Use this tool only when the caller wants the archived body or already has a capture to read.",
     );
     expect(content?.description).toContain("format=raw keeps markup");
-    expect(diff?.description).toContain("two chronological captures from one archive provider");
+    expect(diff?.description).toContain(
+      "two chronological captures of one URL from the same archive provider",
+    );
   });
 
-  it("declares the diff schema the shared executor enforces", () => {
-    const tool = getExecutableTool(loadExtension().tools, "archives_diff");
+  it("declares the diff schema the shared executor enforces", async () => {
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_diff");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
 
     expect(properties["before"]).toMatchObject({ type: "string", minLength: 1 });
@@ -227,8 +230,8 @@ describe("Pi extension", () => {
     ]);
   });
 
-  it("declares the content schema the shared executors enforce", () => {
-    const tool = getExecutableTool(loadExtension().tools, "archives_content");
+  it("declares the content schema the shared executors enforce", async () => {
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_content");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
 
     expect(properties["provider"]?.["description"]).toBe(CONTENT_PROVIDER_HINT);
@@ -246,10 +249,7 @@ describe("Pi extension", () => {
     });
     expectRangeDescriptions(properties, ["maxChars", "offset", "ttl", "timeout", "retries"]);
 
-    const offeredFormats = (
-      (properties["format"]?.["anyOf"] ?? []) as Array<{ const: string }>
-    ).map((member) => member.const);
-    expect(offeredFormats).toEqual([...CONTENT_FORMATS]);
+    expect(properties["format"]?.["enum"]).toEqual([...CONTENT_FORMATS]);
   });
 
   it("rejects enum spellings hidden from the tool schemas", () => {
@@ -276,7 +276,7 @@ describe("Pi extension", () => {
       },
       _meta: { source: "wayback", provider: "wayback" },
     } satisfies ArchiveContentResponse);
-    const tool = getExecutableTool(loadExtension().tools, "archives_content");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_content");
 
     const result = await tool.execute(
       "test",
@@ -303,7 +303,7 @@ describe("Pi extension", () => {
   // Pi 0.99 records a returned `isError` as a failed call and keeps the details.
   it("returns a failed read as an error result with its details", async () => {
     archivesMock.content.mockRejectedValue(new Error("fixture CDX 503"));
-    const tool = getExecutableTool(loadExtension().tools, "archives_content");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_content");
 
     const result = await tool.execute(
       "test",
@@ -322,7 +322,7 @@ describe("Pi extension", () => {
 
   it("returns an error result when no capture pair can be compared", async () => {
     archivesMock.content.mockRejectedValue(new Error("fixture CDX 503"));
-    const tool = getExecutableTool(loadExtension().tools, "archives_diff");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_diff");
 
     const result = await tool.execute(
       "test",
@@ -345,22 +345,20 @@ describe("Pi extension", () => {
   });
 
   it("rejects an offset beyond the shared executor bound", async () => {
-    const tool = getExecutableTool(loadExtension().tools, "archives_content");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_content");
+    const args = { target: "example.com", offset: MAX_CONTENT_OFFSET + 1 };
 
     await expect(
-      tool.execute(
-        "test",
-        { target: "example.com", offset: MAX_CONTENT_OFFSET + 1 },
-        undefined,
-        undefined,
-        {} as ExtensionContext,
-      ),
-    ).rejects.toThrow(`offset must be between 0 and ${MAX_CONTENT_OFFSET}`);
+      tool.execute("test", args, undefined, undefined, {} as ExtensionContext),
+    ).rejects.toThrow("Invalid arguments at /offset");
+    await expect(contentTool.execute(args, {})).rejects.toThrow(
+      `offset must be between 0 and ${MAX_CONTENT_OFFSET}`,
+    );
     expect(archivesMock.content).not.toHaveBeenCalled();
   });
 
   it("rejects a timestamp no archive could act on, before any network work", async () => {
-    const tool = getExecutableTool(loadExtension().tools, "archives_content");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_content");
 
     await expect(
       tool.execute(
@@ -391,7 +389,7 @@ describe("Pi extension", () => {
           signal.addEventListener("abort", abort, { once: true });
         }),
     );
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
     const controller = new AbortController();
 
     const execution = tool.execute(
@@ -432,7 +430,7 @@ describe("Pi extension", () => {
           : { success: true, pages: [], _meta: { provider: "wayback" } },
       ),
     );
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
 
     const mixed = await tool.execute(
       "test",
@@ -461,8 +459,8 @@ describe("Pi extension", () => {
     });
   });
 
-  it("declares the schema bounds the shared executors enforce", () => {
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+  it("declares the schema bounds the shared executors enforce", async () => {
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
 
     // The parameters are declared before the executors can be loaded, so the
@@ -485,10 +483,7 @@ describe("Pi extension", () => {
     expect(properties["from"]?.["description"]).toBe(SNAPSHOT_FROM_HINT);
     expect(properties["to"]?.["description"]).toBe(SNAPSHOT_TO_HINT);
     // Every spelling normalizeProvider accepts has to be offered, and no other.
-    const offered = ((properties["provider"]?.["anyOf"] ?? []) as Array<{ const: string }>).map(
-      (member) => member.const,
-    );
-    expect(offered.sort()).toEqual([...PROVIDER_INPUTS].sort());
+    expect(properties["provider"]?.["enum"]).toEqual([...PROVIDER_INPUTS]);
   });
 
   it("passes the window to the provider as validated digits", async () => {
@@ -497,7 +492,7 @@ describe("Pi extension", () => {
       pages: [],
       _meta: { source: "wayback", provider: "wayback" },
     } satisfies ArchiveResponse);
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
 
     await tool.execute(
       "test",
@@ -513,9 +508,9 @@ describe("Pi extension", () => {
     );
   });
 
-  it("does not expose arbitrary API-key or environment-variable parameters", () => {
-    const runtime = loadExtension();
-    const tool = getExecutableTool(runtime.tools, "archives");
+  it("does not expose arbitrary API-key or environment-variable parameters", async () => {
+    const runtime = await loadExtension();
+    const tool = getExecutableTool(runtime.tools, "archives_snapshots");
 
     expect(Object.keys(tool.parameters.properties ?? {})).not.toContain("apiKey");
     expect(Object.keys(tool.parameters.properties ?? {})).not.toContain("apiKeyEnv");
@@ -523,7 +518,7 @@ describe("Pi extension", () => {
 
   it("reports Perma.cc key presence without returning the secret value", async () => {
     process.env["PERMA_CC_API_KEY"] = "super-secret-test-key";
-    const runtime = loadExtension();
+    const runtime = await loadExtension();
     const tool = getExecutableTool(runtime.tools, "archives_providers");
 
     const result = await tool.execute("test", {}, undefined, undefined, {} as ExtensionContext);
@@ -541,7 +536,7 @@ describe("Pi extension", () => {
       pages: [],
       _meta: { source: "permacc", provider: "permacc" },
     } satisfies ArchiveResponse);
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
 
     const result = await tool.execute(
       "test",
@@ -559,7 +554,7 @@ describe("Pi extension", () => {
   });
 
   it("rejects a fractional limit that would reach the CDX query verbatim", async () => {
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
     const properties = tool.parameters.properties as Record<string, Record<string, unknown>>;
     expect(properties["limit"]?.["type"]).toBe("integer");
     // A lone target and every batch entry alike.
@@ -578,15 +573,18 @@ describe("Pi extension", () => {
         undefined,
         {} as ExtensionContext,
       ),
-    ).rejects.toThrow("limit must be a whole number");
+    ).rejects.toThrow("Invalid arguments at /limit");
+    await expect(snapshotsTool.execute({ target: "example.com", limit: 10.5 }, {})).rejects.toThrow(
+      "limit must be a whole number",
+    );
     expect(archivesMock.snapshots).not.toHaveBeenCalled();
   });
 
   it("fails Perma.cc requests before network work when no fixed API-key env var is set", async () => {
     delete process.env["PERMA_CC_API_KEY"];
     delete process.env["PERMACC_API_KEY"];
-    const runtime = loadExtension();
-    const tool = getExecutableTool(runtime.tools, "archives");
+    const runtime = await loadExtension();
+    const tool = getExecutableTool(runtime.tools, "archives_snapshots");
 
     await expect(
       tool.execute(
@@ -612,7 +610,7 @@ describe("Pi extension", () => {
       pages: [],
       _meta: { source: "archive-it", provider: "archive-it" },
     } satisfies ArchiveResponse);
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
 
     await tool.execute(
       "test",
@@ -626,7 +624,7 @@ describe("Pi extension", () => {
   });
 
   it("rejects Archive-It requests without a collection", async () => {
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
 
     await expect(
       tool.execute(
@@ -651,7 +649,7 @@ describe("Pi extension", () => {
       pages: [],
       _meta: { source: "conifer", provider: "conifer" },
     } satisfies ArchiveResponse);
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
 
     await tool.execute(
       "test",
@@ -672,7 +670,7 @@ describe("Pi extension", () => {
   });
 
   it("rejects Conifer requests without a user", async () => {
-    const tool = getExecutableTool(loadExtension().tools, "archives");
+    const tool = getExecutableTool((await loadExtension()).tools, "archives_snapshots");
 
     await expect(
       tool.execute(
@@ -694,7 +692,7 @@ describe("Pi extension", () => {
       _meta: { source: "wayback", provider: "wayback" },
     } satisfies ArchiveResponse;
     archivesMock.snapshots.mockResolvedValue(response);
-    const runtime = loadExtension();
+    const runtime = await loadExtension();
     const command = runtime.commands.get("archive");
     if (!command) throw new Error("archive command was not registered");
     const notify = vi.fn();
@@ -748,7 +746,7 @@ describe("Pi package manifest", () => {
     expect(hostProvidedPackages.filter((name) => name in (manifest.dependencies ?? {}))).toEqual(
       [],
     );
-    expect(manifest.peerDependencies?.["typebox"]).toBe("*");
+    expect(manifest.peerDependencies).not.toHaveProperty("typebox");
   });
 
   // The tools return failures instead of throwing, which older Pi records as successes.

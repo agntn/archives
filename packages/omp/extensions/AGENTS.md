@@ -6,10 +6,9 @@ Distributable OMP extension for `@agntn/archives`. Root `../../../AGENTS.md` rem
 
 ## Conventions
 
-- Delegate behavior to `src/tool-operations.ts`; keep this file to OMP schemas, registration, call previews, and TUI commands.
+- Register the definitions from `src/tools.ts` through `registerOmpTools`; keep this file to registration, call previews, and TUI commands.
 - Keep loader imports literal so OMP can rewrite bare dependencies.
-- Build schemas with the TypeBox facade injected by OMP.
-- Keep local schema constants synchronized with the shared executor contract and cover drift in `test/omp-extension.test.ts`.
+- Pass the host `Text` from `pi.pi`: compiled OMP injects only the package root.
 
 ## Verification
 

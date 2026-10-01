@@ -1,6 +1,5 @@
 import { objectContaining, rangeDescription } from "./_matchers";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { createMcpServer } from "../src/mcp";
 import { storage } from "../src/storage";
@@ -667,12 +666,9 @@ describe("archives MCP server", () => {
     const client = await connectTestClient();
 
     const { tools } = await client.listTools();
-    const properties = tools[0]?.inputSchema.properties as Record<
-      string,
-      { anyOf?: Array<{ const: string }> }
-    >;
+    const properties = tools[0]?.inputSchema.properties as Record<string, { enum?: string[] }>;
 
-    const offered = (properties["provider"]?.anyOf ?? []).map((member) => member.const);
+    const offered = properties["provider"]?.enum ?? [];
     expect(offered).toContain("archive-today");
     expect(offered).toContain("wayback");
 
@@ -682,7 +678,7 @@ describe("archives MCP server", () => {
     });
     expect(rejected.isError).toBe(true);
     // "must be equal to constant" would leave the caller guessing.
-    expect(text(rejected.content)).toContain("Invalid arguments at /provider: must be one of:");
+    expect(text(rejected.content)).toContain("Invalid arguments at /provider: must be one of ");
     expect(text(rejected.content)).toContain("archive-today");
     expect(providersMock.wayback).not.toHaveBeenCalled();
   });
@@ -715,7 +711,8 @@ describe("archives MCP server", () => {
     // An accepted `apiKey` would read as "my key was used"; it never is, and a
     // caller that cannot see which key it misspelled just retries the typo.
     expect(response.isError).toBe(true);
-    expect(text(response.content)).toContain("unknown arguments apiKey, maxResults");
+    expect(text(response.content)).toContain('unknown property "apiKey"');
+    expect(text(response.content)).toContain('unknown property "maxResults"');
     expect(providersMock.all).not.toHaveBeenCalled();
   });
 
@@ -1504,7 +1501,7 @@ describe("archives MCP server", () => {
     });
 
     expect(response.isError).toBe(true);
-    expect(text(response.content)).toContain("must be one of: text, raw");
+    expect(text(response.content)).toContain("must be one of text, raw");
     expect(providersMock.all).not.toHaveBeenCalled();
   });
 
@@ -1514,6 +1511,6 @@ describe("archives MCP server", () => {
     const response = await client.callTool({ name: "toString", arguments: {} });
 
     expect(response.isError).toBe(true);
-    expect(text(response.content)).toContain("Unknown archives tool: toString");
+    expect(text(response.content)).toContain('Unknown archives tool: "toString"');
   });
 });

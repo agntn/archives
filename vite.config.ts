@@ -111,7 +111,7 @@ export default defineConfig({
     ignorePatterns: ["dist", "coverage", ".nuxt", ".output", "docs"],
   },
   /**
-   * One bundle, four inputs: the entries share the chunks that hold the provider factory and the
+   * One bundle, five inputs: the entries share the chunks that hold the provider factory and the
    * tool executors. Separate bundles would each carry their own copy, so the MCP server and the
    * package entrypoint would answer from two different module instances. Chunks keep stable names
    * under `_chunks`, as obuild wrote them.
@@ -122,6 +122,7 @@ export default defineConfig({
       cli: "src/cli.ts",
       mcp: "src/mcp.ts",
       "tool-operations": "src/tool-operations.ts",
+      tools: "src/tools.ts",
     },
     dts: true,
     format: "esm",
@@ -132,25 +133,5 @@ export default defineConfig({
       /* JSDoc ships once, in the declarations; the runtime files keep only legal and annotation comments. */
       comments: { jsdoc: false },
     },
-    /**
-     * typebox stays inline: resolving and parsing it from node_modules costs the MCP server more
-     * at every spawn than the bundled copy does.
-     */
-    deps: {
-      onlyBundle: [/^typebox(?:\/|$)/u],
-      alwaysBundle: [/^typebox(?:\/|$)/u],
-    },
-    /* The inlined typebox carries no license header of its own, so its MIT notice ships beside it. */
-    copy: [{ from: "node_modules/typebox/license", rename: "typebox.LICENSE" }],
-    /**
-     * Rolldown marks every source module with `//#region <path>` and has no option to turn that off.
-     * Inlined typebox brings one per module, each spelling out its pnpm store path.
-     */
-    plugins: [
-      {
-        name: "strip-regions",
-        renderChunk: (code: string) => code.replaceAll(/^\/\/#(?:end)?region\b.*(?:\n|$)/gmu, ""),
-      },
-    ],
   },
 });

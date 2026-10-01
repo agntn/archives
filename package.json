@@ -81,7 +81,8 @@
   },
   "dependencies": {
     "@agntn/hashes": "0.5.0",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@agntn/tools": "0.0.0",
+    "@modelcontextprotocol/server": "2.2.0",
     "c12": "4.0.0-beta.5",
     "citty": "0.2.2",
     "consola": "3.4.2",
@@ -95,8 +96,9 @@
     "@agntn/ox": "^0.1.0",
     "@earendil-works/pi-coding-agent": "0.99.1",
     "@earendil-works/pi-tui": "0.99.1",
-    "@oh-my-pi/omptype": "17.3.0",
-    "@oh-my-pi/pi-coding-agent": "17.3.0",
+    "@modelcontextprotocol/client": "2.2.0",
+    "@oh-my-pi/omptype": "18.4.8",
+    "@oh-my-pi/pi-coding-agent": "18.4.8",
     "@types/node": "26.2.0",
     "@vitest/coverage-v8": "catalog:",
     "changelogen": "0.6.2",
@@ -109,9 +111,7 @@
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": ">=0.99.0",
     "@earendil-works/pi-tui": "*",
-    "@oh-my-pi/omptype": "*",
-    "@oh-my-pi/pi-coding-agent": "*",
-    "typebox": "*"
+    "@oh-my-pi/pi-coding-agent": ">=18.0.0 <19"
   },
   "peerDependenciesMeta": {
     "@earendil-works/pi-coding-agent": {
@@ -120,13 +120,7 @@
     "@earendil-works/pi-tui": {
       "optional": true
     },
-    "@oh-my-pi/omptype": {
-      "optional": true
-    },
     "@oh-my-pi/pi-coding-agent": {
-      "optional": true
-    },
-    "typebox": {
       "optional": true
     }
   },

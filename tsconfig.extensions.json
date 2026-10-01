@@ -2,10 +2,6 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",
-    "paths": {
-      "@agntn/archives": ["./src/index.ts"],
-      "@agntn/archives/tool-operations": ["./src/tool-operations.ts"]
-    },
     "outDir": "./dist-extensions",
     "noEmit": true,
     "allowImportingTsExtensions": true,

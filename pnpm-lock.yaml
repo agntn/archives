@@ -25,10 +25,13 @@ importers:
     dependencies:
       '@agntn/hashes':
         specifier: 0.5.0
-        version: 0.5.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@oh-my-pi/pi-coding-agent@17.3.0)(typebox@1.3.15)(zod@4.4.3)
-      '@modelcontextprotocol/sdk':
-        specifier: 1.30.0
-        version: 1.30.0
+        version: 0.5.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@oh-my-pi/pi-coding-agent@18.4.8)(typebox@1.3.15)(zod@4.4.3)
+      '@agntn/tools':
+        specifier: 0.0.0
+        version: 0.0.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)
+      '@modelcontextprotocol/server':
+        specifier: 2.2.0
+        version: 2.2.0
       c12:
         specifier: 4.0.0-beta.5
         version: 4.0.0-beta.5(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magicast@0.5.4)
@@ -59,16 +62,19 @@ importers:
         version: 0.1.0(oxfmt@0.70.0(vite-plus@1.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1(vitest@5.0.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(typescript@7.0.2)(yaml@2.9.0)))(oxlint-tsgolint@7.0.2003)(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1(vitest@5.0.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(typescript@7.0.2)(yaml@2.9.0)))
       '@earendil-works/pi-coding-agent':
         specifier: 0.99.1
-        version: 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3)
+        version: 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3)
       '@earendil-works/pi-tui':
         specifier: 0.99.1
         version: 0.99.1
+      '@modelcontextprotocol/client':
+        specifier: 2.2.0
+        version: 2.2.0
       '@oh-my-pi/omptype':
-        specifier: 17.3.0
-        version: 17.3.0
+        specifier: 18.4.8
+        version: 18.4.8
       '@oh-my-pi/pi-coding-agent':
-        specifier: 17.3.0
-        version: 17.3.0
+        specifier: 18.4.8
+        version: 18.4.8
       '@types/node':
         specifier: 26.2.0
         version: 26.2.0
@@ -134,6 +140,24 @@ packages:
       oxfmt: '>=0.63.0'
       oxlint: '>=1.78.0'
       oxlint-tsgolint: '>=7.0.2001'
+
+  '@agntn/tools@0.0.0':
+    resolution: {integrity: sha512-tGH2t1GDyxqaRrbJeqH3ce6OCD5pS30mneLAoCW0FhlkEWGJF1o/3J522hcIZvTHr3mz+64YQ3nCq4qRcUDxnQ==}
+    engines: {node: '>=24'}
+    peerDependencies:
+      '@earendil-works/pi-coding-agent': '>=0.84.2 <1'
+      '@modelcontextprotocol/server': '>=2.2.0 <3'
+      '@oh-my-pi/pi-coding-agent': '>=18.0.0 <19'
+      ai: '>=7.0.0 <8'
+    peerDependenciesMeta:
+      '@earendil-works/pi-coding-agent':
+        optional: true
+      '@modelcontextprotocol/server':
+        optional: true
+      '@oh-my-pi/pi-coding-agent':
+        optional: true
+      ai:
+        optional: true
 
   '@anthropic-ai/sdk@0.124.0':
     resolution: {integrity: sha512-cN5O8i9UVxHeOQAzj/XjshWXG8KiibJDw9OGpH2Z/eR3n/RBxdoLxDJOcfqAJWvjaMDFfHTBADU04hWRJVkDyA==}
@@ -387,9 +411,6 @@ packages:
         optional: true
       commander:
         optional: true
-
-  '@bufbuild/protobuf@2.14.0':
-    resolution: {integrity: sha512-C3UGsiCwSprE2NKIIFA3hCDlpXTMCAXRZuEVp88L1GY36Y41+rYL5fryE+nOFhp4p4JPQvdV8PQ4DWgHgeTE+w==}
 
   '@clack/core@1.4.3':
     resolution: {integrity: sha512-/kr3UWNtdJfxZtPgDqUOmG2pvwlmcLGheex5yiZKdwbzZJxhV+HMNR9QNmyY5cGwTNV6LrR7Jtp+KjhUAP1qBQ==}
@@ -800,9 +821,6 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@kurkle/color@0.3.4':
-    resolution: {integrity: sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==}
-
   '@kwsites/file-exists@1.1.1':
     resolution: {integrity: sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw==}
 
@@ -814,14 +832,13 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  '@modelcontextprotocol/sdk@1.30.0':
-    resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@cfworker/json-schema': ^4.1.1
-    peerDependenciesMeta:
-      '@cfworker/json-schema':
-        optional: true
+  '@modelcontextprotocol/client@2.2.0':
+    resolution: {integrity: sha512-LxCou/CSYQ6dwEnjhLZY0KnEuc8V4UJ3IEQCl/uR2yHobSQIEdJKUlKLRYRF5i5FqRGHy1eK7une3aAWDHLtig==}
+    engines: {node: '>=20'}
+
+  '@modelcontextprotocol/core@2.2.0':
+    resolution: {integrity: sha512-iLhmprRmWI8EcosOA3wVvww22z02NkgqhV4fBH6f/odQBsi7xnJc0HGmi21yWO+/iKw2yzqVE127Zhna5/+JXw==}
+    engines: {node: '>=20'}
 
   '@modelcontextprotocol/sdk@1.30.1':
     resolution: {integrity: sha512-H2HxLvC3HDNybePJaLdSrU1hhUK5iQw+WvV1b01myFyI7sdVGe1u/IPTE5D9fGCiJDVtgMV/lmFkQXLmQyIFYA==}
@@ -831,6 +848,10 @@ packages:
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
+
+  '@modelcontextprotocol/server@2.2.0':
+    resolution: {integrity: sha512-qFnltjus6Gk8Lx6J1w2RXmr3YPN22MNT6qD6zjAkaiWIlFIFxWClz0rXHNuJF/KSUyn5YGhkSvXkWDbQHVLFEQ==}
+    engines: {node: '>=20'}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -933,38 +954,34 @@ packages:
       rollup-plugin-visualizer:
         optional: true
 
-  '@oh-my-pi/hashline@17.3.0':
-    resolution: {integrity: sha512-EfXPzIdxiWco+KmCLPIh2kFgC2DEX+NjoTKErR2R8p59ZeSnFHhBjXPNv4VqLISOtNRVubcLknQw4IwGlNMSRA==}
-    engines: {bun: '>=1.3.14'}
-
-  '@oh-my-pi/omp-stats@17.3.0':
-    resolution: {integrity: sha512-sWshikaTcVytwhGevdTGqhPNeIK87KFIsiw4hyK674klo4ONSA3TLg+tM8VMNEY3tlzyiIPo8P7jjQGBIMqsQQ==}
+  '@oh-my-pi/omp-stats@18.4.8':
+    resolution: {integrity: sha512-PSZn1xZk5A79NMqHsAZLkHs69AqG3/ucsjUweIJbL5CbrxamobmqFmC7vVsmgoRbbLEqh8i/QcaCnRrfT6TI5Q==}
     engines: {bun: '>=1.3.14'}
     hasBin: true
 
-  '@oh-my-pi/omptype@17.3.0':
-    resolution: {integrity: sha512-vDCEj4QpY/6rwGwhmqFXLBGVBSpK5Fv/7ULyYPl443xd6L6RvD5Y62YbPxUvuK7vjVFBTuLuVpJDeRJLgUpihQ==}
+  '@oh-my-pi/omptype@18.4.8':
+    resolution: {integrity: sha512-YRqUJFD475hWa5mQZUl9pXFKbkmeswE+KXrrS2DjUq+9aBltKZyD9Nvb62AU0RxJyZPKXfgTEWUWoryPShhsgg==}
     engines: {bun: '>=1.3.14', node: '>=20'}
 
-  '@oh-my-pi/pi-agent-core@17.3.0':
-    resolution: {integrity: sha512-0b+1snJt2u8BrkjPQnfX90jwir6a0vbfhIK4k0cVa75hzpDvaYEYA3kzAeu/gfJSgMURxggm5TjPbZKG1JU2jg==}
+  '@oh-my-pi/pi-agent-core@18.4.8':
+    resolution: {integrity: sha512-O3NGU9GuT00+YrwdZkby8zashWXDDY/cJOMI+7MHSgVd8Aq6iH8txsi3p8Jgh3T/Lo2Dcx+aYNggEx573q+Hlw==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-ai@17.3.0':
-    resolution: {integrity: sha512-WjyQGQl0qycdJ37969Nau/SsIxpoZ1a6iqsu3f1vNMpbaMMLt+B9GE6F0RZvSNkzvHKiH+9Wxl/WCNUG0tmzKQ==}
+  '@oh-my-pi/pi-ai@18.4.8':
+    resolution: {integrity: sha512-PN/8ZiJUo93MJ0aU2pu1HzSCjD5nhEmCq9gMi1v5FHW7Z95pKGKdEyndo7NPxR+MC8fhtQuu7Wlm8QWpr/Wcgw==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-catalog@17.3.0':
-    resolution: {integrity: sha512-86DfaqOqKVInl6F2yq1zBQBuTt/uSjBB+IVcjM4770jdmw7y3iZmvTUUb1n4eTXw4rtnPkL1sDRe9OvHvcRPCw==}
+  '@oh-my-pi/pi-catalog@18.4.8':
+    resolution: {integrity: sha512-QdL+GA4CpSO2Ocx6Ikg/YrxAGJtRcyFKUZ3oPXjh3UOt/MMjzRJF3aFnsgV3Z7xp9NOw2EV9ur68Kwpw86trQA==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-coding-agent@17.3.0':
-    resolution: {integrity: sha512-Ad2VB+dRxmKACarbq7eM9/cjfWlZWeKBliqAP5OpWU8vrj8i4xLVtuJpTJ3q3Ile9Tau2YbzBSJeWHDNAMtIhw==}
+  '@oh-my-pi/pi-coding-agent@18.4.8':
+    resolution: {integrity: sha512-PuewQeW6LmPXPnJljY9kB4UgOFq8JLbqstTzjgwkjp7C0Ja6mBGMYWxY+WiWUKIH22BI++4CV9CVYca48S9BVg==}
     engines: {bun: '>=1.3.14'}
     hasBin: true
 
-  '@oh-my-pi/pi-mnemopi@17.3.0':
-    resolution: {integrity: sha512-orLKlY7B5+Q+H0+yzdi1YniMMaXshMjyzht+qsMvoBxSoixt1WGiP8N7NKfpxwTI3/+QHaZ4G0CC8kPzkPcDbg==}
+  '@oh-my-pi/pi-mnemopi@18.4.8':
+    resolution: {integrity: sha512-YAJ4vVwpGu02PTSthmqH0Oa0mLNJttxfb/EMz8bJze1yQwIZsS0ZLla/qP6d0DwimMfohQOwDvKMmdruVh2N7A==}
     engines: {bun: '>=1.3.14'}
     hasBin: true
     peerDependencies:
@@ -976,54 +993,60 @@ packages:
       onnxruntime-node:
         optional: true
 
-  '@oh-my-pi/pi-natives-darwin-arm64@17.3.0':
-    resolution: {integrity: sha512-7mToLII+Yc2YF0XK+8T3L+w06xlxwS+pjiM3kl7diYQOHjm3tD9fW9tmiIbx+h6jtDG6V08tHy8Ft178JW3PNw==}
+  '@oh-my-pi/pi-natives-darwin-arm64@18.4.8':
+    resolution: {integrity: sha512-xDPjrsQiTH3IoZtvBv+ZQnHMS+wnSypP4jA9C+4dEKWKVxYhK1eYDtXOL68bwF35i6yavMAqKOR3ldj5SlKpuw==}
     engines: {bun: '>=1.3.14'}
     cpu: [arm64]
     os: [darwin]
 
-  '@oh-my-pi/pi-natives-darwin-x64@17.3.0':
-    resolution: {integrity: sha512-ZsBkFICVCufzswXGj5efkbTuOt/XwQ7wfnW7SooBck0RvuDUGiklio6sx1aWeUslAhV+R8wqSkhWe728scd0sw==}
+  '@oh-my-pi/pi-natives-darwin-x64@18.4.8':
+    resolution: {integrity: sha512-6Rfaf474LP0SEMbC2+FXobs4rHh5iUjDrvVktuw8qdf1xzRhJelGun9sNNk9EP1LhX/Tt1lcaXFTENZFFmgPLg==}
     engines: {bun: '>=1.3.14'}
     cpu: [x64]
     os: [darwin]
 
-  '@oh-my-pi/pi-natives-linux-arm64@17.3.0':
-    resolution: {integrity: sha512-Hcncf5g/PQELSYVXVejNaoRtAUF9tINK2ocCMKE43peOh8f/yq/TWMmHlWnPFN+kfRkagowoMbHs1MktBPaB/Q==}
+  '@oh-my-pi/pi-natives-linux-arm64@18.4.8':
+    resolution: {integrity: sha512-Y97/TPG6TtnJQbDZOKEr97ffrLMIZRODJTO+X3NwaZse4TzBYK0LJQNJi9w5ToUS3oGSsq2/CCHNCcIbPBYzXQ==}
     engines: {bun: '>=1.3.14'}
     cpu: [arm64]
     os: [linux]
 
-  '@oh-my-pi/pi-natives-linux-x64@17.3.0':
-    resolution: {integrity: sha512-J91LBnjDLax7AFdf5AMbb8PUsAliWni7jm7FCsXYj/zUqv/Ho4daBUsIAvTy9YbXaTc7kIElYpurgLDrPjCH2A==}
+  '@oh-my-pi/pi-natives-linux-x64@18.4.8':
+    resolution: {integrity: sha512-l+fel7Lu982nIcO1UUIbArRr04VNOffepOBtQ7SKeEDjZfCG8cacXU3jO9WIxibDgImNTOTaNvLGNKcxam6FuA==}
     engines: {bun: '>=1.3.14'}
     cpu: [x64]
     os: [linux]
 
-  '@oh-my-pi/pi-natives-win32-x64@17.3.0':
-    resolution: {integrity: sha512-iFy/ngmigr2cACDL9gF0zqvr3TNFxeH7XdJvnttZxt9JDqX4Zy7pxCZAE1aQ0jzWFQm827dC7P0doySD5bI+pA==}
+  '@oh-my-pi/pi-natives-win32-arm64@18.4.8':
+    resolution: {integrity: sha512-BOhIQ0BeUW2Wn/63YGaJTB2lBz6Flr5JLyusxqHB2sYp80xyB24fC2N5XiIBoS0K30pYKJC8pJERAgnvdzSKww==}
+    engines: {bun: '>=1.3.14'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@oh-my-pi/pi-natives-win32-x64@18.4.8':
+    resolution: {integrity: sha512-ZUOIRji3rBcylWn23FrQrPJOiatCKnMiL/hHeGzxIXh++sxxqSMursyZxQ40SdC4AB5oZjoDoFKLPl5/EGdXrg==}
     engines: {bun: '>=1.3.14'}
     cpu: [x64]
     os: [win32]
 
-  '@oh-my-pi/pi-natives@17.3.0':
-    resolution: {integrity: sha512-vwL3trsTyhsdVQMVaw3Vw9oh29nK/tLoltTf47a4+OZKs1v4BDGeCrOWlafIYKnHODm9Ws1bLBzGPYWhC+nJHQ==}
+  '@oh-my-pi/pi-natives@18.4.8':
+    resolution: {integrity: sha512-vsvulBMEKJCnWcBXv/bTF5ML3f2N9rikpZjcY2jjBCrIjcjwb7EhuBt7Gj5t8hOL6T/yFkV7dVkRu79T+nxaaw==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-tui@17.3.0':
-    resolution: {integrity: sha512-pMBqghMkqQvnaz0Bxs45XXN7hnBXyR9LmPjZ4h4jTZN3i41e+E4eSMY3T55ILsVg12v1w7TBptTiq30KRHSNsQ==}
+  '@oh-my-pi/pi-tui@18.4.8':
+    resolution: {integrity: sha512-7ww92Erk3h4rZ9k55zB8Nq8KvXbW23wn1I6NWDhm2Epiw6obZuensrhtpFFIVrLIu5q44hrYMP5M2KMdEXx9bQ==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-utils@17.3.0':
-    resolution: {integrity: sha512-1KeUceM9d3n1XpeE6/3xqFU/Rhfv7C4KAhmjpycRSs3KgRcW0QxXlluaTe5skP/poQIS9oB7pY11oPG3PfBwWw==}
+  '@oh-my-pi/pi-utils@18.4.8':
+    resolution: {integrity: sha512-Y+wNp884l4KBpX4r8lKck1rOOx2PCVIHSIJhS9yYu3FZCS7h4CKJpILXSSDeCqDc9sBqiUjMKP2fr6weQJNUXA==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-wire@17.3.0':
-    resolution: {integrity: sha512-B5Ibg6QRNdvDm5O3YTXckkGmgzuZSp2NOYY+M8AR7112ZByslsIApSK8RB1xz0KP9VyUO71YlqIRZ8sIsPfdVg==}
+  '@oh-my-pi/pi-wire@18.4.8':
+    resolution: {integrity: sha512-f4IXVSwDPle91zV04NOzzaqvOMz/DaxKpXJs7L9ScVQEazDQY3pQeOC5qJneTCZARb7u29ZT6EJPXHKeq31/Gw==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/snapcompact@17.3.0':
-    resolution: {integrity: sha512-ux6w1qeN3fXb/77ey0mT+GCI+bn2f8yE/+sebYRwEi+brSuB/9rwvwi+nnKT71bAJpHWgh57sxxk12xCxZ/yWA==}
+  '@oh-my-pi/snapcompact@18.4.8':
+    resolution: {integrity: sha512-zrMPdXYkvwRR7yZmehHPq7tnb980LqnBmfKlxyLriJOPcP7xc3ctzYZqaYZf5wnQEcI9CjF00gNI9r+vXif+dg==}
     engines: {bun: '>=1.3.14'}
 
   '@opentelemetry/api-logs@0.220.0':
@@ -1811,9 +1834,6 @@ packages:
   '@stablelib/base64@1.0.1':
     resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
 
-  '@tailwindcss/node@4.3.3':
-    resolution: {integrity: sha512-/T8IKEsf9VTU6tLjgC7+sv2mOPtQxzE2jMw7u4Tt40Tx+QSZxpzh95/H6cMKoja9XuW7iMdLJYBB0o9G1CaAgg==}
-
   '@testing-library/dom@10.4.2':
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
     engines: {node: '>=18'}
@@ -2485,6 +2505,10 @@ packages:
     peerDependencies:
       postcss: ^8.1.0
 
+  axe-core@4.13.0:
+    resolution: {integrity: sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==}
+    engines: {node: '>=4'}
+
   b4a@1.8.1:
     resolution: {integrity: sha512-aiqre1Nr0B/6DgE2N5vwTc+2/oQZ4Wh1t4NznYY4E00y8LCt6NqdRv81so00oo27D8MVKTpUa/MwUUtBLXCoDw==}
     peerDependencies:
@@ -2665,10 +2689,6 @@ packages:
   changelogen@0.6.2:
     resolution: {integrity: sha512-QtC7+r9BxoUm+XDAwhLbz3CgU134J1ytfE3iCpLpA4KFzX2P1e6s21RrWDwUBzfx66b1Rv+6lOA2nS2btprd+A==}
     hasBin: true
-
-  chart.js@4.5.1:
-    resolution: {integrity: sha512-GIjfiT9dbmHRiYi6Nl2yFCq7kkwdkp1W/lp2J99rX0yo9tgJGn3lKQATztIjb5tVtevcBtIdICNWqlq5+E8/Pw==}
-    engines: {pnpm: '>=8'}
 
   chokidar@5.0.0:
     resolution: {integrity: sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw==}
@@ -2997,10 +3017,6 @@ packages:
   encodeurl@2.0.0:
     resolution: {integrity: sha512-Q0n9HRi4m6JuGIV1eFlmvJB7ZEVxu93IrMyiMsGC0lrMJMWzRgx6WGquyfQgZVb31vhGgXnfmPNNXmxnOkRBrg==}
     engines: {node: '>= 0.8'}
-
-  enhanced-resolve@5.24.5:
-    resolution: {integrity: sha512-L1l8TNvomm6UVW5B253AGxQagSQr+vGwhMlrrfRS2qmhx46AMpMVJKQYLvWYbysTMY8VoicOvzHzoHMbyzB+4A==}
-    engines: {node: '>=10.13.0'}
 
   entities@4.5.0:
     resolution: {integrity: sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==}
@@ -3552,34 +3568,16 @@ packages:
     resolution: {integrity: sha512-b94GiNHQNy6JNTrt5w6zNyffMrNkXZb3KTkCZJb2V1xaEGCk093vkZ2jk3tpaeP33/OiXC+WvK9AxUebnf5nbw==}
     engines: {node: '>= 0.6.3'}
 
-  lightningcss-android-arm64@1.32.0:
-    resolution: {integrity: sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm64]
-    os: [android]
-
   lightningcss-android-arm64@1.33.0:
     resolution: {integrity: sha512-gEpRTalKdosp4Bb8qWtc2iOgE5SeIHlpS1up9bFq2wAyYhl1UdTObYiHe98zEM9SQvSoqQZ1IQD0JNpg3Ml5pg==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [android]
 
-  lightningcss-darwin-arm64@1.32.0:
-    resolution: {integrity: sha512-RzeG9Ju5bag2Bv1/lwlVJvBE3q6TtXskdZLLCyfg5pt+HLz9BqlICO7LZM7VHNTTn/5PRhHFBSjk5lc4cmscPQ==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm64]
-    os: [darwin]
-
   lightningcss-darwin-arm64@1.33.0:
     resolution: {integrity: sha512-Sciaz8eenNTKn9b3t7+xr0ipTp9YxKQY4npwQ3mrRuL0BAVHBLyZxofhaKBAVtzmtRZ/zTyo0/to4B1uWG/Djg==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
-    os: [darwin]
-
-  lightningcss-darwin-x64@1.32.0:
-    resolution: {integrity: sha512-U+QsBp2m/s2wqpUYT/6wnlagdZbtZdndSmut/NJqlCcMLTWp5muCrID+K5UJ6jqD2BFshejCYXniPDbNh73V8w==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [x64]
     os: [darwin]
 
   lightningcss-darwin-x64@1.33.0:
@@ -3588,23 +3586,11 @@ packages:
     cpu: [x64]
     os: [darwin]
 
-  lightningcss-freebsd-x64@1.32.0:
-    resolution: {integrity: sha512-JCTigedEksZk3tHTTthnMdVfGf61Fky8Ji2E4YjUTEQX14xiy/lTzXnu1vwiZe3bYe0q+SpsSH/CTeDXK6WHig==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [x64]
-    os: [freebsd]
-
   lightningcss-freebsd-x64@1.33.0:
     resolution: {integrity: sha512-QQM/Ti/hQajJwCY+RiWuCZ9sdtI/XQk7nDK5vC8kkdwixezOlDgvDx7+RT+QjK6FcFT4MpsuoBnHIo/O3StRRg==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [freebsd]
-
-  lightningcss-linux-arm-gnueabihf@1.32.0:
-    resolution: {integrity: sha512-x6rnnpRa2GL0zQOkt6rts3YDPzduLpWvwAF6EMhXFVZXD4tPrBkEFqzGowzCsIWsPjqSK+tyNEODUBXeeVHSkw==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm]
-    os: [linux]
 
   lightningcss-linux-arm-gnueabihf@1.33.0:
     resolution: {integrity: sha512-N7FVBe6iS24MlM6R/4RBTxGhQheZGs7tiQ9U32UtF75NzP5Q7xWPRqLBCKxlRQRk3rY1jCIPLzx7WzOhuUIRLQ==}
@@ -3612,20 +3598,8 @@ packages:
     cpu: [arm]
     os: [linux]
 
-  lightningcss-linux-arm64-gnu@1.32.0:
-    resolution: {integrity: sha512-0nnMyoyOLRJXfbMOilaSRcLH3Jw5z9HDNGfT/gwCPgaDjnx0i8w7vBzFLFR1f6CMLKF8gVbebmkUN3fa/kQJpQ==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm64]
-    os: [linux]
-
   lightningcss-linux-arm64-gnu@1.33.0:
     resolution: {integrity: sha512-j2v/itmy4HlNxlc6voKXYgBqNi0Ng2LShg4z7GufpEgs05P+2suBVyi9I6YHq5uoVFx9ETin3eCEhLVyXGQnKg==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm64]
-    os: [linux]
-
-  lightningcss-linux-arm64-musl@1.32.0:
-    resolution: {integrity: sha512-UpQkoenr4UJEzgVIYpI80lDFvRmPVg6oqboNHfoH4CQIfNA+HOrZ7Mo7KZP02dC6LjghPQJeBsvXhJod/wnIBg==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
@@ -3636,20 +3610,8 @@ packages:
     cpu: [arm64]
     os: [linux]
 
-  lightningcss-linux-x64-gnu@1.32.0:
-    resolution: {integrity: sha512-V7Qr52IhZmdKPVr+Vtw8o+WLsQJYCTd8loIfpDaMRWGUZfBOYEJeyJIkqGIDMZPwPx24pUMfwSxxI8phr/MbOA==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [x64]
-    os: [linux]
-
   lightningcss-linux-x64-gnu@1.33.0:
     resolution: {integrity: sha512-ar+Ju7LmcN0Jo4FpL4hpFybwNG9/3A/Br5KW2n2jyODg3MEZXaDYADdemoNS+BDNfMgKvylJLj4S5tyRActuAg==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [x64]
-    os: [linux]
-
-  lightningcss-linux-x64-musl@1.32.0:
-    resolution: {integrity: sha512-bYcLp+Vb0awsiXg/80uCRezCYHNg1/l3mt0gzHnWV9XP1W5sKa5/TCdGWaR/zBM2PeF/HbsQv/j2URNOiVuxWg==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
@@ -3660,22 +3622,10 @@ packages:
     cpu: [x64]
     os: [linux]
 
-  lightningcss-win32-arm64-msvc@1.32.0:
-    resolution: {integrity: sha512-8SbC8BR40pS6baCM8sbtYDSwEVQd4JlFTOlaD3gWGHfThTcABnNDBda6eTZeqbofalIJhFx0qKzgHJmcPTnGdw==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm64]
-    os: [win32]
-
   lightningcss-win32-arm64-msvc@1.33.0:
     resolution: {integrity: sha512-1K+MPfLSFVpphzpdbfkhlWk6wBrTObBzS2T6db10PNOZgR9GoVsAWzwNyuhUYYbTp23j+4RrncfujZ4uAzXvwA==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
-    os: [win32]
-
-  lightningcss-win32-x64-msvc@1.32.0:
-    resolution: {integrity: sha512-Amq9B/SoZYdDi1kFrojnoqPLxYhQ4Wo5XiL8EVJrVsB8ARoC1PWW6VGtT0WKCemjy8aC+louJnjS7U18x3b06Q==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [x64]
     os: [win32]
 
   lightningcss-win32-x64-msvc@1.33.0:
@@ -3683,10 +3633,6 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [win32]
-
-  lightningcss@1.32.0:
-    resolution: {integrity: sha512-NXYBzinNrblfraPGyrbPoD19C1h9lfI/1mzgWYvXUTe414Gz/X1FD2XBZSZM7rRTrMA8JL3OtAaGifrIKhQ5yQ==}
-    engines: {node: '>= 12.0.0'}
 
   lightningcss@1.33.0:
     resolution: {integrity: sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==}
@@ -3859,9 +3805,6 @@ packages:
 
   muggle-string@0.4.1:
     resolution: {integrity: sha512-VNTrAak/KhO2i8dqqnqnAHOa3cYBwXEZe9h+D5h/1ZqFSTEFHdM65lR7RoIqq3tBBYavsOXV84NoHXZ0AkPyqQ==}
-
-  mupdf@1.28.0:
-    resolution: {integrity: sha512-ACUnbpECaQ5JLq04pwd89lS+0IGMest5qL5tb08g9TAR7bDtfqflHEkb2Xm3o4rvC/szguLiV+WEbW9kstj8Sg==}
 
   nanoid@3.3.18:
     resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
@@ -4412,12 +4355,6 @@ packages:
   rc9@3.0.1:
     resolution: {integrity: sha512-gMDyleLWVE+i6Sgtc0QbbY6pEKqYs97NGi6isHQPqYlLemPoO8dxQ3uGi0f4NiP98c+jMW6cG1Kx9dDwfvqARQ==}
 
-  react-chartjs-2@5.3.1:
-    resolution: {integrity: sha512-h5IPXKg9EXpjoBzUfyWJvllMjG2mQ4EiuHQFhms/AjUm0XSZHhyRy2xVmLXHKrtcdrPO4mnGqRtYoD0vp95A0A==}
-    peerDependencies:
-      chart.js: ^4.1.1
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
   react-dom@19.2.7:
     resolution: {integrity: sha512-t0BRVXvbiE/o20Hfw669rLbMCDWtYZLvmJigy2f0MxsXF+71pxhR3xOkspmsO8h3ZlNzyibAmtCa3l4lYKk6gQ==}
     peerDependencies:
@@ -4784,13 +4721,6 @@ packages:
   tagged-tag@1.0.0:
     resolution: {integrity: sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==}
     engines: {node: '>=20'}
-
-  tailwindcss@4.3.3:
-    resolution: {integrity: sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ==}
-
-  tapable@2.3.3:
-    resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
-    engines: {node: '>=6'}
 
   tar-stream@3.2.0:
     resolution: {integrity: sha512-ojzvCvVaNp6aOTFmG7jaRD0meowIAuPc3cMMhSgKiVWws1GyHbGd/xvnyuRKcKlMpt3qvxx6r0hreCNITP9hIg==}
@@ -5415,13 +5345,13 @@ packages:
 
 snapshots:
 
-  '@agntn/hashes@0.5.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@oh-my-pi/pi-coding-agent@17.3.0)(typebox@1.3.15)(zod@4.4.3)':
+  '@agntn/hashes@0.5.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@oh-my-pi/pi-coding-agent@18.4.8)(typebox@1.3.15)(zod@4.4.3)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.30.1
       citty: 0.2.2
     optionalDependencies:
-      '@earendil-works/pi-coding-agent': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3)
-      '@oh-my-pi/pi-coding-agent': 17.3.0
+      '@earendil-works/pi-coding-agent': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3)
+      '@oh-my-pi/pi-coding-agent': 18.4.8
       typebox: 1.3.15
       zod: 4.4.3
     transitivePeerDependencies:
@@ -5433,6 +5363,12 @@ snapshots:
       oxfmt: 0.70.0(vite-plus@1.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1(vitest@5.0.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(typescript@7.0.2)(yaml@2.9.0))
       oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1(vitest@5.0.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(typescript@7.0.2)(yaml@2.9.0))
       oxlint-tsgolint: 7.0.2003
+
+  '@agntn/tools@0.0.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)':
+    optionalDependencies:
+      '@earendil-works/pi-coding-agent': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3)
+      '@modelcontextprotocol/server': 2.2.0
+      '@oh-my-pi/pi-coding-agent': 18.4.8
 
   '@anthropic-ai/sdk@0.124.0(zod@4.4.3)':
     dependencies:
@@ -5822,8 +5758,6 @@ snapshots:
     optionalDependencies:
       citty: 0.2.2
 
-  '@bufbuild/protobuf@2.14.0': {}
-
   '@clack/core@1.4.3':
     dependencies:
       fast-wrap-ansi: 0.2.2
@@ -5870,10 +5804,10 @@ snapshots:
     dependencies:
       esbuild: 0.28.2
 
-  '@earendil-works/pi-agent-core@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)':
+  '@earendil-works/pi-agent-core@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@earendil-works/chord': 0.99.1
-      '@earendil-works/pi-ai': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)
+      '@earendil-works/pi-ai': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)
       '@earendil-works/pi-telemetry': 0.99.1
       diff: 8.0.4
       ignore: 7.0.8
@@ -5892,12 +5826,12 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)':
+  '@earendil-works/pi-ai@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@anthropic-ai/sdk': 0.124.0(zod@4.4.3)
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
       '@earendil-works/pi-telemetry': 0.99.1
-      '@google/genai': 2.21.0(@modelcontextprotocol/sdk@1.30.0)
+      '@google/genai': 2.21.0(@modelcontextprotocol/sdk@1.30.1)
       '@smithy/node-http-handler': 4.12.1
       http-proxy-agent: 9.1.0
       https-proxy-agent: 9.1.0
@@ -5921,11 +5855,11 @@ snapshots:
     dependencies:
       quickjs-wasi: 3.6.2
 
-  '@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3)':
+  '@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@earendil-works/chord': 0.99.1
-      '@earendil-works/pi-agent-core': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)
-      '@earendil-works/pi-ai': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)
+      '@earendil-works/pi-agent-core': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)
+      '@earendil-works/pi-ai': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)
       '@earendil-works/pi-codemode': 0.99.1
       '@earendil-works/pi-mcp': 0.99.1
       '@earendil-works/pi-tui': 0.99.1
@@ -6051,14 +5985,14 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@google/genai@2.21.0(@modelcontextprotocol/sdk@1.30.0)':
+  '@google/genai@2.21.0(@modelcontextprotocol/sdk@1.30.1)':
     dependencies:
       google-auth-library: 10.9.1
       p-retry: 4.6.2
       protobufjs: 7.6.5
       ws: 8.21.3
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0
+      '@modelcontextprotocol/sdk': 1.30.1
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -6221,8 +6155,6 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@kurkle/color@0.3.4': {}
-
   '@kwsites/file-exists@1.1.1':
     dependencies:
       debug: 4.4.3
@@ -6244,27 +6176,19 @@ snapshots:
       - encoding
       - supports-color
 
-  '@modelcontextprotocol/sdk@1.30.0':
+  '@modelcontextprotocol/client@2.2.0':
     dependencies:
-      '@hono/node-server': 2.1.1(hono@4.13.3)
-      ajv: 8.20.0
-      ajv-formats: 3.0.1
-      content-type: 1.0.5
-      cors: 2.8.6
+      '@modelcontextprotocol/core': 2.2.0
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.1
-      express: 5.2.1
-      express-rate-limit: 8.6.2(express@5.2.1)
-      hono: 4.13.3
       jose: 6.2.9
-      json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
-      raw-body: 3.0.2
       zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
-    transitivePeerDependencies:
-      - supports-color
+
+  '@modelcontextprotocol/core@2.2.0':
+    dependencies:
+      zod: 4.4.3
 
   '@modelcontextprotocol/sdk@1.30.1':
     dependencies:
@@ -6287,6 +6211,11 @@ snapshots:
       zod-to-json-schema: 3.25.2(zod@4.4.3)
     transitivePeerDependencies:
       - supports-color
+
+  '@modelcontextprotocol/server@2.2.0':
+    dependencies:
+      '@modelcontextprotocol/core': 2.2.0
+      zod: 4.4.3
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
@@ -6629,65 +6558,54 @@ snapshots:
       - vue-tsc
       - yaml
 
-  '@oh-my-pi/hashline@17.3.0':
+  '@oh-my-pi/omp-stats@18.4.8':
     dependencies:
-      '@oh-my-pi/pi-natives': 17.3.0
-      '@oh-my-pi/pi-utils': 17.3.0
-
-  '@oh-my-pi/omp-stats@17.3.0':
-    dependencies:
-      '@oh-my-pi/pi-ai': 17.3.0
-      '@oh-my-pi/pi-catalog': 17.3.0
-      '@oh-my-pi/pi-utils': 17.3.0
-      '@tailwindcss/node': 4.3.3
-      chart.js: 4.5.1
+      '@oh-my-pi/pi-ai': 18.4.8
+      '@oh-my-pi/pi-catalog': 18.4.8
+      '@oh-my-pi/pi-utils': 18.4.8
       lucide-react: 1.31.0(react@19.2.7)
       react: 19.2.7
-      react-chartjs-2: 5.3.1(chart.js@4.5.1)(react@19.2.7)
       react-dom: 19.2.7(react@19.2.7)
-      tailwindcss: 4.3.3
 
-  '@oh-my-pi/omptype@17.3.0': {}
+  '@oh-my-pi/omptype@18.4.8': {}
 
-  '@oh-my-pi/pi-agent-core@17.3.0':
+  '@oh-my-pi/pi-agent-core@18.4.8':
     dependencies:
-      '@oh-my-pi/pi-ai': 17.3.0
-      '@oh-my-pi/pi-catalog': 17.3.0
-      '@oh-my-pi/pi-natives': 17.3.0
-      '@oh-my-pi/pi-utils': 17.3.0
-      '@oh-my-pi/pi-wire': 17.3.0
-      '@oh-my-pi/snapcompact': 17.3.0
+      '@oh-my-pi/pi-ai': 18.4.8
+      '@oh-my-pi/pi-catalog': 18.4.8
+      '@oh-my-pi/pi-natives': 18.4.8
+      '@oh-my-pi/pi-utils': 18.4.8
+      '@oh-my-pi/pi-wire': 18.4.8
+      '@oh-my-pi/snapcompact': 18.4.8
       '@opentelemetry/api': 1.9.1
 
-  '@oh-my-pi/pi-ai@17.3.0':
+  '@oh-my-pi/pi-ai@18.4.8':
     dependencies:
-      '@bufbuild/protobuf': 2.14.0
-      '@oh-my-pi/omptype': 17.3.0
-      '@oh-my-pi/pi-catalog': 17.3.0
-      '@oh-my-pi/pi-utils': 17.3.0
-      '@oh-my-pi/pi-wire': 17.3.0
+      '@oh-my-pi/omptype': 18.4.8
+      '@oh-my-pi/pi-catalog': 18.4.8
+      '@oh-my-pi/pi-natives': 18.4.8
+      '@oh-my-pi/pi-utils': 18.4.8
+      '@oh-my-pi/pi-wire': 18.4.8
 
-  '@oh-my-pi/pi-catalog@17.3.0':
+  '@oh-my-pi/pi-catalog@18.4.8':
     dependencies:
-      '@bufbuild/protobuf': 2.14.0
-      '@oh-my-pi/omptype': 17.3.0
-      '@oh-my-pi/pi-utils': 17.3.0
+      '@oh-my-pi/omptype': 18.4.8
+      '@oh-my-pi/pi-utils': 18.4.8
 
-  '@oh-my-pi/pi-coding-agent@17.3.0':
+  '@oh-my-pi/pi-coding-agent@18.4.8':
     dependencies:
       '@babel/parser': 7.29.8
-      '@oh-my-pi/hashline': 17.3.0
-      '@oh-my-pi/omp-stats': 17.3.0
-      '@oh-my-pi/omptype': 17.3.0
-      '@oh-my-pi/pi-agent-core': 17.3.0
-      '@oh-my-pi/pi-ai': 17.3.0
-      '@oh-my-pi/pi-catalog': 17.3.0
-      '@oh-my-pi/pi-mnemopi': 17.3.0
-      '@oh-my-pi/pi-natives': 17.3.0
-      '@oh-my-pi/pi-tui': 17.3.0
-      '@oh-my-pi/pi-utils': 17.3.0
-      '@oh-my-pi/pi-wire': 17.3.0
-      '@oh-my-pi/snapcompact': 17.3.0
+      '@oh-my-pi/omp-stats': 18.4.8
+      '@oh-my-pi/omptype': 18.4.8
+      '@oh-my-pi/pi-agent-core': 18.4.8
+      '@oh-my-pi/pi-ai': 18.4.8
+      '@oh-my-pi/pi-catalog': 18.4.8
+      '@oh-my-pi/pi-mnemopi': 18.4.8
+      '@oh-my-pi/pi-natives': 18.4.8
+      '@oh-my-pi/pi-tui': 18.4.8
+      '@oh-my-pi/pi-utils': 18.4.8
+      '@oh-my-pi/pi-wire': 18.4.8
+      '@oh-my-pi/snapcompact': 18.4.8
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/api-logs': 0.220.0
       '@opentelemetry/context-async-hooks': 2.10.0(@opentelemetry/api@1.9.1)
@@ -6699,7 +6617,7 @@ snapshots:
       '@opentelemetry/sdk-metrics': 2.10.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 2.10.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-node': 2.10.0(@opentelemetry/api@1.9.1)
-      mupdf: 1.28.0
+      axe-core: 4.13.0
       puppeteer-core: 25.3.0
     optionalDependencies:
       '@huggingface/transformers': 4.2.0
@@ -6712,54 +6630,64 @@ snapshots:
       - utf-8-validate
       - yauzl
 
-  '@oh-my-pi/pi-mnemopi@17.3.0':
+  '@oh-my-pi/pi-mnemopi@18.4.8':
     dependencies:
-      '@oh-my-pi/pi-ai': 17.3.0
-      '@oh-my-pi/pi-catalog': 17.3.0
-      '@oh-my-pi/pi-natives': 17.3.0
-      '@oh-my-pi/pi-utils': 17.3.0
+      '@oh-my-pi/pi-ai': 18.4.8
+      '@oh-my-pi/pi-catalog': 18.4.8
+      '@oh-my-pi/pi-natives': 18.4.8
+      '@oh-my-pi/pi-utils': 18.4.8
 
-  '@oh-my-pi/pi-natives-darwin-arm64@17.3.0':
+  '@oh-my-pi/pi-natives-darwin-arm64@18.4.8':
     optional: true
 
-  '@oh-my-pi/pi-natives-darwin-x64@17.3.0':
+  '@oh-my-pi/pi-natives-darwin-x64@18.4.8':
     optional: true
 
-  '@oh-my-pi/pi-natives-linux-arm64@17.3.0':
+  '@oh-my-pi/pi-natives-linux-arm64@18.4.8':
     optional: true
 
-  '@oh-my-pi/pi-natives-linux-x64@17.3.0':
+  '@oh-my-pi/pi-natives-linux-x64@18.4.8':
     optional: true
 
-  '@oh-my-pi/pi-natives-win32-x64@17.3.0':
+  '@oh-my-pi/pi-natives-win32-arm64@18.4.8':
     optional: true
 
-  '@oh-my-pi/pi-natives@17.3.0':
+  '@oh-my-pi/pi-natives-win32-x64@18.4.8':
+    optional: true
+
+  '@oh-my-pi/pi-natives@18.4.8':
     optionalDependencies:
-      '@oh-my-pi/pi-natives-darwin-arm64': 17.3.0
-      '@oh-my-pi/pi-natives-darwin-x64': 17.3.0
-      '@oh-my-pi/pi-natives-linux-arm64': 17.3.0
-      '@oh-my-pi/pi-natives-linux-x64': 17.3.0
-      '@oh-my-pi/pi-natives-win32-x64': 17.3.0
+      '@oh-my-pi/pi-natives-darwin-arm64': 18.4.8
+      '@oh-my-pi/pi-natives-darwin-x64': 18.4.8
+      '@oh-my-pi/pi-natives-linux-arm64': 18.4.8
+      '@oh-my-pi/pi-natives-linux-x64': 18.4.8
+      '@oh-my-pi/pi-natives-win32-arm64': 18.4.8
+      '@oh-my-pi/pi-natives-win32-x64': 18.4.8
 
-  '@oh-my-pi/pi-tui@17.3.0':
+  '@oh-my-pi/pi-tui@18.4.8':
     dependencies:
-      '@oh-my-pi/pi-natives': 17.3.0
-      '@oh-my-pi/pi-utils': 17.3.0
+      '@oh-my-pi/omptype': 18.4.8
+      '@oh-my-pi/pi-agent-core': 18.4.8
+      '@oh-my-pi/pi-ai': 18.4.8
+      '@oh-my-pi/pi-catalog': 18.4.8
+      '@oh-my-pi/pi-natives': 18.4.8
+      '@oh-my-pi/pi-utils': 18.4.8
+      '@oh-my-pi/pi-wire': 18.4.8
+      '@oh-my-pi/snapcompact': 18.4.8
 
-  '@oh-my-pi/pi-utils@17.3.0':
+  '@oh-my-pi/pi-utils@18.4.8':
     dependencies:
-      '@oh-my-pi/pi-natives': 17.3.0
+      '@oh-my-pi/pi-natives': 18.4.8
 
-  '@oh-my-pi/pi-wire@17.3.0': {}
+  '@oh-my-pi/pi-wire@18.4.8': {}
 
-  '@oh-my-pi/snapcompact@17.3.0':
+  '@oh-my-pi/snapcompact@18.4.8':
     dependencies:
-      '@oh-my-pi/pi-ai': 17.3.0
-      '@oh-my-pi/pi-catalog': 17.3.0
-      '@oh-my-pi/pi-natives': 17.3.0
-      '@oh-my-pi/pi-utils': 17.3.0
-      '@oh-my-pi/pi-wire': 17.3.0
+      '@oh-my-pi/pi-ai': 18.4.8
+      '@oh-my-pi/pi-catalog': 18.4.8
+      '@oh-my-pi/pi-natives': 18.4.8
+      '@oh-my-pi/pi-utils': 18.4.8
+      '@oh-my-pi/pi-wire': 18.4.8
 
   '@opentelemetry/api-logs@0.220.0':
     dependencies:
@@ -7312,16 +7240,6 @@ snapshots:
   '@speed-highlight/core@1.2.24': {}
 
   '@stablelib/base64@1.0.1': {}
-
-  '@tailwindcss/node@4.3.3':
-    dependencies:
-      '@jridgewell/remapping': 2.3.5
-      enhanced-resolve: 5.24.5
-      jiti: 2.7.0
-      lightningcss: 1.32.0
-      magic-string: 0.30.21
-      source-map-js: 1.2.1
-      tailwindcss: 4.3.3
 
   '@testing-library/dom@10.4.2':
     dependencies:
@@ -7976,6 +7894,8 @@ snapshots:
       postcss: 8.5.26
       postcss-value-parser: 4.2.0
 
+  axe-core@4.13.0: {}
+
   b4a@1.8.1: {}
 
   balanced-match@1.0.2: {}
@@ -8155,10 +8075,6 @@ snapshots:
       std-env: 3.10.0
     transitivePeerDependencies:
       - magicast
-
-  chart.js@4.5.1:
-    dependencies:
-      '@kurkle/color': 0.3.4
 
   chokidar@5.0.0:
     dependencies:
@@ -8440,11 +8356,6 @@ snapshots:
   emoji-regex@9.2.2: {}
 
   encodeurl@2.0.0: {}
-
-  enhanced-resolve@5.24.5:
-    dependencies:
-      graceful-fs: 4.2.11
-      tapable: 2.3.3
 
   entities@4.5.0: {}
 
@@ -9046,87 +8957,38 @@ snapshots:
     dependencies:
       readable-stream: 2.3.8
 
-  lightningcss-android-arm64@1.32.0:
-    optional: true
-
   lightningcss-android-arm64@1.33.0:
-    optional: true
-
-  lightningcss-darwin-arm64@1.32.0:
     optional: true
 
   lightningcss-darwin-arm64@1.33.0:
     optional: true
 
-  lightningcss-darwin-x64@1.32.0:
-    optional: true
-
   lightningcss-darwin-x64@1.33.0:
-    optional: true
-
-  lightningcss-freebsd-x64@1.32.0:
     optional: true
 
   lightningcss-freebsd-x64@1.33.0:
     optional: true
 
-  lightningcss-linux-arm-gnueabihf@1.32.0:
-    optional: true
-
   lightningcss-linux-arm-gnueabihf@1.33.0:
-    optional: true
-
-  lightningcss-linux-arm64-gnu@1.32.0:
     optional: true
 
   lightningcss-linux-arm64-gnu@1.33.0:
     optional: true
 
-  lightningcss-linux-arm64-musl@1.32.0:
-    optional: true
-
   lightningcss-linux-arm64-musl@1.33.0:
-    optional: true
-
-  lightningcss-linux-x64-gnu@1.32.0:
     optional: true
 
   lightningcss-linux-x64-gnu@1.33.0:
     optional: true
 
-  lightningcss-linux-x64-musl@1.32.0:
-    optional: true
-
   lightningcss-linux-x64-musl@1.33.0:
-    optional: true
-
-  lightningcss-win32-arm64-msvc@1.32.0:
     optional: true
 
   lightningcss-win32-arm64-msvc@1.33.0:
     optional: true
 
-  lightningcss-win32-x64-msvc@1.32.0:
-    optional: true
-
   lightningcss-win32-x64-msvc@1.33.0:
     optional: true
-
-  lightningcss@1.32.0:
-    dependencies:
-      detect-libc: 2.1.2
-    optionalDependencies:
-      lightningcss-android-arm64: 1.32.0
-      lightningcss-darwin-arm64: 1.32.0
-      lightningcss-darwin-x64: 1.32.0
-      lightningcss-freebsd-x64: 1.32.0
-      lightningcss-linux-arm-gnueabihf: 1.32.0
-      lightningcss-linux-arm64-gnu: 1.32.0
-      lightningcss-linux-arm64-musl: 1.32.0
-      lightningcss-linux-x64-gnu: 1.32.0
-      lightningcss-linux-x64-musl: 1.32.0
-      lightningcss-win32-arm64-msvc: 1.32.0
-      lightningcss-win32-x64-msvc: 1.32.0
 
   lightningcss@1.33.0:
     dependencies:
@@ -9293,8 +9155,6 @@ snapshots:
   ms@2.1.3: {}
 
   muggle-string@0.4.1: {}
-
-  mupdf@1.28.0: {}
 
   nanoid@3.3.18: {}
 
@@ -10057,11 +9917,6 @@ snapshots:
       defu: 6.1.7
       destr: 2.0.5
 
-  react-chartjs-2@5.3.1(chart.js@4.5.1)(react@19.2.7):
-    dependencies:
-      chart.js: 4.5.1
-      react: 19.2.7
-
   react-dom@19.2.7(react@19.2.7):
     dependencies:
       react: 19.2.7
@@ -10505,10 +10360,6 @@ snapshots:
       sax: 1.6.1
 
   tagged-tag@1.0.0: {}
-
-  tailwindcss@4.3.3: {}
-
-  tapable@2.3.3: {}
 
   tar-stream@3.2.0:
     dependencies:
