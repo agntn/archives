@@ -98,7 +98,7 @@ archives/
 | `ArchiveContentOptions`     | interface | types.ts                           | `ArchiveOptions` + `timestamp` (capture to read) + `maxBytes` (read cap).                                              |
 | `readPlaybackCapture`       | function  | utils/_content.ts                  | Reads a Wayback-style `<prefix>/<stamp>id_/<url>` capture into `ArchivedContent`.                                      |
 | `selectCapture`             | function  | utils/_content.ts                  | An exact stamp names one capture; otherwise newest at or before, else closest after, preferring a 2xx one.             |
-| `preferSameUrl`             | function  | utils/_content.ts                  | Keeps candidates recorded under the requested URL, and the scheme when the caller named one.                           |
+| `preferSameUrl`             | function  | utils/_content.ts                  | Keeps candidates under the requested URL, the caller's scheme when named, exact spelling first.                        |
 | `unwrapSnapshotUrl`         | function  | utils/_content.ts                  | Splits a playback URL back into original URL + capture stamp.                                                          |
 | `htmlToText`                | function  | utils/_content.ts                  | Lossy markup stripping, applied by the surfaces, never by the library response.                                        |
 | `contentArchives`           | function  | tool-operations.ts                 | Shared executor behind the content tool on every surface.                                                              |

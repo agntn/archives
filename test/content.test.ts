@@ -324,6 +324,79 @@ describe("wayback content", () => {
     expect(response.content?.url).toBe("https://example.com/");
   });
 
+  const slashPair = [
+    ["https://example.com/about", "20211202002626", "302"],
+    ["https://example.com/about/", "20211202002626", "200"],
+  ] as const;
+
+  it.each([
+    ["index order", slashPair],
+    ["reversed index order", [...slashPair].reverse()],
+  ])("reads the exact URL a pinned stamp names in %s", async (_case, rows) => {
+    fetchMock.mockResolvedValueOnce(cdxRows(rows));
+    rawMock.mockResolvedValueOnce(rawResponse("about", { url: "" }));
+
+    const response = await createArchive(createWayback()).content("https://example.com/about/", {
+      timestamp: "20211202002626",
+    });
+
+    expect(rawMock.mock.calls[0]?.[0]).toBe("/web/20211202002626id_/https://example.com/about/");
+    expect(response.content?.url).toBe("https://example.com/about/");
+  });
+
+  it.each([
+    ["index order", slashPair],
+    ["reversed index order", [...slashPair].reverse()],
+  ])("reads the redirect capture when that is the URL asked for, in %s", async (_case, rows) => {
+    fetchMock.mockResolvedValueOnce(cdxRows(rows));
+    rawMock.mockResolvedValueOnce(
+      rawResponse("", { status: 302, headers: { location: "https://example.com/about/" } }),
+    );
+
+    const response = await createArchive(createWayback()).content("https://example.com/about", {
+      timestamp: "20211202002626",
+    });
+
+    expect(rawMock).toHaveBeenCalledTimes(1);
+    expect(rawMock.mock.calls[0]?.[0]).toBe("/web/20211202002626id_/https://example.com/about");
+    expect(response.content?._meta).toMatchObject({
+      status: 302,
+      location: "https://example.com/about/",
+    });
+  });
+
+  it.each([
+    ["index order", false],
+    ["reversed index order", true],
+  ])("breaks a timestamp tie toward the exact URL in %s", async (_case, reversed) => {
+    const rows = [
+      ["https://example.com/about", "20211202002626", "200"],
+      ["https://example.com/about/", "20211202002626", "200"],
+    ];
+    fetchMock.mockResolvedValueOnce(cdxRows(reversed ? [...rows].reverse() : rows));
+    rawMock.mockResolvedValueOnce(rawResponse("about", { url: "" }));
+
+    const response = await createArchive(createWayback()).content("https://example.com/about/", {
+      timestamp: "2022",
+    });
+
+    expect(response.content?.url).toBe("https://example.com/about/");
+  });
+
+  it("falls back to a slash alias when the exact URL was never captured", async () => {
+    fetchMock.mockResolvedValueOnce(
+      cdxRows([["https://example.com/about", "20211202002626", "200"]]),
+    );
+    rawMock.mockResolvedValueOnce(rawResponse("alias", { url: "" }));
+
+    const response = await createArchive(createWayback()).content("https://example.com/about/", {
+      timestamp: "20211202002626",
+    });
+
+    expect(response.success).toBe(true);
+    expect(response.content?.url).toBe("https://example.com/about");
+  });
+
   it("answers an HTTPS request from HTTP captures when that is all there is", async () => {
     fetchMock.mockResolvedValueOnce(cdxRows([["http://example.com/", "20080101000000", "200"]]));
     rawMock.mockResolvedValueOnce(rawResponse("old", { url: "" }));
