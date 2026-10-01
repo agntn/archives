@@ -182,8 +182,23 @@ export function waybackTimestampToISO(timestamp: string): string {
 /** A real URL scheme; ufo's `hasProtocol` also accepts `host:port`, which would lose the host. */
 const SCHEME = /^[a-z][a-z0-9+.-]*:\/\//iu;
 
-/** `host:80` or `host:443` in front of the path, the ports every archive index drops. */
-const DEFAULT_PORT = /^([^/?#:]+):(?:80|443)(?=[/?#]|$)/u;
+/** `host:80` or `host:443` in front of the path, with the HTTP(S) scheme when one is written. */
+const DEFAULT_PORT = /^(?:(https?):\/\/)?([^/?#:]+):(80|443)(?=[/?#]|$)/iu;
+
+/**
+ * Drops `:80` from HTTP or a bare host and `:443` from HTTPS; any other port names another site.
+ * @param url - URL or bare host, possibly with a port
+ * @returns {string} The URL without a default port
+ */
+export function withoutDefaultPort(url: string): string {
+  return url.replace(
+    DEFAULT_PORT,
+    (match, scheme: string | undefined, host: string, port: string) =>
+      port === (scheme?.toLowerCase() === "https" ? "443" : "80")
+        ? `${scheme ? `${scheme}://` : ""}${host}`
+        : match,
+  );
+}
 
 /**
  * Normalizes a domain string for search queries
@@ -192,13 +207,9 @@ const DEFAULT_PORT = /^([^/?#:]+):(?:80|443)(?=[/?#]|$)/u;
  * @returns {string} Normalized domain string
  */
 export function normalizeDomain(domain: string, appendWildcard = true): string {
-  // Normalize domain input using ufo. A default port survives the protocol
-  // strip, and `host:80/` matches nothing in a CDX index that canonicalizes
-  // it away, so the port goes with the protocol.
-  const normalizedDomain = (SCHEME.test(domain) ? withoutProtocol(domain) : domain).replace(
-    DEFAULT_PORT,
-    "$1",
-  );
+  // Only the scheme says which port is the default, so the port goes before it does.
+  const portless = withoutDefaultPort(domain);
+  const normalizedDomain = SCHEME.test(portless) ? withoutProtocol(portless) : portless;
 
   // Create URL pattern for search if requested
   if (!appendWildcard || domain.includes("*")) {

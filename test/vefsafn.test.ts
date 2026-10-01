@@ -19,6 +19,10 @@ const RUV_1996 = `{"urlkey": "is,ruv)/", "timestamp": "19961223022706", "url": "
 const RUV_1997 = `{"urlkey": "is,ruv)/", "timestamp": "19970121104734", "url": "http://www.ruv.is:80/", "mime": "text/html", "status": "200", "digest": "64KKWA5CCZCVXQ7R5TZC57P5QDECPFYX", "redirect": "-", "robotflags": "-", "length": "-", "offset": "47644814", "filename": "ICELAND-HISTORICAL-1995-2004-XCM-000018.arc.gz", "load_url": "", "source": "$root", "source-coll": "$root", "access": "allow"}`;
 const RUV_2021_REDIRECT = `{"urlkey": "is,ruv)/", "timestamp": "20211231233924", "url": "http://www.ruv.is/", "mime": "application/http", "status": "301", "digest": "3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ", "redirect": "-", "robotflags": "-", "length": "-", "offset": "917890567", "filename": "LBS-20211230101248168-00004-6572~crawler02.landsbokasafn.is~10443.warc.gz", "load_url": "", "source": "$root", "source-coll": "$root", "access": "allow"}`;
 
+/* Rows as https://vefsafn.is/cdx?url=http://www.landsbokasafn.is/&reverse=true&to=20041211153721&output=json answered on 2026-10-01. */
+const LBS_DECEMBER = `{"urlkey": "is,landsbokasafn)/", "timestamp": "20041211153721", "url": "http://www.landsbokasafn.is:80/", "mime": "text/html", "status": "200", "digest": "A42B7KRZJTJIF6B5CILQICAZNZDPB6VM", "redirect": "-", "robotflags": "-", "length": "-", "offset": "89762804", "filename": "ICELAND-HISTORICAL-1995-2004-XDP-000000.arc.gz", "load_url": "", "source": "$root", "source-coll": "$root", "access": "allow"}`;
+const LBS_NOVEMBER = `{"urlkey": "is,landsbokasafn)/", "timestamp": "20041102103150", "url": "http://www.landsbokasafn.is/", "mime": "text/html", "status": "200", "digest": "QM6AFLPLZCRT7HFZL4EHHEKMQICGEZHF", "redirect": "-", "robotflags": "-", "length": "-", "offset": "578393", "filename": "LBS-20041102103132-00002-skrofa.arc.gz", "load_url": "", "source": "$root", "source-coll": "$root", "access": "allow"}`;
+const LBS_OCTOBER = `{"urlkey": "is,landsbokasafn)/", "timestamp": "20041021153946", "url": "http://www.landsbokasafn.is/", "mime": "text/html", "status": "200", "digest": "46FNDHNEM6BGY7QTQPRF6VNAPUSPN4KG", "redirect": "-", "robotflags": "-", "length": "-", "offset": "34919104", "filename": "LBS-20041021153721-00005-skrofa.arc.gz", "load_url": "", "source": "$root", "source-coll": "$root", "access": "allow"}`;
 function row(timestamp: string, url = "http://www.ruv.is/", status = "200") {
   return JSON.stringify({ urlkey: "is,ruv)/", timestamp, url, mime: "text/html", status });
 }
@@ -298,6 +302,25 @@ describe("Vefsafn", () => {
     expect(result.success).toBe(true);
     expect(result.content?._meta.status).toBe(301);
     expect(rawMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the capture an exact timestamp names when the index spells it with :80", async () => {
+    fetchMock.mockResolvedValueOnce(ndjson(`${LBS_DECEMBER}\n${LBS_NOVEMBER}\n${LBS_OCTOBER}\n`));
+    rawMock.mockResolvedValueOnce(
+      rawResponse("december", {
+        url: "https://vefsafn.is/20041211153721id_/http://www.landsbokasafn.is:80/",
+      }),
+    );
+
+    const result = await createArchive(createVefsafn()).content("http://www.landsbokasafn.is/", {
+      timestamp: "20041211153721",
+    });
+
+    expect(result.content?._meta.timestamp).toBe("20041211153721");
+    expect(rawMock).toHaveBeenCalledWith(
+      "/20041211153721id_/http://www.landsbokasafn.is:80/",
+      objectContaining({ baseURL: "https://vefsafn.is" }),
+    );
   });
 
   it("uses the timestamp and original URL from a Vefsafn snapshot URL", async () => {

@@ -15,6 +15,7 @@ import createArchiveToday from "../src/providers/archive-today";
 import createWebcite from "../src/providers/webcite";
 import createArchiveIt from "../src/providers/archive-it";
 import { fetchBody, htmlToText, unwrapSnapshotUrl } from "../src/utils";
+import { preferSameUrl } from "../src/utils/_content";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
@@ -1438,6 +1439,25 @@ describe("content helpers", () => {
     expect(unwrapSnapshotUrl("https://example.com/archive/20200402133000/report.html")).toEqual({
       url: "https://example.com/archive/20200402133000/report.html",
     });
+  });
+
+  it("treats a port as part of the page unless the scheme implies it", () => {
+    const urls = [
+      "http://example.com:80/",
+      "http://example.com:8080/",
+      "http://example.com:443/",
+      "https://example.com:443/",
+      "https://example.com/",
+    ];
+    const same = (target: string) => preferSameUrl(urls, target, (url) => url);
+
+    expect(same("http://example.com/")).toEqual(["http://example.com:80/"]);
+    expect(same("https://example.com/")).toEqual([
+      "https://example.com/",
+      "https://example.com:443/",
+    ]);
+    expect(same("http://example.com:8080/")).toEqual(["http://example.com:8080/"]);
+    expect(same("http://example.com:443/")).toEqual(["http://example.com:443/"]);
   });
 
   it("reduces markup to what a reader would see", () => {
