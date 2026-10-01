@@ -13,7 +13,7 @@ import { sha256 } from "@agntn/hashes";
 import { consola } from "consola";
 import { fetchResponse } from "./_fetch.ts";
 import type { ArchiveContentOptions, ArchivedContent } from "../types.ts";
-import { createFetchOptions, waybackTimestampToISO } from "./_utils.ts";
+import { createFetchOptions, waybackTimestampToISO, withoutDefaultPort } from "./_utils.ts";
 
 /** Bytes read from one archived body when the caller sets no cap. */
 export const DEFAULT_MAX_CONTENT_BYTES = 2 * 1024 * 1024;
@@ -239,7 +239,7 @@ function schemeOf(value: string): string {
 /* Reduces a URL to the differences that matter when comparing two spellings of it. */
 function canonicalUrlKey(value: string): string {
   return (
-    spelledUrlKey(value)
+    spelledUrlKey(withoutDefaultPort(value.trim()))
       // Archives canonicalize `www.` away, so a capture under it answers a request
       // without it; a userinfo prefix is left in place, being a different URL.
       .replace(/^www\./, "")

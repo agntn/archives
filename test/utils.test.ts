@@ -133,6 +133,12 @@ describe("normalizeDomain", () => {
     expect(normalizeDomain("http://example.com:8080/", false)).toBe("example.com:8080/");
   });
 
+  it("keeps a port the scheme does not imply, which names another site", () => {
+    expect(normalizeDomain("http://example.com:443/", false)).toBe("example.com:443/");
+    expect(normalizeDomain("https://example.com:80/", false)).toBe("example.com:80/");
+    expect(normalizeDomain("example.com:443", false)).toBe("example.com:443");
+  });
+
   it("keeps a caller-supplied wildcard", () => {
     expect(normalizeDomain("https://example.com/pages/*")).toBe("example.com/pages/*");
   });
