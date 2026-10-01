@@ -26,6 +26,7 @@ import {
   isNoCaptureError,
   parseHttpHeaders,
   preferSameUrl,
+  requestedBody,
   resolveMaxBytes,
   resolveRequestedTimestamp,
   selectCapture,
@@ -69,6 +70,7 @@ interface CrawlIndex {
 
 interface CrawlRecordBody {
   text: string;
+  data: Uint8Array;
   bytes: number;
   sha256: string;
   truncated: boolean;
@@ -205,6 +207,7 @@ function commonCrawlContentResponse(
   record: Readonly<CrawlRecordBody>,
   collection: string,
   wanted: string,
+  options: Readonly<ArchiveContentOptions>,
 ): ArchiveContentResponse {
   const mime = record.mime ?? capture.mime;
   return createContentResponse(
@@ -217,6 +220,7 @@ function commonCrawlContentResponse(
       bytes: record.bytes,
       sha256: record.sha256,
       truncated: record.truncated,
+      ...requestedBody(record.data, options),
       _meta: {
         timestamp: capture.timestamp,
         status: record.status ?? capture.status,
@@ -265,6 +269,7 @@ function decodedCrawlRecord(
   const body = overflowed ? bytes.subarray(0, maxBytes) : bytes;
   return {
     text: decodeArchivedBody(body, contentType),
+    data: body,
     bytes: body.byteLength,
     sha256: digestArchivedBody(body),
     truncated: recordTruncated || decodedTruncated || overflowed,
@@ -387,7 +392,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       }
 
       const record = await this.readRecord(capture, options, resolveMaxBytes(options));
-      return commonCrawlContentResponse(capture, record, collectionName, wanted);
+      return commonCrawlContentResponse(capture, record, collectionName, wanted, options);
     } catch (error) {
       return createContentErrorResponse(error, "commoncrawl", { collection: collectionName });
     }

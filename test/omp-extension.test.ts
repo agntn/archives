@@ -82,7 +82,7 @@ describe("archives OMP extension", () => {
     vi.resetAllMocks();
   });
 
-  it("registers read-only tools and interactive commands", async () => {
+  it("registers the tools with their approval and interactive commands", async () => {
     const { label, tools, commands } = await registerExtension();
 
     expect(label).toBe("Archives");
@@ -93,7 +93,12 @@ describe("archives OMP extension", () => {
       "archives_providers",
     ]);
     expect(commands).toEqual(["archive", "archive-providers"]);
-    for (const tool of tools.values()) expect(tool.approval).toBe("read");
+    expect(Object.fromEntries([...tools].map(([name, tool]) => [name, tool.approval]))).toEqual({
+      archives_snapshots: "read",
+      archives_content: "write",
+      archives_diff: "read",
+      archives_providers: "read",
+    });
   });
 
   it("routes snapshot URL discovery to the listing tool", async () => {

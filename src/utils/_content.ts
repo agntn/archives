@@ -324,6 +324,8 @@ function isOkStatus(status: number): boolean {
 /** What one archived body read produced. */
 export interface FetchedBody {
   text: string;
+  /** The bytes behind `text`, after transfer and content encodings are undone. */
+  data: Uint8Array;
   bytes: number;
   sha256: string;
   truncated: boolean;
@@ -403,6 +405,7 @@ async function decodeFetchedResponse(
 
   return {
     text: decodeBytes(bytes, charsetOf(contentType, bytes)),
+    data: bytes,
     bytes: bytes.byteLength,
     sha256: digestArchivedBody(bytes),
     truncated,
@@ -561,6 +564,7 @@ export async function readPlaybackCapture(
     bytes: body.bytes,
     sha256: body.sha256,
     truncated: body.truncated,
+    ...requestedBody(body.data, options),
     _meta: {
       timestamp: servedStamp,
       status: body.status,
@@ -1046,6 +1050,20 @@ export function decodeArchivedBody(bytes: Uint8Array, contentType?: string): str
  */
 export function digestArchivedBody(bytes: Uint8Array): string {
   return sha256(bytes).toHex();
+}
+
+/**
+ * The `body` field of a capture, filled only when the read asked for it.
+ *
+ * @param bytes - Body bytes the digest was taken from
+ * @param options - Read options, whose `body` flag decides
+ * @returns {{ body?: Uint8Array }} An object to spread into `ArchivedContent`
+ */
+export function requestedBody(
+  bytes: Uint8Array,
+  options: Readonly<ArchiveContentOptions>,
+): { body?: Uint8Array } {
+  return options.body ? { body: bytes } : {};
 }
 
 /* Picks the character set to decode with: the declared one, then the document's own. */
