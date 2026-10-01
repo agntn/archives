@@ -7,7 +7,7 @@
 
 ## OVERVIEW
 
-Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Built on the unjs ecosystem: ofetch, unstorage, c12, consola, ufo, changelogen, with Vite+ (`vite-plus`) for build, lint, format and tests.
+Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Webarchiv Österreich, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Built on the unjs ecosystem: ofetch, unstorage, c12, consola, ufo, changelogen, with obuild for the build and Vite+ (`vite-plus`) for lint, format and tests.
 
 ## STRUCTURE
 
@@ -31,7 +31,8 @@ archives/
 │   ├── providers/        # one file per archive source + barrel
 │   └── utils/            # _utils.ts: parallel work, response helpers, domain/timestamp
 │                         # _content.ts: capture reading, WARC, charset, html-to-text
-├── vite.config.ts        # Vite+: pack (one bundle, five inputs), lint, fmt, test
+├── build.config.ts       # obuild: one bundle, five inputs
+├── vite.config.ts        # Vite+: lint, fmt, test
 ├── test/                 # mirrors src/ structure, one .test.ts per module
 ├── packages/pi/extensions/
 │   └── archives.ts       # Pi tool/command surface shipped via package.json pi.extensions
@@ -119,7 +120,7 @@ archives/
 - **Quality config**: the `lint` and `fmt` blocks of `vite.config.ts` spread the shared `@agntn/ox` policies; `vp lint` and `vp fmt` run them. Linting is type-aware; ESLint was removed intentionally.
 - **`src/` runs under plain Node type stripping**: relative imports end in `.ts` (a directory as `./dir/index.ts`), type-only imports use `import type`, and no `enum`, `namespace` or parameter properties. `erasableSyntaxOnly` and `verbatimModuleSyntax` enforce the syntax, `test/cli.test.ts` the imports. `moduleResolution` stays `Bundler`: under `NodeNext` the `unstorage` driver types import a directory and `Driver` turns into an error type.
 - **A local MCP server serves `src/`**: inside a checkout, `dist/cli.mjs mcp` loads the command from `src/`, like the Pi and OMP extensions, so a change needs a server restart, not `pnpm build`. The npm package, a copy under `node_modules` and a Node that does not strip types keep the bundle; `ARCHIVES_DIST=1` forces it. A change to `src/cli.ts` itself still needs `pnpm build`.
-- **Build**: `vp pack` reads the `pack` block of `vite.config.ts` → `dist/`. Five inputs in **one** bundle so the entrypoint, the CLI, the MCP server, the tool list and the executors share chunks instead of each carrying a private copy of the provider factory. Chunks keep stable names under `dist/_chunks/`, which `test/cli.test.ts` relies on.
+- **Build**: `obuild` reads `build.config.ts` → `dist/`. Five inputs in **one** bundle so the entrypoint, the CLI, the MCP server, the tool list and the executors share chunks instead of each carrying a private copy of the provider factory. obuild names chunks `dist/_chunks/<name>.mjs`, which `test/cli.test.ts` relies on, and strips comments and `//#region` markers from the runtime files.
 - **One definition per tool**: `src/tools.ts` declares each tool once with `defineTool` from `@agntn/tools`, and MCP, Pi and OMP register that list through its adapters, which validate every call in the core. The executors stay in `src/tool-operations.ts` behind a lazy import, so the extensions register tools without loading the library. A surface owns only its call preview and its commands.
 - **OMP loader imports stay literal**: `existsSync(src)` chooses between `import("../../../src/tools.ts")` and `import("../../../dist/tools.mjs")`. Never `import(url.href)`. `tsc` resolves that dist specifier, so `test:types` builds before it type-checks.
 - **MCP result is text only**: `details` never reaches an MCP client, so anything a caller needs for the next call belongs in `content[].text`.
@@ -157,7 +158,7 @@ pnpm test             # lint + type-check + vp test with coverage
 pnpm test:types       # build + tsc over lib and both extension surfaces
 pnpm lint             # build + Nuxt types + type-aware vp lint + vp fmt check
 pnpm lint:fix         # build + Nuxt types + vp lint fixes + vp fmt write
-pnpm build            # vp pack (vite.config.ts) → dist/
+pnpm build            # obuild (build.config.ts) → dist/
 pnpm docs             # Docus site + timeline explorer on :3000
 node dist/cli.mjs mcp # run the MCP server over stdio (bin: archives mcp); serves src/ in a checkout
 pnpm release          # test + changelogen + publish

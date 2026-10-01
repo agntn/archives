@@ -110,28 +110,4 @@ export default defineConfig({
     },
     ignorePatterns: ["dist", "coverage", ".nuxt", ".output", "docs"],
   },
-  /**
-   * One bundle, five inputs: the entries share the chunks that hold the provider factory and the
-   * tool executors. Separate bundles would each carry their own copy, so the MCP server and the
-   * package entrypoint would answer from two different module instances. Chunks keep stable names
-   * under `_chunks`, as obuild wrote them.
-   */
-  pack: {
-    entry: {
-      index: "src/index.ts",
-      cli: "src/cli.ts",
-      mcp: "src/mcp.ts",
-      "tool-operations": "src/tool-operations.ts",
-      tools: "src/tools.ts",
-    },
-    dts: true,
-    format: "esm",
-    platform: "node",
-    hash: false,
-    outputOptions: {
-      chunkFileNames: "_chunks/[name].mjs",
-      /* JSDoc ships once, in the declarations; the runtime files keep only legal and annotation comments. */
-      comments: { jsdoc: false },
-    },
-  },
 });
