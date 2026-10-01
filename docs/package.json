@@ -20,7 +20,7 @@
     "ufo": "1.6.4",
     "unstorage": "1.17.5"
   },
-  "packageManager": "pnpm@11.24.0",
+  "packageManager": "pnpm@12.8.1",
   "devDependencies": {
     "@iconify-json/lucide": "1.2.128",
     "@iconify-json/simple-icons": "1.2.94",
