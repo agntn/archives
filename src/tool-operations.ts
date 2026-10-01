@@ -1835,7 +1835,8 @@ function providerErrors(response: ArchiveResponse | ArchiveContentResponse): str
 }
 
 /**
- * Renders one archived page as the three lines every surface shows.
+ * Renders one archived page as the lines every surface shows. The original URL
+ * gets its own line only when the snapshot address does not already end with it.
  *
  * Every interpolated field is provider-supplied and goes through
  * {@link sanitizeField}: a newline inside a URL would otherwise close the record
@@ -1850,7 +1851,10 @@ export function formatPage(page: ArchivedPage, index?: number): string {
   const head = index === undefined ? "" : `${index + 1}. `;
   const provider =
     typeof page._meta.provider === "string" ? ` [${sanitizeField(page._meta.provider)}]` : "";
-  return `${head}${sanitizeField(page.timestamp)}${provider}\n   ${sanitizeField(page.snapshot)}\n   original: ${sanitizeField(page.url)}`;
+  const lines = `${head}${sanitizeField(page.timestamp)}${provider}\n   ${sanitizeField(page.snapshot)}`;
+  return page.snapshot.endsWith(`/${page.url}`)
+    ? lines
+    : `${lines}\n   original: ${sanitizeField(page.url)}`;
 }
 
 /**

@@ -250,11 +250,36 @@ describe("archives MCP server", () => {
     expect(text(response.content)).toBe(
       '[provider=wayback] 1 snapshot(s) for "example.com"\n\n' +
         "1. 2024-01-02T03:04:05.000Z [wayback]\n" +
-        "   https://web.archive.org/web/20240102030405/https://example.com/\n" +
-        "   original: https://example.com/",
+        "   https://web.archive.org/web/20240102030405/https://example.com/",
     );
     // Details never reach an MCP client, so the raw response stays out of the result.
     expect(response.structuredContent).toBeUndefined();
+  });
+
+  it("names the original URL only when the snapshot address does not end with it", async () => {
+    stubProvider(
+      providersMock.commoncrawl,
+      success(
+        [
+          page({
+            snapshot: "https://data.commoncrawl.org/crawl-data/CC-MAIN-2024-10/warc.gz",
+            _meta: { provider: "commoncrawl" },
+          }),
+        ],
+        "commoncrawl",
+      ),
+    );
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "example.com", provider: "commoncrawl" },
+    });
+
+    expect(text(response.content)).toContain(
+      "   https://data.commoncrawl.org/crawl-data/CC-MAIN-2024-10/warc.gz\n" +
+        "   original: https://example.com/",
+    );
   });
 
   /**
@@ -402,7 +427,7 @@ describe("archives MCP server", () => {
     const blocks = text(response.content).split("\n\n[provider=");
     expect(blocks).toHaveLength(3);
     expect(blocks[0]).toMatch(/^\[provider=wayback\] 1 snapshot\(s\) for "example\.com"/);
-    expect(blocks[0]).toContain("original: https://example.com/");
+    expect(blocks[0]).toContain("/web/20240102030405/https://example.com/");
     expect(blocks[1]).toMatch(/^wayback\] 0 snapshot\(s\) for "example\.org"; error=HTTP 503/);
     expect(blocks[2]).toContain("original: https://example.net/");
     expect(providersMock.wayback).toHaveBeenCalledTimes(1);
