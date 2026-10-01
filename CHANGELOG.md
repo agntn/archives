@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.7.0
+
+[compare changes](https://github.com/agntn/archives/compare/v0.6.0...v0.7.0)
+
+### 🚀 Enhancements
+
+- **content:** Report the SHA-256 of each body ([#127](https://github.com/agntn/archives/pull/127))
+
+### 🩹 Fixes
+
+- **content:** Read the exact URL, not its alias ([#126](https://github.com/agntn/archives/pull/126))
+- **release:** Keep oxfmt off the changelog ([#128](https://github.com/agntn/archives/pull/128))
+- **docs:** Drop menu links to a missing /mcp ([#129](https://github.com/agntn/archives/pull/129))
+- **docs:** Stop asking to build extensions ([#133](https://github.com/agntn/archives/pull/133))
+
+### 💅 Refactors
+
+- **tools:** ⚠️  Share one definition per tool ([#130](https://github.com/agntn/archives/pull/130))
+- Drop node:crypto for SHA-256 ([#134](https://github.com/agntn/archives/pull/134))
+
+### 📦 Build
+
+- Let obuild write dist again ([#131](https://github.com/agntn/archives/pull/131))
+- Exempt agntn packages from release age ([#132](https://github.com/agntn/archives/pull/132))
+
+### 🏡 Chore
+
+- Apply automated updates ([f35e8e5](https://github.com/agntn/archives/commit/f35e8e5))
+
+#### ⚠️ Breaking Changes
+
+- **tools:** ⚠️  Share one definition per tool ([#130](https://github.com/agntn/archives/pull/130))
+
+### ❤️ Contributors
+
+- Ori ([@oritwoen](https://github.com/oritwoen))
+- Aeitwoen ([@aeitwoen](https://github.com/aeitwoen))
+
 ## v0.6.0
 
 [compare changes](https://github.com/agntn/archives/compare/v0.5.4...v0.6.0)
