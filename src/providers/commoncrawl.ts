@@ -22,6 +22,7 @@ import {
   decodeArchivedBody,
   decodeContentEncoding,
   decompress,
+  digestArchivedBody,
   isNoCaptureError,
   parseHttpHeaders,
   preferSameUrl,
@@ -69,6 +70,7 @@ interface CrawlIndex {
 interface CrawlRecordBody {
   text: string;
   bytes: number;
+  sha256: string;
   truncated: boolean;
   status?: number;
   mime?: string;
@@ -213,6 +215,7 @@ function commonCrawlContentResponse(
       content: record.text,
       ...(mime ? { mime } : {}),
       bytes: record.bytes,
+      sha256: record.sha256,
       truncated: record.truncated,
       _meta: {
         timestamp: capture.timestamp,
@@ -263,6 +266,7 @@ function decodedCrawlRecord(
   return {
     text: decodeArchivedBody(body, contentType),
     bytes: body.byteLength,
+    sha256: digestArchivedBody(body),
     truncated: recordTruncated || decodedTruncated || overflowed,
     ...(status === undefined ? {} : { status }),
     ...(contentType ? { mime: contentType.split(";")[0]?.trim().toLowerCase() } : {}),

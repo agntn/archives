@@ -9,6 +9,7 @@
  * serves a byte range of a WARC file.
  */
 
+import { sha256 } from "@agntn/hashes";
 import { consola } from "consola";
 import { $fetch, type FetchResponse } from "ofetch";
 import type { ArchiveContentOptions, ArchivedContent } from "../types.ts";
@@ -324,6 +325,7 @@ function isOkStatus(status: number): boolean {
 export interface FetchedBody {
   text: string;
   bytes: number;
+  sha256: string;
   truncated: boolean;
   mime?: string;
   status: number;
@@ -402,6 +404,7 @@ async function decodeFetchedResponse(
   return {
     text: decodeBytes(bytes, charsetOf(contentType, bytes)),
     bytes: bytes.byteLength,
+    sha256: digestArchivedBody(bytes),
     truncated,
     mime: baseMime(contentType),
     status,
@@ -560,6 +563,7 @@ export async function readPlaybackCapture(
     content: body.text,
     ...(body.mime ? { mime: body.mime } : {}),
     bytes: body.bytes,
+    sha256: body.sha256,
     truncated: body.truncated,
     _meta: {
       timestamp: servedStamp,
@@ -1036,6 +1040,16 @@ function decodeEntities(text: string): string {
  */
 export function decodeArchivedBody(bytes: Uint8Array, contentType?: string): string {
   return decodeBytes(bytes, charsetOf(contentType, bytes));
+}
+
+/**
+ * Hex SHA-256 of an archived body, so two reads can be compared without the text.
+ *
+ * @param bytes - Body bytes, after transfer and content encodings are undone
+ * @returns {string} Lowercase hex digest
+ */
+export function digestArchivedBody(bytes: Uint8Array): string {
+  return sha256(bytes).toHex();
 }
 
 /* Picks the character set to decode with: the declared one, then the document's own. */
