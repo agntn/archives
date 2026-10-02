@@ -46,7 +46,7 @@ function waybackQuery(domain: string, options: Readonly<WaybackOptions>): Record
   const params: Record<string, string> = {
     url: normalizeDomain(domain),
     output: "json",
-    fl: "original,timestamp,statuscode",
+    fl: "original,timestamp,statuscode,digest,mimetype,length",
     collapse: options.collapse ?? "timestamp:4",
     limit: String(options.limit ?? 1000),
   };

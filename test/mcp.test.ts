@@ -256,6 +256,43 @@ describe("archives MCP server", () => {
     expect(response.structuredContent).toBeUndefined();
   });
 
+  it("prints the status, MIME type, record size and full digest the index gave", async () => {
+    stubProvider(
+      providersMock.wayback,
+      success([
+        page({
+          _meta: {
+            provider: "wayback",
+            status: 200,
+            mime: "text/html",
+            length: "5120",
+            digest: "3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ",
+          },
+        }),
+        page({ _meta: { provider: "wayback", status: Number.NaN, digest: "UY3I2DT2AMWAY6DE" } }),
+        page({ _meta: { provider: "wayback", status: 0, length: "" } }),
+      ]),
+    );
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "example.com", provider: "wayback" },
+    });
+
+    const blocks = text(response.content)
+      .split("\n\n")
+      .slice(1)
+      .join("\n")
+      .split(/\n(?=\d+\. )/u);
+    expect(blocks[0]).toContain(
+      "\n   200 · text/html · 5.1 kB record · digest 3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ",
+    );
+    expect(blocks[1]?.split("\n").at(-1)).toBe("   digest UY3I2DT2AMWAY6DE");
+    expect(blocks[2]?.split("\n")).toHaveLength(2);
+    expect(text(response.content)).not.toMatch(/undefined|NaN/u);
+  });
+
   it("names the original URL only when the snapshot address does not end with it", async () => {
     stubProvider(
       providersMock.commoncrawl,

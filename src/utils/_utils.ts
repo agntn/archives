@@ -606,7 +606,7 @@ export async function mapCdxRows(
   return results;
 
   // Helper function to convert a row to an ArchivedPage
-  function rowToArchivedPage([rawUrl, rawTimestamp, rawStatus]: readonly string[]):
+  function rowToArchivedPage([rawUrl, rawTimestamp, rawStatus, ...optional]: readonly string[]):
     | ArchivedPage
     | undefined {
     const originalUrl = cleanDoubleSlashes(rawUrl ?? "");
@@ -630,7 +630,26 @@ export async function mapCdxRows(
         timestamp: timestampRaw,
         status: Number.parseInt(rawStatus ?? "0", 10),
         provider: providerSlug,
+        ...optionalCdxFields(optional),
       } as WaybackMetadata,
     };
   }
+}
+
+/**
+ * Digest, MIME type and length columns, minus the `-` CDX writes for an unknown value.
+ * @param columns - The row cells after `statuscode`.
+ * @returns {Pick<WaybackMetadata, "digest" | "mime" | "length">} The fields the row knows.
+ */
+function optionalCdxFields(
+  columns: readonly string[],
+): Pick<WaybackMetadata, "digest" | "mime" | "length"> {
+  const [digest, mime, length] = columns;
+  const known = (value: string | undefined): value is string =>
+    value !== undefined && value !== "" && value !== "-";
+  return {
+    ...(known(digest) ? { digest } : {}),
+    ...(known(mime) ? { mime } : {}),
+    ...(known(length) ? { length } : {}),
+  };
 }
