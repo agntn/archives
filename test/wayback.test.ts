@@ -84,6 +84,52 @@ describe("wayback machine", () => {
     expect(result._meta?.source).toBe("wayback");
   });
 
+  it("asks CDX for the digest, MIME type and length of every capture", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce([
+      ["original", "timestamp", "statuscode", "digest", "mimetype", "length"],
+      [
+        "http://example.com:80/",
+        "20020120142510",
+        "200",
+        "HT2DYGA5UKZCPBSFVCV3JOBXGW2G5UUA",
+        "text/html",
+        "1792",
+      ],
+      [
+        "http://example.com/",
+        "20020328012821",
+        "-",
+        "UY3I2DT2AMWAY6DECFCFYMT5ZOTFHUCH",
+        "warc/revisit",
+        "-",
+      ],
+    ]);
+
+    const result = await createArchive(
+      createWayback({ filter: "digest:HT2DYGA5UKZCPBSFVCV3JOBXGW2G5UUA" }),
+    ).snapshots("example.com");
+
+    expect(fetchData).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      objectContaining({
+        params: objectContaining({
+          fl: "original,timestamp,statuscode,digest,mimetype,length",
+          filter: "digest:HT2DYGA5UKZCPBSFVCV3JOBXGW2G5UUA",
+        }),
+      }),
+    );
+    expect(result.pages[0]?._meta).toEqual({
+      timestamp: "20020120142510",
+      status: 200,
+      digest: "HT2DYGA5UKZCPBSFVCV3JOBXGW2G5UUA",
+      mime: "text/html",
+      length: "1792",
+      provider: "wayback",
+    });
+    expect(result.pages[1]?._meta).not.toHaveProperty("length");
+    expect(result.pages[1]?._meta.digest).toBe("UY3I2DT2AMWAY6DECFCFYMT5ZOTFHUCH");
+  });
+
   it("passes CDX collapse and filter options", async () => {
     vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
 

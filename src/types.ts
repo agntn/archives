@@ -38,6 +38,11 @@ export interface ArchiveMetadata {
 export interface WaybackMetadata extends ArchiveMetadata {
   timestamp: string;
   status: number;
+  /** Base32 SHA-1 of the archived body, the value `filter: "digest:…"` matches. */
+  digest?: string;
+  mime?: string;
+  /** Size of the stored WARC or ARC record, compressed, in bytes. */
+  length?: string;
   provider: string;
 }
 

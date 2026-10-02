@@ -1851,10 +1851,53 @@ export function formatPage(page: ArchivedPage, index?: number): string {
   const head = index === undefined ? "" : `${index + 1}. `;
   const provider =
     typeof page._meta.provider === "string" ? ` [${sanitizeField(page._meta.provider)}]` : "";
-  const lines = `${head}${sanitizeField(page.timestamp)}${provider}\n   ${sanitizeField(page.snapshot)}`;
-  return page.snapshot.endsWith(`/${page.url}`)
-    ? lines
-    : `${lines}\n   original: ${sanitizeField(page.url)}`;
+  const lines = [
+    `${head}${sanitizeField(page.timestamp)}${provider}`,
+    `   ${sanitizeField(page.snapshot)}`,
+  ];
+  if (!page.snapshot.endsWith(`/${page.url}`))
+    lines.push(`   original: ${sanitizeField(page.url)}`);
+  const facts = captureFacts(page._meta);
+  if (facts) lines.push(`   ${facts}`);
+  return lines.join("\n");
+}
+
+/**
+ * Status, MIME type, record size and digest of a capture, leaving out what the index lacks.
+ * @param meta - Metadata of the listed page.
+ * @returns {string} The facts joined on one line, empty when there are none.
+ */
+function captureFacts(meta: Readonly<ArchivedPage["_meta"]>): string {
+  return [
+    statusFact(meta.status),
+    textFact("", meta.mime),
+    sizeFact(meta.length),
+    textFact("digest ", meta.digest),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function statusFact(status: unknown): string {
+  return typeof status === "number" && Number.isInteger(status) && status >= 100
+    ? String(status)
+    : "";
+}
+
+function textFact(label: string, value: unknown): string {
+  return typeof value === "string" && value ? `${label}${sanitizeField(value)}` : "";
+}
+
+function sizeFact(length: unknown): string {
+  const digits = typeof length === "number" ? String(length) : length;
+  if (typeof digits !== "string" || !/^\d{1,15}$/u.test(digits)) return "";
+  return `${formatRecordSize(Number(digits))} record`;
+}
+
+function formatRecordSize(bytes: number): string {
+  if (bytes < 1000) return `${bytes} B`;
+  if (bytes < 999_950) return `${(bytes / 1000).toFixed(1)} kB`;
+  return `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
 
 /**
