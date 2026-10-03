@@ -12,6 +12,7 @@
   "dependencies": {
     "@agntn/hashes": "0.5.0",
     "better-sqlite3": "12.11.1",
+    "c12": "4.0.0-beta.5",
     "consola": "3.4.2",
     "diff": "8.0.4",
     "docus": "5.13.0",

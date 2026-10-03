@@ -90,6 +90,7 @@ archives/
 | `createErrorResponse`       | function  | utils/_utils.ts        | Build a normalized runtime-error `ArchiveResponse`.                                                          |
 | `createUnsupportedResponse` | function  | utils/_utils.ts:184    | Build a response signalling the operation is outside the provider's API surface.                             |
 | `configureStorage`          | function  | storage.ts:147         | **@deprecated** - use config files or `createArchive` options.                                               |
+| `setConfig`                 | function  | config.ts              | Config without c12 discovery, for hosts with no filesystem. `resetConfig()` brings discovery back.           |
 | `archivesTools`             | const     | tools.ts               | The four tool definitions (`archives_snapshots`, `_content`, `_diff`, `_providers`) every surface registers. |
 | `loadOperations`            | function  | tools.ts               | Cached lazy import of the executors; a failed load is not kept.                                              |
 | `snapshotArchives`          | function  | tool-operations.ts     | Shared executor behind the snapshot tool on every surface. Throws on bad provider/prereqs.                   |

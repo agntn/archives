@@ -1,6 +1,6 @@
 import { anyValue, objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
-import { getConfig, resolveConfig, resetConfig } from "../src/config";
+import { getConfig, resolveConfig, resetConfig, setConfig, setConfigCwd } from "../src/config";
 import { loadConfig } from "c12";
 import memoryDriver from "unstorage/drivers/memory";
 import type { ArchivesConfig } from "../src/config";
@@ -195,5 +195,78 @@ describe("Config", () => {
     // Assert
     expect(config.storage).toBeDefined();
     expect(config.storage.prefix).toBe("archives"); // Default prefix
+  });
+
+  describe("setConfig", () => {
+    it("answers getConfig without loading c12", async () => {
+      setConfig({ performance: { timeout: 2000 } });
+
+      const config = await getConfig();
+
+      expect(mockedLoadConfig).not.toHaveBeenCalled();
+      expect(config.performance).toEqual({
+        concurrency: 3,
+        batchSize: 20,
+        timeout: 2000,
+        retries: 1,
+      });
+      expect(config.storage.prefix).toBe("archives");
+      expect(config.storage.cache).toBe(true);
+    });
+
+    it("keeps a driver and fills the rest from the defaults", () => {
+      const driver = memoryDriver();
+
+      const config = setConfig({ storage: { driver, cache: false } });
+
+      expect(config.storage.driver).toBe(driver);
+      expect(config.storage.cache).toBe(false);
+      expect(config.storage.ttl).toBe(604800000);
+      expect(config.performance.retries).toBe(1);
+    });
+
+    it("gives way to discovery after resetConfig or setConfigCwd", async () => {
+      setConfig();
+      resetConfig();
+      await getConfig();
+      expect(mockedLoadConfig).toHaveBeenCalledTimes(1);
+
+      setConfig();
+      setConfigCwd("/home/someone");
+      try {
+        await getConfig();
+        expect(mockedLoadConfig).toHaveBeenCalledTimes(2);
+        expect(mockedLoadConfig).toHaveBeenLastCalledWith(
+          objectContaining({ cwd: "/home/someone" }),
+        );
+      } finally {
+        setConfigCwd(process.cwd());
+      }
+    });
+
+    it("outlasts a discovery that was already running", async () => {
+      let finish: (value: unknown) => void = () => undefined;
+      mockedLoadConfig.mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+
+      const running = getConfig();
+      await Promise.resolve();
+      setConfig({ performance: { retries: 4 } });
+      finish({ config: { ...defaultMockConfig } });
+      await running;
+
+      expect((await getConfig()).performance.retries).toBe(4);
+    });
+
+    it("leaves an explicit resolveConfig call to c12", async () => {
+      setConfig();
+
+      await resolveConfig({ cwd: "/custom/path" });
+
+      expect(mockedLoadConfig).toHaveBeenCalledTimes(1);
+    });
   });
 });
