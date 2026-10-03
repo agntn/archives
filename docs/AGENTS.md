@@ -17,6 +17,7 @@ docs/
 ├── app/utils/                     # providers table, timeline grouping, formatting, tokens, roster classes, recorded landing samples
 ├── app/pages/                     # explorer routes outside the docs layout: timeline, compare, site, capture, urls, history, evidence, agent, status, shelf
 ├── server/api/                    # snapshots, content, diff, providers, coverage, urls, history, status over tool-operations
+├── server/plugins/                # setConfig() at startup instead of config discovery, error stacks for the Workers logs
 ├── server/tasks/warm/demo.ts      # cron task: warm the coverage cache for DEMO_TARGETS
 ├── content/index.md               # landing
 ├── content/1.guide/               # getting started, snapshots, content, diff, configuration, agents, custom
@@ -37,7 +38,7 @@ pnpm generate         # static output only; the /api routes need the worker
 
 Deployment: Nitro preset `cloudflare_module`, which is the Cloudflare Workers preset in Nitro 2.13 (its standard name `cloudflare_workers` is not resolvable from the config and og-image does not know it). Nuxt Content needs a D1 binding named `DB`; `wrangler.jsonc` carries the binding and the `NUXT_SITE_URL` var, Nitro merges it into the generated `.output/server/wrangler.json`. Create the database once with `wrangler d1 create agntn-archives` and put its id in `wrangler.jsonc`.
 
-The site bundles `@agntn/archives` from `../src` through the aliases in `nuxt.config.ts`, so it needs neither `dist/` nor a build of the parent package. Workers Builds installs only `docs/`, so every npm package the executors import (`consola`, `diff`, `ohash`, `ufo`, `unstorage`) is a dependency here, pinned to the root version. A new package import under `src/` needs the same entry, or the deploy fails while a local build still passes.
+The site bundles `@agntn/archives` from `../src` through the aliases in `nuxt.config.ts`, so it needs neither `dist/` nor a build of the parent package. Workers Builds installs only `docs/`, so every npm package the executors import (`c12`, `consola`, `diff`, `ohash`, `ufo`, `unstorage`) is a dependency here, pinned to the root version. A new package import under `src/` needs the same entry, or the deploy fails while a local build still passes.
 
 Workers Builds never reads `engines`: it takes Node from the root `.node-version` and falls back to its own default without it, which was 24 while `engines` asked for 26. Keep that file on the major `engines` names.
 
@@ -45,7 +46,6 @@ Resolution traps, both caused by the repo root being a separate pnpm workspace w
 
 - `pnpm-workspace.yaml` sets `shamefullyHoist: true`. Without it `docs/node_modules` holds only direct dependencies, Node walks up to the root `node_modules`, and the server bundle gets a second copy of Vue (`Cannot read properties of null (reading 'ce')` on every SSR route).
 - `nuxt.config.ts` pins `workspaceDir` to `docs/` and disables devtools and telemetry, which would otherwise be resolved from the root.
-- `nitro.alias.c12` points at `server/stubs/c12.ts`: the library discovers config files through c12, and a Worker has no filesystem. The stub returns the library defaults.
 
 ## Live data
 

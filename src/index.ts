@@ -22,4 +22,4 @@ export { CommonCrawlProvider } from "./providers/commoncrawl.ts";
 export { WebCiteProvider } from "./providers/webcite.ts";
 export { providers } from "./providers/index.ts";
 export { configureStorage, clearProviderStorage, storage } from "./storage.ts";
-export { getConfig, resolveConfig, resetConfig } from "./config.ts";
+export { getConfig, resolveConfig, resetConfig, setConfig } from "./config.ts";

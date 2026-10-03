@@ -1,4 +1,3 @@
-import { loadConfig } from "c12";
 import type { Driver } from "unstorage";
 import memoryDriver from "unstorage/drivers/memory";
 
@@ -75,8 +74,36 @@ type ResolveConfigOptions = Readonly<{
 // Cache for resolved config
 let cachedConfig: ArchivesConfig | undefined;
 
+/** Bumped on every cache change, so a discovery that started earlier can't overwrite it. */
+let configGeneration = 0;
+
+/**
+ * Replaces the cached config.
+ *
+ * @param config - The new config, or `undefined` to discover again
+ */
+function replaceCachedConfig(config?: ArchivesConfig): void {
+  configGeneration += 1;
+  cachedConfig = config;
+}
+
 // Directory c12 searches when a caller does not pass its own `cwd`.
 let configCwd: string | undefined;
+
+let c12: Promise<typeof import("c12")> | undefined;
+
+/**
+ * Loads c12 on the first discovery, so a host that never discovers never needs a filesystem.
+ *
+ * @returns {Promise<typeof import("c12")>} The c12 module
+ */
+function loadC12(): Promise<typeof import("c12")> {
+  c12 ??= import("c12").catch((error: unknown) => {
+    c12 = undefined;
+    throw error;
+  });
+  return c12;
+}
 
 /**
  * Pins config discovery to `cwd` for every later call that passes none.
@@ -91,7 +118,22 @@ let configCwd: string | undefined;
  */
 export function setConfigCwd(cwd: string): void {
   configCwd = cwd;
-  cachedConfig = undefined;
+  replaceCachedConfig();
+}
+
+/**
+ * Uses `config` instead of config files until `resetConfig()` or `setConfigCwd()`.
+ *
+ * @param config - Storage and performance settings over the defaults, without `$env` layers
+ * @returns {ArchivesConfig} The config every later `getConfig()` returns
+ */
+export function setConfig(
+  config: Pick<ConfigLayer, "storage" | "performance"> = {},
+): ArchivesConfig {
+  const settings = { storage: { ...config.storage }, performance: { ...config.performance } };
+  const resolved = postProcessConfig(settings, getDefaultConfig());
+  replaceCachedConfig(resolved);
+  return resolved;
 }
 
 /**
@@ -107,15 +149,16 @@ export async function resolveConfig(options: ResolveConfigOptions = {}): Promise
     return cachedConfig;
   }
 
+  const generation = configGeneration;
   const defaults = getDefaultConfig();
 
   // Load config using c12
   const { config } = await loadArchivesConfig(options, defaults);
 
   // Apply post-processing
-  const resolvedConfig = await postProcessConfig(config as ArchivesConfig, defaults);
+  const resolvedConfig = postProcessConfig(config as ArchivesConfig, defaults);
 
-  if (shouldCache) {
+  if (shouldCache && generation === configGeneration) {
     cachedConfig = resolvedConfig;
   }
 
@@ -123,6 +166,7 @@ export async function resolveConfig(options: ResolveConfigOptions = {}): Promise
 }
 
 async function loadArchivesConfig(options: ResolveConfigOptions, defaults: ArchivesConfig) {
+  const { loadConfig } = await loadC12();
   return loadConfig({
     name: "archives",
     defaults,
@@ -139,10 +183,7 @@ async function loadArchivesConfig(options: ResolveConfigOptions, defaults: Archi
 /*
  * Apply additional configuration processing and validation
  */
-async function postProcessConfig(
-  config: ArchivesConfig,
-  defaults: ArchivesConfig,
-): Promise<ArchivesConfig> {
+function postProcessConfig(config: ArchivesConfig, defaults: ArchivesConfig): ArchivesConfig {
   const storage = {
     ...defaults.storage,
     ...config.storage,
@@ -161,7 +202,7 @@ async function postProcessConfig(
  * Reset the cached configuration
  */
 export function resetConfig(): void {
-  cachedConfig = undefined;
+  replaceCachedConfig();
 }
 
 /**

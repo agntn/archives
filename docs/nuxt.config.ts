@@ -130,10 +130,6 @@ export default defineNuxtConfig({
   },
   nitro: {
     preset: "cloudflare_module",
-    /** The library reads config files through c12; the worker has no filesystem and no config files. */
-    alias: {
-      c12: fileURLToPath(new URL("./server/stubs/c12.ts", import.meta.url)),
-    },
     compatibilityDate: "2026-09-03",
     /** The warm-up task runs from the cron trigger in wrangler.jsonc. */
     experimental: {
