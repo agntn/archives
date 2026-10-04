@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
-import { hasReachableFailure, unreachableReason } from "../docs/server/utils/reach";
+import {
+  hasReachableFailure,
+  refuseUnreachable,
+  unreachableReason,
+} from "../docs/server/utils/reach";
 
 /** `_meta.errors` of a live `provider=all` listing from the docs worker, 2026-10-01. */
 const WORKER_ERRORS = [
@@ -28,5 +32,26 @@ describe("docs worker reach", () => {
   it("still shortens the TTL when a reachable archive failed beside it", () => {
     expect(hasReachableFailure(WORKER_ERRORS)).toBe(true);
     expect(hasReachableFailure([{ provider: "archive-today" }])).toBe(true);
+  });
+
+  it("fails a request to any Archive.today host before it goes out, and passes the rest", async () => {
+    const sent: string[] = [];
+    const guarded = refuseUnreachable(async (input) => {
+      sent.push(String(input));
+      return new Response("ok");
+    });
+
+    for (const url of [
+      "https://archive.is/timemap/http://example.org/",
+      "https://ARCHIVE.PH/abc",
+    ]) {
+      await expect(guarded(url)).rejects.toThrow(/Cloudflare Workers/u);
+    }
+    await guarded("https://web.archive.org/cdx/search/cdx?url=example.org");
+    await guarded("/__nuxt_content/docs/sql_dump.txt");
+    expect(sent).toEqual([
+      "https://web.archive.org/cdx/search/cdx?url=example.org",
+      "/__nuxt_content/docs/sql_dump.txt",
+    ]);
   });
 });
