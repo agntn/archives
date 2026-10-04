@@ -10,6 +10,7 @@ export default defineConfig({
       "@agntn/archives/tool-operations": fileURLToPath(
         new URL("./src/tool-operations.ts", import.meta.url),
       ),
+      "@agntn/archives/mcp": fileURLToPath(new URL("./src/mcp.ts", import.meta.url)),
     },
   },
   /**

@@ -4,6 +4,8 @@ interface Unreachable {
   /** The slug that opens each of its lines in `_meta.errors`. */
   readonly slug: string;
   readonly reason: string;
+  /** Hosts it answers from, so a request there fails before it leaves the worker. */
+  readonly hosts: RegExp;
 }
 
 /** Archives that never answer a connection from Cloudflare Workers, where this site runs. */
@@ -13,6 +15,7 @@ const UNREACHABLE: readonly Unreachable[] = [
     slug: "archive-today",
     reason:
       "Archive.today doesn't answer connections from Cloudflare Workers, where this site runs, so the worker skips it. Query it from your own machine with providers.archiveToday().",
+    hosts: /^archive\.(?:fo|is|li|md|ph|today|vn)$/iu,
   },
 ];
 
@@ -34,4 +37,14 @@ export function hasReachableFailure(errors: unknown): boolean {
   return errors.some(
     (error) => !UNREACHABLE.some((entry) => typeof error === "string" && error.startsWith(`${entry.slug}: `)),
   );
+}
+
+/** Wraps `fetch` so a request to an unreachable archive fails now, not after a 30 s `522`. */
+export function refuseUnreachable(fetchImpl: typeof fetch): typeof fetch {
+  return (input, init) => {
+    const target = input instanceof Request ? input.url : String(input);
+    const host = URL.parse(target)?.hostname;
+    const entry = host === undefined ? undefined : UNREACHABLE.find(({ hosts }) => hosts.test(host));
+    return entry ? Promise.reject(new TypeError(entry.reason)) : fetchImpl(input, init);
+  };
 }

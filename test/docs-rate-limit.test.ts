@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { assertRateLimit, cachedAnswer, RATE_LIMIT } from "../docs/server/utils/query";
+import {
+  admitQueries,
+  assertRateLimit,
+  cachedAnswer,
+  RATE_LIMIT,
+} from "../docs/server/utils/query";
 
 type Env = Readonly<Record<string, unknown>>;
 
@@ -145,6 +150,21 @@ describe("docs rate limit", () => {
     );
 
     expect(results.filter(({ status }) => status === "rejected")).toHaveLength(5);
+  });
+
+  it("spends a batch of queries at once, with or without the binding", async () => {
+    vi.useFakeTimers({ now: new Date("2026-09-29T12:02:10Z"), toFake: ["Date"] });
+    const local = fakeEvent({ "cf-connecting-ip": "198.51.100.11" });
+    expect(await admitQueries(local, RATE_LIMIT)).toBe(true);
+    expect(await admitQueries(local, 1)).toBe(false);
+
+    let counted = 0;
+    const bound = fakeEvent(
+      { "cf-connecting-ip": "203.0.113.8" },
+      { ARCHIVE_LIMIT: { limit: async () => ({ success: ++counted <= 2 }) } },
+    );
+    expect(await admitQueries(bound, 3)).toBe(false);
+    expect(counted).toBe(3);
   });
 
   it("gives the binding the number the 429 message quotes", () => {
