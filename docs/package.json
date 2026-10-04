@@ -10,6 +10,7 @@
     "deploy": "pnpm build && wrangler deploy"
   },
   "dependencies": {
+    "@agntn/compressions": "0.1.0",
     "@agntn/hashes": "0.5.0",
     "@agntn/tools": "0.0.0",
     "@modelcontextprotocol/sdk": "1.30.1",

@@ -80,6 +80,7 @@
     "docs:build": "pnpm --dir docs build"
   },
   "dependencies": {
+    "@agntn/compressions": "0.1.0",
     "@agntn/hashes": "0.5.0",
     "@agntn/tools": "0.0.0",
     "@modelcontextprotocol/server": "2.2.0",
