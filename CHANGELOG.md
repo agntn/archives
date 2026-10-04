@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.7.1
+
+[compare changes](https://github.com/agntn/archives/compare/v0.7.0...v0.7.1)
+
+### 🚀 Enhancements
+
+- **content:** Save a capture's bytes to a file ([#138](https://github.com/agntn/archives/pull/138))
+- Add Vefsafn provider ([#139](https://github.com/agntn/archives/pull/139))
+- Print CDX digest, status and size ([#147](https://github.com/agntn/archives/pull/147))
+- Read archives without a filesystem ([#148](https://github.com/agntn/archives/pull/148))
+
+### 🔥 Performance
+
+- **tools:** Print each original URL once ([#142](https://github.com/agntn/archives/pull/142))
+
+### 🩹 Fixes
+
+- **docs:** Skip Archive.today on the worker ([#136](https://github.com/agntn/archives/pull/136))
+- **providers:** Drop only the default port ([#141](https://github.com/agntn/archives/pull/141))
+- **docs:** Build on Node.js 26 ([#145](https://github.com/agntn/archives/pull/145))
+
+### 💅 Refactors
+
+- Fetch archives without ofetch ([#137](https://github.com/agntn/archives/pull/137))
+
+### ❤️ Contributors
+
+- Ori ([@oritwoen](https://github.com/oritwoen))
+- Aeitwoen ([@aeitwoen](https://github.com/aeitwoen))
+
 ## v0.7.0
 
 [compare changes](https://github.com/agntn/archives/compare/v0.6.0...v0.7.0)

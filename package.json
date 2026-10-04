@@ -1,6 +1,6 @@
 {
   "name": "@agntn/archives",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Unified interface for web archive providers",
   "keywords": [
     "agents",
