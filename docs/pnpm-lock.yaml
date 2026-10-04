@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@agntn/compressions':
+        specifier: 0.1.0
+        version: 0.1.0(ai@7.0.90(zod@4.6.5))
       '@agntn/hashes':
         specifier: 0.5.0
         version: 0.5.0(@cfworker/json-schema@4.1.1)(ai@7.0.90(zod@4.6.5))(supports-color@10.2.2)(zod@4.6.5)
@@ -72,6 +75,38 @@ importers:
 
 packages:
 
+  '@agntn/compressions@0.1.0':
+    resolution: {integrity: sha512-a79jmu7zZxzMIa5V/t4PqOuinx9eQDh05ix+agnxw1mXv1MhC5SKxCTVDQcyuqMz0tuHk5/0X5Wf8B9zdyoH4Q==}
+    engines: {node: '>=26'}
+    hasBin: true
+    peerDependencies:
+      '@earendil-works/pi-coding-agent': '>=0.84.2 <1'
+      '@oh-my-pi/pi-coding-agent': '>=18.0.0 <19'
+      ai: '>=7.0.0'
+    peerDependenciesMeta:
+      '@earendil-works/pi-coding-agent':
+        optional: true
+      '@oh-my-pi/pi-coding-agent':
+        optional: true
+      ai:
+        optional: true
+
+  '@agntn/encodings@0.1.0':
+    resolution: {integrity: sha512-kPCR2TxPtpt+2CIRlAYHq8V7LwneVBMAp/0geftLkgKcselVI+EYm6dsL1YnZbqw6Cqtl+vHO6u7T5eZ9TTNDQ==}
+    engines: {node: '>=26'}
+    hasBin: true
+    peerDependencies:
+      '@earendil-works/pi-coding-agent': '>=0.84.2 <1'
+      '@oh-my-pi/pi-coding-agent': '>=18.0.0 <19'
+      ai: '>=7.0.0'
+    peerDependenciesMeta:
+      '@earendil-works/pi-coding-agent':
+        optional: true
+      '@oh-my-pi/pi-coding-agent':
+        optional: true
+      ai:
+        optional: true
+
   '@agntn/hashes@0.5.0':
     resolution: {integrity: sha512-fM7oo9DbGM1KZaYwG3izqVVCc7BiRC2X7BG9aNX1zAahSPOd16angAZCoTGU1OjdrScpbVmi7xawT3s1gOPJKg==}
     engines: {node: '>=26'}
@@ -92,6 +127,38 @@ packages:
       typebox:
         optional: true
       zod:
+        optional: true
+
+  '@agntn/hashes@0.6.1':
+    resolution: {integrity: sha512-pakVYxcaOtVUTU9cfssc8S3c5kr7R5w7EhIBKJdhdNkvMeMOs4gU9zCJUamyXbKSvZcI9EYHUFcXWqapVNyW1A==}
+    engines: {node: '>=26'}
+    hasBin: true
+    peerDependencies:
+      '@earendil-works/pi-coding-agent': '>=0.87.1 <1'
+      '@oh-my-pi/pi-coding-agent': '>=18.4.2 <19'
+      ai: '>=7.0.0'
+    peerDependenciesMeta:
+      '@earendil-works/pi-coding-agent':
+        optional: true
+      '@oh-my-pi/pi-coding-agent':
+        optional: true
+      ai:
+        optional: true
+
+  '@agntn/hashes@0.6.4':
+    resolution: {integrity: sha512-eEqgph5RKF6nJfGnzdOlYpQb2vx8o3cqA17g+mqg0znmjGvYT3eF0tqJXFQctW4qw/lKQFXN+Zmrl7KTAbgdxw==}
+    engines: {node: '>=26'}
+    hasBin: true
+    peerDependencies:
+      '@earendil-works/pi-coding-agent': '>=0.87.1 <1'
+      '@oh-my-pi/pi-coding-agent': '>=18.4.2 <19'
+      ai: '>=7.0.0'
+    peerDependenciesMeta:
+      '@earendil-works/pi-coding-agent':
+        optional: true
+      '@oh-my-pi/pi-coding-agent':
+        optional: true
+      ai:
         optional: true
 
   '@agntn/tools@0.0.0':
@@ -7643,6 +7710,27 @@ packages:
 
 snapshots:
 
+  '@agntn/compressions@0.1.0(ai@7.0.90(zod@4.6.5))':
+    dependencies:
+      '@agntn/encodings': 0.1.0(ai@7.0.90(zod@4.6.5))
+      '@agntn/hashes': 0.6.4(ai@7.0.90(zod@4.6.5))
+      '@agntn/tools': 0.0.0(@modelcontextprotocol/server@2.2.0)(ai@7.0.90(zod@4.6.5))
+      '@modelcontextprotocol/server': 2.2.0
+      citty: 0.2.2
+      consola: 3.4.2
+    optionalDependencies:
+      ai: 7.0.90(zod@4.6.5)
+
+  '@agntn/encodings@0.1.0(ai@7.0.90(zod@4.6.5))':
+    dependencies:
+      '@agntn/hashes': 0.6.1(ai@7.0.90(zod@4.6.5))
+      '@agntn/tools': 0.0.0(@modelcontextprotocol/server@2.2.0)(ai@7.0.90(zod@4.6.5))
+      '@modelcontextprotocol/server': 2.2.0
+      citty: 0.2.2
+      consola: 3.4.2
+    optionalDependencies:
+      ai: 7.0.90(zod@4.6.5)
+
   '@agntn/hashes@0.5.0(@cfworker/json-schema@4.1.1)(ai@7.0.90(zod@4.6.5))(supports-color@10.2.2)(zod@4.6.5)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.30.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5)
@@ -7653,6 +7741,22 @@ snapshots:
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
+
+  '@agntn/hashes@0.6.1(ai@7.0.90(zod@4.6.5))':
+    dependencies:
+      '@agntn/tools': 0.0.0(@modelcontextprotocol/server@2.2.0)(ai@7.0.90(zod@4.6.5))
+      '@modelcontextprotocol/server': 2.2.0
+      citty: 0.2.2
+    optionalDependencies:
+      ai: 7.0.90(zod@4.6.5)
+
+  '@agntn/hashes@0.6.4(ai@7.0.90(zod@4.6.5))':
+    dependencies:
+      '@agntn/tools': 0.0.0(@modelcontextprotocol/server@2.2.0)(ai@7.0.90(zod@4.6.5))
+      '@modelcontextprotocol/server': 2.2.0
+      citty: 0.2.2
+    optionalDependencies:
+      ai: 7.0.90(zod@4.6.5)
 
   '@agntn/tools@0.0.0(@modelcontextprotocol/server@2.2.0)(ai@7.0.90(zod@4.6.5))':
     optionalDependencies:
@@ -8941,11 +9045,11 @@ snapshots:
       eventsource-parser: 3.1.1
       jose: 6.2.10
       pkce-challenge: 5.0.1
-      zod: 4.5.4
+      zod: 4.6.5
 
   '@modelcontextprotocol/core@2.0.0':
     dependencies:
-      zod: 4.5.4
+      zod: 4.6.5
 
   '@modelcontextprotocol/core@2.2.0':
     dependencies:

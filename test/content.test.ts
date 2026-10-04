@@ -1,9 +1,15 @@
 import { objectContaining } from "./_matchers";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gzipSync } from "node:zlib";
+import {
+  brotliCompressSync,
+  deflateRawSync,
+  deflateSync,
+  gzipSync,
+  zstdCompressSync,
+} from "node:zlib";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { fetchData, fetchResponse } from "../src/utils/_fetch";
 import { rawResponse } from "./_responses";
@@ -1253,19 +1259,146 @@ describe("common crawl content", () => {
     expect(response.content?.content.startsWith("<html><body>page text")).toBe(true);
   });
 
+  /* A WARC record whose response went out with `encoding`, gzipped as Common Crawl stores it. */
+  function encodedSegment(encoding: string, body: Uint8Array): Buffer {
+    return gzipSync(
+      Buffer.concat([
+        Buffer.from("WARC/1.0\r\nWARC-Type: response\r\n\r\n"),
+        Buffer.from(
+          `HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Encoding: ${encoding}\r\n\r\n`,
+        ),
+        body,
+      ]),
+    );
+  }
+
+  /* The index row pointing at a segment of `length` bytes. */
+  function indexRow(length: number): string {
+    return JSON.stringify({
+      url: "https://example.com/",
+      timestamp: "20240101000000",
+      status: "200",
+      length: String(length),
+      offset: "0",
+      filename: "segment.warc.gz",
+    });
+  }
+
+  it.each([
+    ["br", "brotli", brotliCompressSync],
+    ["zstd", "zstd", zstdCompressSync],
+    ["deflate", "zlib", deflateSync],
+    ["deflate", "raw deflate", deflateRawSync],
+  ] as const)("decodes a body stored %s-encoded as %s", async (encoding, _stream, encode) => {
+    const page = "<html><body>Squeezed body</body></html>";
+    const segment = encodedSegment(encoding, encode(Buffer.from(page)));
+    fetchMock.mockResolvedValueOnce(indexRow(segment.length)).mockResolvedValueOnce(segment);
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com");
+
+    expect(response.content?.content).toBe(page);
+    expect(response.content?.truncated).toBe(false);
+  });
+
+  it("cuts a brotli body at the cap and keeps its opening", async () => {
+    const page = "<html><body>" + "page text ".repeat(30_000) + "</body></html>";
+    const segment = encodedSegment("br", brotliCompressSync(Buffer.from(page)));
+    fetchMock.mockResolvedValueOnce(indexRow(segment.length)).mockResolvedValueOnce(segment);
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com", { maxBytes: 64 });
+
+    expect(response.content?.truncated).toBe(true);
+    expect(response.content?.content).toBe(page.slice(0, 64));
+  });
+
+  it("names an encoding it cannot undo instead of returning noise", async () => {
+    const segment = encodedSegment("compress", Buffer.from([0x1f, 0x9d, 0x90]));
+    fetchMock.mockResolvedValueOnce(indexRow(segment.length)).mockResolvedValueOnce(segment);
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com");
+
+    expect(response.success).toBe(false);
+    expect(response.error).toContain("compress-encoded, which this client cannot decode");
+  });
+
+  /* A crawl file runs to gigabytes, so past the record this one never ends. */
+  it("stops reading at the record length when the server ignores the range", async () => {
+    const segment = gzipSync(record);
+    let served = 0;
+    const wholeFile = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(segment);
+        served += segment.length;
+      },
+      pull(controller) {
+        controller.enqueue(new Uint8Array(64 * 1024));
+        served += 64 * 1024;
+      },
+    });
+    fetchMock.mockResolvedValueOnce(indexRow(segment.length)).mockResolvedValueOnce(wholeFile);
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com");
+
+    expect(response.content?.content).toBe("<html><body>Crawled body</body></html>");
+    expect(served).toBeLessThan(segment.length + 256 * 1024);
+  });
+
+  it.each([
+    ["text", Buffer.from(randomBytes(150_000).toString("hex"))],
+    ["incompressible bytes", randomBytes(300_000)],
+  ])("stops downloading %s once a prefix decodes past the cap", async (_kind, page) => {
+    const segment = gzipSync(
+      Buffer.concat([
+        Buffer.from("WARC/1.0\r\nWARC-Type: response\r\n\r\n"),
+        Buffer.from("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n"),
+        page,
+      ]),
+    );
+    let served = 0;
+    const ranged = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (served >= segment.length) {
+          controller.close();
+          return;
+        }
+        const chunk = segment.subarray(served, served + 4096);
+        served += chunk.length;
+        controller.enqueue(chunk);
+      },
+    });
+    fetchMock.mockResolvedValueOnce(indexRow(segment.length)).mockResolvedValueOnce(ranged);
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com", { maxBytes: 64 });
+
+    expect(response.content?.sha256).toBe(sha256Hex(page.subarray(0, 64)));
+    expect(response.content?.truncated).toBe(true);
+    expect(served).toBeLessThan(segment.length / 4);
+  });
+
   it("reports a record whose HTTP response cannot be found", async () => {
+    const segment = gzipSync(Buffer.from("not a warc record"));
     fetchMock
       .mockResolvedValueOnce(
         JSON.stringify({
           url: "https://example.com/",
           timestamp: "20240101000000",
           status: "200",
-          length: "10",
+          length: String(segment.length),
           offset: "0",
           filename: "segment.warc.gz",
         }),
       )
-      .mockResolvedValueOnce(gzipSync(Buffer.from("not a warc record")));
+      .mockResolvedValueOnce(segment);
 
     const response = await createArchive(
       createCommonCrawl({ collection: "CC-MAIN-2024-10" }),

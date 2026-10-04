@@ -576,36 +576,117 @@ export async function readPlaybackCapture(
   };
 }
 
+/** Compressions a stored capture can carry, spelled the way `Content-Encoding` spells them. */
+export type ContentCompression = "gzip" | "zlib" | "deflate" | "br" | "zstd";
+
 /**
- * Decompresses one compressed member, stopping at `maxBytes`.
- *
- * The payload is streamed rather than buffered first: a WARC record is as large
- * as whatever the crawler stored, and buffering it to then throw most of it away
- * is exactly the download the cap exists to prevent.
+ * Decompresses one member up to `maxBytes`, reading at most `maxInput` compressed bytes.
+ * The prefix read doubles until it decodes past the cap, so a capped read stops downloading early.
  *
  * @param source - Compressed payload, as a stream or as bytes
  * @param maxBytes - Cap on the decompressed size
  * @param format - Compression the payload carries
- * @throws {Error} When the runtime has no `DecompressionStream`
-
- *
- * @returns {Promise<{ bytes: Uint8Array; truncated: boolean }>} A promise resolving to the operation result.
+ * @param maxInput - Cap on the compressed bytes read from `source`
+ * @throws {Error} When the payload is not a valid stream of `format`
+ * @returns {Promise<{ bytes: Uint8Array; truncated: boolean }>} The capped bytes.
  */
 export async function decompress(
   source: unknown,
   maxBytes: number,
-  format: CompressionFormat = "gzip",
+  format: ContentCompression = "gzip",
+  maxInput = Number.POSITIVE_INFINITY,
 ): Promise<{ bytes: Uint8Array; truncated: boolean }> {
-  if (typeof DecompressionStream !== "function") {
-    throw new TypeError(
-      "Reading Common Crawl records requires DecompressionStream in this runtime",
-    );
+  const payload = new PayloadReader(source);
+  try {
+    let want = Math.min(maxInput, Math.max(maxBytes, 1));
+    for (;;) {
+      const head = await payload.fill(want);
+      if (payload.done || want >= maxInput) return await decodeCapped(format, head, maxBytes);
+
+      const early = await decodeCompressed(format, head, maxBytes + 1, true);
+      if (early.byteLength > maxBytes)
+        return { bytes: early.subarray(0, maxBytes), truncated: true };
+      want = Math.min(maxInput, want * 2);
+    }
+  } finally {
+    await payload.close();
+  }
+}
+
+/**
+ * Decodes a whole member, reporting output past `maxBytes` as a truncated prefix.
+ *
+ * @param format - The stream to decode
+ * @param bytes - The compressed bytes
+ * @param maxBytes - Cap on the decoded size
+ * @returns {Promise<{ bytes: Uint8Array; truncated: boolean }>} The capped bytes.
+ */
+async function decodeCapped(
+  format: ContentCompression,
+  bytes: Uint8Array,
+  maxBytes: number,
+): Promise<{ bytes: Uint8Array; truncated: boolean }> {
+  try {
+    return { bytes: await decodeCompressed(format, bytes, maxBytes), truncated: false };
+  } catch (error) {
+    const prefix = limitPrefix(error);
+    if (prefix) return { bytes: prefix, truncated: true };
+    throw error;
+  }
+}
+
+/** Reads a compressed payload in steps, so a prefix can be tried before the rest arrives. */
+class PayloadReader {
+  /** Whether the payload has no more bytes to give. */
+  done = false;
+  private readonly reader: ReadableStreamDefaultReader<Uint8Array>;
+  private readonly chunks: Uint8Array[] = [];
+  private held = 0;
+
+  /** @param source - Compressed payload, as a stream or as bytes */
+  constructor(source: unknown) {
+    this.reader = toByteStream(source).getReader();
   }
 
-  return readCappedBytes(
-    toByteStream(source).pipeThrough(new DecompressionStream(format)),
-    maxBytes,
-  );
+  /**
+   * Reads until `count` bytes are held or the payload ends.
+   *
+   * @param count - Bytes wanted
+   * @returns {Promise<Uint8Array>} The first `count` bytes held, or all of them when fewer.
+   */
+  async fill(count: number): Promise<Uint8Array> {
+    while (!this.done && this.held < count) {
+      const { done, value } = await this.reader.read();
+      if (done) this.done = true;
+      else this.keep(value);
+    }
+    const bytes = concatBytes(this.chunks);
+    return bytes.byteLength > count ? bytes.subarray(0, count) : bytes;
+  }
+
+  /** @returns {Promise<void>} Resolves once the rest of the payload is dropped. */
+  async close(): Promise<void> {
+    await this.reader.cancel().catch(() => undefined);
+  }
+
+  private keep(chunk: Uint8Array): void {
+    this.chunks.push(chunk);
+    this.held += chunk.byteLength;
+  }
+}
+
+/**
+ * Presents bytes or a stream as one stream, wrapping bytes without a copy.
+ *
+ * @param source - Compressed payload, as a stream or as bytes
+ * @returns {ReadableStream<Uint8Array>} The payload as a stream.
+ */
+function toByteStream(source: unknown): ReadableStream<Uint8Array> {
+  if (isReadableStream(source) || source instanceof Uint8Array || source instanceof ArrayBuffer) {
+    const body = new Response(source as BodyInit).body;
+    if (body) return body;
+  }
+  throw new Error("Archive returned a record body this client cannot read");
 }
 
 /**
@@ -615,13 +696,11 @@ export async function decompress(
  * stored compressed. Decoding it as text without this produces bytes that look
  * like a broken charset and read like nothing at all.
  *
- * @throws {Error} For an encoding this runtime cannot undo, rather than returning noise
-
- *
- * @param body - Body.
- * @param encoding - Encoding.
- * @param maxBytes - Max Bytes.
- * @returns {Promise<{ bytes: Uint8Array; truncated: boolean }>} A promise resolving to the operation result.
+ * @param body - Body as stored, framing already removed
+ * @param encoding - The response's `Content-Encoding`
+ * @param maxBytes - Cap on the decoded size
+ * @throws {Error} For an encoding this client cannot undo, rather than returning noise
+ * @returns {Promise<{ bytes: Uint8Array; truncated: boolean }>} The capped body.
  */
 export async function decodeContentEncoding(
   body: Uint8Array,
@@ -631,8 +710,8 @@ export async function decodeContentEncoding(
   const format = encoding?.trim().toLowerCase() ?? "";
   if (!format || format === "identity") return { bytes: body, truncated: false };
 
-  const compression = format === "gzip" || format === "x-gzip" ? "gzip" : format;
-  if (compression !== "gzip" && compression !== "deflate") {
+  const compression = contentCompression(format, body);
+  if (!compression) {
     throw new Error(`The capture is ${format}-encoded, which this client cannot decode`);
   }
 
@@ -641,6 +720,76 @@ export async function decodeContentEncoding(
   // decodes past it too and the cap ends the read cleanly. An error here is a
   // corrupt member, and it belongs to the caller.
   return decompress(body, maxBytes, compression);
+}
+
+/**
+ * Maps a `Content-Encoding` to its stream. Raw deflate sent as `deflate` is told by its header.
+ *
+ * @param format - The encoding, lowercased
+ * @param body - The encoded body
+ * @returns {ContentCompression | undefined} The stream, or `undefined` when it can't be decoded.
+ */
+function contentCompression(
+  format: string,
+  body: ArrayLike<number>,
+): ContentCompression | undefined {
+  if (format === "gzip" || format === "x-gzip") return "gzip";
+  if (format === "deflate") return hasZlibHeader(body) ? "zlib" : "deflate";
+  if (format === "br" || format === "zstd") return format;
+  return undefined;
+}
+
+/**
+ * RFC 1950 header: method 8, a window of at most 32 KiB, and a check that divides by 31.
+ *
+ * @param body - The encoded body
+ * @returns {boolean} Whether `body` opens like a zlib stream.
+ */
+function hasZlibHeader(body: ArrayLike<number>): boolean {
+  if (body.length < 2) return false;
+  const cmf = body[0] ?? 0;
+  const flg = body[1] ?? 0;
+  return (cmf & 0x0f) === 8 && cmf >> 4 <= 7 && ((cmf << 8) | flg) % 31 === 0;
+}
+
+/**
+ * Decodes through the matching subpath, loaded on first use so gzip never pulls in brotli.
+ *
+ * @param format - The stream to decode
+ * @param bytes - The compressed bytes
+ * @param limit - Most bytes to write
+ * @param partial - Return what decoded before a cut or the limit instead of throwing
+ * @returns {Promise<Uint8Array>} The decoded bytes.
+ */
+async function decodeCompressed(
+  format: ContentCompression,
+  bytes: Uint8Array,
+  limit: number,
+  partial = false,
+): Promise<Uint8Array> {
+  if (format === "br") {
+    const { brotli } = await import("@agntn/compressions/brotli");
+    return brotli.decompress(bytes, { limit, partial }).bytes;
+  }
+  if (format === "zstd") {
+    const { zstd } = await import("@agntn/compressions/zstd");
+    return zstd.decompress(bytes, { limit, partial }).bytes;
+  }
+  const { deflate } = await import("@agntn/compressions/deflate");
+  const container = format === "deflate" ? "raw" : format;
+  return deflate.decompress(bytes, { container, limit, partial }).bytes;
+}
+
+/**
+ * The prefix written before `LimitError`, matched by name: only the package root exports it.
+ *
+ * @param error - What the decoder threw
+ * @returns {Uint8Array | undefined} The first `limit` bytes, or `undefined` for any other error.
+ */
+function limitPrefix(error: unknown): Uint8Array | undefined {
+  if (!(error instanceof Error) || error.name !== "LimitError") return undefined;
+  const partial = "partial" in error ? error.partial : undefined;
+  return partial instanceof Uint8Array ? partial : undefined;
 }
 
 /**
@@ -690,21 +839,6 @@ function concatBytes(chunks: readonly Uint8Array[]): Uint8Array {
     offset += chunk.byteLength;
   }
   return bytes;
-}
-
-/*
- * Presents a fetched payload as a stream, so the cap applies while the bytes
- * arrive rather than after they are all in memory.
- */
-function toByteStream(source: unknown) {
-  if (isReadableStream(source) || source instanceof Uint8Array || source instanceof ArrayBuffer) {
-    // `Response` passes a stream through untouched and wraps bytes without a
-    // copy, and its body carries the chunk type the decompressor expects.
-    const body = new Response(source as BodyInit).body;
-    if (body) return body;
-  }
-
-  throw new Error("Archive returned a record body this client cannot read");
 }
 
 /**

@@ -494,7 +494,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
 
     // The record's own headers sit in front of the body, so the decompression
     // cap has to leave room for them or a small body would come back empty.
-    const record = await decompress(segment, withHeaderSlack(maxBytes));
+    const record = await decompress(segment, withHeaderSlack(maxBytes), "gzip", length);
     const parts = splitWarcRecord(record.bytes);
     if (!parts) {
       throw new Error("Common Crawl returned a record without a readable HTTP response");
