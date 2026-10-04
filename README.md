@@ -160,6 +160,14 @@ Four tools: snapshots, content, diff and providers. Only content writes, and onl
 
 One thing to know. `archives mcp` reads its config from your home directory, not from the project your client has open. Browsing someone's repo shouldn't run their `archives.config.ts`. [Agents guide](https://archives.agntn.dev/guide/agents).
 
+Can't install anything? The docs site runs the same four tools at [archives.agntn.dev/mcp](https://archives.agntn.dev/guide/agents#remote-mcp):
+
+```bash
+claude mcp add --transport http archives https://archives.agntn.dev/mcp
+```
+
+Same answers, a few house rules. No `path`, no Archive.today, 30 new queries a minute. The worker is borrowed, after all.
+
 The docs site also has the [Evidence Room](https://archives.agntn.dev/evidence), the same idea over WebMCP in the browser. [WebMCP guide](https://archives.agntn.dev/guide/webmcp).
 
 ## 🚫 What this does not do

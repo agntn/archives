@@ -24,7 +24,7 @@ archives/
 │   ├── tool-operations.ts # executors shared by MCP, Pi and OMP
 │   ├── tools.ts          # one @agntn/tools definition per tool, for every surface
 │   ├── tool-contract.ts  # provider spellings, hints and bounds the tools declare
-│   ├── mcp.ts            # createMcpServer() over the tool list
+│   ├── mcp.ts            # createMcpServer(), plus toolListings/callTool for the docs /mcp
 │   ├── cli.ts            # citty entry (bin: archives), lazy `mcp` subcommand
 │   ├── commands/mcp.ts   # `archives mcp` - stdio transport
 │   ├── version.ts        # package.json version, single source
@@ -41,32 +41,32 @@ archives/
 ├── packages/omp/extensions/
 │   └── archives.ts       # OMP tool/command surface shipped via package.json omp.extensions
 ├── playground/           # Nuxt app (Cloudflare preset) for manual provider testing
-├── docs/                 # Docus site: guide, provider pages, live timeline explorer on Workers
+├── docs/                 # Docus site: guide, provider pages, live timeline explorer and /mcp on Workers
 └── .github/workflows/    # ci.yml + autofix.yml
 ```
 
 ## WHERE TO LOOK
 
-| Task                       | Location                                                          | Notes                                                                                             |
-| -------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Add a provider             | `src/providers/` + register in `src/providers/index.ts`           | Copy wayback.ts as template. Default export factory fn returning `ArchiveProvider`                |
-| Provider-specific options  | `src/_providers.ts`                                               | Extend `ArchiveOptions`, add to `ProviderOptions` map                                             |
-| Change public API          | `src/index.ts`                                                    | Barrel re-exports only. Types via `export type *`                                                 |
-| Modify caching             | `src/storage.ts`                                                  | Key format: `{prefix}:{providerSlug}:{domain}:{limit?}`                                           |
-| Config defaults            | `src/config.ts` → `getDefaultConfig()`                            | c12 loads from `.archives`, `archives.config.ts`, `package.json`                                  |
-| Response helpers           | `src/utils/_utils.ts`                                             | `createSuccessResponse`, `createErrorResponse`, `mergeOptions`                                    |
-| Read an archived body      | `src/utils/_content.ts`                                           | Capture selection, `id_` playback, WARC ranges, transfer/content encodings, charset, `htmlToText` |
-| Compare two captures       | `src/diff.ts` + `src/tool-operations.ts`                          | Pure bounded diff, retrieval from one provider, and paged tool rendering                          |
-| Add content to a provider  | provider file → `override content()`                              | Optional on `ArchiveProvider`; a provider that cannot serve bodies says so instead                |
-| Parallel processing        | `src/utils/_utils.ts` → `processInParallel`                       | Concurrency + batch control                                                                       |
-| CDX row mapping            | `src/utils/_utils.ts` → `mapCdxRows`                              | Wayback/CommonCrawl share CDX format                                                              |
-| Test a provider            | `test/{provider}.test.ts`                                         | Uses vitest, mocks with `vi.fn()`                                                                 |
-| Manual testing             | `playground/server/api/snapshots/`                                | One Nuxt endpoint per provider                                                                    |
-| Docs / timeline UI         | `docs/`                                                           | Docus: `content/` markdown, `server/api/` over tool-operations, explorer in `app/`                |
-| Extend Pi extension        | `packages/pi/extensions/archives.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb                          |
-| Change what a tool does    | `src/tool-operations.ts`                                          | One implementation for MCP, Pi and OMP. Never fix a tool in one surface only                      |
-| Add/change a tool          | `src/tools.ts` + `test/mcp.test.ts`                               | Executor in tool-operations first, then its definition here; MCP, Pi and OMP read the same list   |
-| Verify the shipped package | `pnpm pack` + install the tarball elsewhere                       | Catches missing `files`, a wrong `exports` map and absent runtime deps                            |
+| Task                       | Location                                                          | Notes                                                                                                                   |
+| -------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Add a provider             | `src/providers/` + register in `src/providers/index.ts`           | Copy wayback.ts as template. Default export factory fn returning `ArchiveProvider`                                      |
+| Provider-specific options  | `src/_providers.ts`                                               | Extend `ArchiveOptions`, add to `ProviderOptions` map                                                                   |
+| Change public API          | `src/index.ts`                                                    | Barrel re-exports only. Types via `export type *`                                                                       |
+| Modify caching             | `src/storage.ts`                                                  | Key format: `{prefix}:{providerSlug}:{domain}:{limit?}`                                                                 |
+| Config defaults            | `src/config.ts` → `getDefaultConfig()`                            | c12 loads from `.archives`, `archives.config.ts`, `package.json`                                                        |
+| Response helpers           | `src/utils/_utils.ts`                                             | `createSuccessResponse`, `createErrorResponse`, `mergeOptions`                                                          |
+| Read an archived body      | `src/utils/_content.ts`                                           | Capture selection, `id_` playback, WARC ranges, transfer/content encodings, charset, `htmlToText`                       |
+| Compare two captures       | `src/diff.ts` + `src/tool-operations.ts`                          | Pure bounded diff, retrieval from one provider, and paged tool rendering                                                |
+| Add content to a provider  | provider file → `override content()`                              | Optional on `ArchiveProvider`; a provider that cannot serve bodies says so instead                                      |
+| Parallel processing        | `src/utils/_utils.ts` → `processInParallel`                       | Concurrency + batch control                                                                                             |
+| CDX row mapping            | `src/utils/_utils.ts` → `mapCdxRows`                              | Wayback/CommonCrawl share CDX format                                                                                    |
+| Test a provider            | `test/{provider}.test.ts`                                         | Uses vitest, mocks with `vi.fn()`                                                                                       |
+| Manual testing             | `playground/server/api/snapshots/`                                | One Nuxt endpoint per provider                                                                                          |
+| Docs / timeline UI         | `docs/`                                                           | Docus: `content/` markdown, `server/api/` over tool-operations, explorer in `app/`                                      |
+| Extend Pi extension        | `packages/pi/extensions/archives.ts` + `tsconfig.extensions.json` | Keep it distributable through `package.json` `pi.extensions` like askweb                                                |
+| Change what a tool does    | `src/tool-operations.ts`                                          | One implementation for MCP, Pi and OMP. Never fix a tool in one surface only                                            |
+| Add/change a tool          | `src/tools.ts` + `test/mcp.test.ts`                               | Executor in tool-operations first, then its definition here; a new tool also needs its file in `docs/server/mcp/tools/` |
+| Verify the shipped package | `pnpm pack` + install the tarball elsewhere                       | Catches missing `files`, a wrong `exports` map and absent runtime deps                                                  |
 
 ## CODE MAP
 
@@ -98,6 +98,7 @@ archives/
 | `listArchiveProviders`      | function  | tool-operations.ts     | Shared executor listing providers, `provider=all` membership and Perma.cc key state.                         |
 | `waybackSnapshots`          | function  | tool-operations.ts     | Wayback-only lookup behind the interactive `/archive` command.                                               |
 | `createMcpServer`           | function  | mcp.ts                 | Unconnected MCP server exposing snapshot, content, diff and provider tools.                                  |
+| `toolListings` / `callTool` | const/fn  | mcp.ts                 | `tools/list` entries and one `tools/call`, errors as results; the docs `/mcp` serves the tools through them. |
 | `Archive.content`           | method    | archive.ts             | Reads one capture. Tries providers in order; the first body wins.                                            |
 | `Archive.getContent`        | method    | archive.ts             | Throwing variant of `content()`, mirroring `getPages()`.                                                     |
 | `combineContentResults`     | function  | archive.ts             | Picks the winning body and keeps the other providers' outcomes in `_meta`.                                   |
@@ -159,7 +160,7 @@ archives/
 ```bash
 pnpm install          # install deps
 pnpm dev              # vp test in watch mode
-pnpm test             # lint + type-check + vp test with coverage
+pnpm test             # lint + type-check + vp test with coverage; needs `pnpm --dir docs install` for test/docs-mcp.test.ts
 pnpm test:types       # build + tsc over lib and both extension surfaces
 pnpm lint             # build + Nuxt types + type-aware vp lint + vp fmt check
 pnpm lint:fix         # build + Nuxt types + vp lint fixes + vp fmt write

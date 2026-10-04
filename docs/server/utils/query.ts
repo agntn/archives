@@ -175,28 +175,33 @@ function clientAddress(event: H3Event): string {
 }
 
 /**
- * Refuses an archive query past the per-minute limit for its address.
+ * Spends `count` queries from the address's allowance; false once this minute's is gone.
  *
  * Only a cache miss counts, so a demo that replays warmed answers never trips it, and
- * the archives behind the worker see at most this many new questions from one address.
+ * the archives behind the worker see at most {@link RATE_LIMIT} new questions from one address.
  */
-export async function assertRateLimit(event: H3Event): Promise<void> {
+export async function admitQueries(event: H3Event, count = 1): Promise<boolean> {
   const key = hash(clientAddress(event));
   const limiter = (event.context.cloudflare?.env as { ARCHIVE_LIMIT?: RateLimiter } | undefined)?.ARCHIVE_LIMIT;
-  let allowed: boolean;
   if (limiter) {
-    allowed = (await limiter.limit({ key })).success;
-  } else {
-    const minute = Math.floor(Date.now() / 60_000);
-    const slot = `${key}:${minute}`;
-    if (!localCounts.has(slot)) {
-      for (const stale of localCounts.keys()) if (!stale.endsWith(`:${minute}`)) localCounts.delete(stale);
+    for (let spent = 0; spent < count; spent++) {
+      if (!(await limiter.limit({ key })).success) return false;
     }
-    const count = (localCounts.get(slot) ?? 0) + 1;
-    localCounts.set(slot, count);
-    allowed = count <= RATE_LIMIT;
+    return true;
   }
-  if (!allowed) {
+  const minute = Math.floor(Date.now() / 60_000);
+  const slot = `${key}:${minute}`;
+  if (!localCounts.has(slot)) {
+    for (const stale of localCounts.keys()) if (!stale.endsWith(`:${minute}`)) localCounts.delete(stale);
+  }
+  const total = (localCounts.get(slot) ?? 0) + count;
+  localCounts.set(slot, total);
+  return total <= RATE_LIMIT;
+}
+
+/** Refuses an archive query over its address's allowance for this minute with a 429. */
+export async function assertRateLimit(event: H3Event): Promise<void> {
+  if (!(await admitQueries(event))) {
     setResponseHeader(event, "Retry-After", 60);
     throw createError({
       statusCode: 429,

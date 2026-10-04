@@ -15,6 +15,8 @@ export default defineNuxtConfig({
   workspaceDir: fileURLToPath(new URL("./", import.meta.url)),
   alias: {
     "@agntn/archives/tool-operations": resolve(librarySource, "tool-operations.ts"),
+    /** The tool listings and the executor `archives mcp` serves, for the MCP server at /mcp. */
+    "@agntn/archives/mcp": resolve(librarySource, "mcp.ts"),
     "@agntn/archives": resolve(librarySource, "index.ts"),
   },
   devtools: { enabled: false },
@@ -25,6 +27,20 @@ export default defineNuxtConfig({
   },
   llms: {
     domain: "https://archives.agntn.dev",
+    sections: [
+      {
+        title: "MCP Server",
+        description: "The tools of `archives mcp` and the page tools of this site over Streamable HTTP.",
+        links: [
+          {
+            title: "MCP endpoint",
+            href: "https://archives.agntn.dev/mcp",
+            description:
+              "Add it to any MCP client as an HTTP server, for example `claude mcp add --transport http archives https://archives.agntn.dev/mcp`.",
+          },
+        ],
+      },
+    ],
   },
   /** Docus pages define their own OG images; the alt text is the one thing they leave unset. */
   ogImage: {
@@ -124,16 +140,21 @@ export default defineNuxtConfig({
       ],
     },
   },
-  /** Docus ships an MCP endpoint that needs the Cloudflare Agents SDK on Workers. The docs do not need it. */
-  mcp: {
-    enabled: false,
-  },
   nitro: {
     preset: "cloudflare_module",
+    /** One MCP SDK copy, or `agents` fails the toolkit's server on its `instanceof` check. */
+    alias: {
+      "@modelcontextprotocol/sdk": resolve(
+        import.meta.dirname,
+        "node_modules/@modelcontextprotocol/sdk/dist/esm",
+      ),
+    },
     compatibilityDate: "2026-09-03",
-    /** The warm-up task runs from the cron trigger in wrangler.jsonc. */
     experimental: {
+      /** The warm-up task runs from the cron trigger in wrangler.jsonc. */
       tasks: true,
+      /** An MCP tool gets no event, so the rate limit reads it through `useEvent()`. */
+      asyncContext: true,
     },
     scheduledTasks: {
       "17 */6 * * *": ["warm:demo"],

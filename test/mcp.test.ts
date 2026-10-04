@@ -2,7 +2,7 @@ import { objectContaining, rangeDescription } from "./_matchers";
 import { createHash } from "node:crypto";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { createMcpServer } from "../src/mcp";
+import { callTool, createMcpServer, toolListings } from "../src/mcp";
 import { storage } from "../src/storage";
 import { MAX_CONTENT_OFFSET, MAX_DIFF_OFFSET, diffArchives } from "../src/tool-operations";
 import type {
@@ -254,6 +254,29 @@ describe("archives MCP server", () => {
     );
     // Details never reach an MCP client, so the raw response stays out of the result.
     expect(response.structuredContent).toBeUndefined();
+  });
+
+  it("lists and answers through toolListings and callTool as tools/list and tools/call do", async () => {
+    stubProvider(providersMock.wayback, success([page()]));
+    const client = await connectTestClient();
+    expect((await client.listTools()).tools).toEqual(toolListings);
+    const calls: Array<[string, Record<string, unknown>]> = [
+      ["archives_providers", {}],
+      ["archives_snapshots", { target: "example.com", provider: "wayback", cache: false }],
+      ["archives_snapshots", { target: "example.com", provider: "wayback", limit: 0 }],
+      ["archives_content", { target: "example.com", lmit: 5 }],
+      ["archives_diff", { target: "example.com", before: "2020", after: "2021", "x\u202Ey": 1 }],
+      ["archives_nope", {}],
+    ];
+    for (const [name, args] of calls) {
+      expect(await callTool(name, args)).toEqual(await client.callTool({ name, arguments: args }));
+    }
+    const forged = await callTool("archives_content", {
+      target: "example.com",
+      "x\u202Ey\u2028z": 1,
+    });
+    expect(forged.isError).toBe(true);
+    expect(JSON.stringify(forged.content)).not.toMatch(/[\u202E\u2028]/u);
   });
 
   it("prints the status, MIME type, record size and full digest the index gave", async () => {

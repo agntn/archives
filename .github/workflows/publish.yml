@@ -16,9 +16,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # Installs docs/ too: test/docs-mcp.test.ts loads the /mcp helper and its toolkit from there.
       - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
         with:
           node-version: 26
           registry-url: https://registry.npmjs.org
+          run-install: |
+            - cwd: .
+              args: ['--frozen-lockfile']
+            - cwd: docs
+              args: ['--frozen-lockfile']
       - run: pnpm test
       - run: npm publish
