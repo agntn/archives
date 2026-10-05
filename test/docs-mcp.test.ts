@@ -164,7 +164,7 @@ describe("docs MCP tools", () => {
     });
     expect(refused.isError).toBe(true);
     expect(firstText(refused)).toBe(
-      `archives_snapshots failed: more than ${RATE_LIMIT} new archive queries in a minute from one address\n` +
+      `archives_snapshots failed: more than ${RATE_LIMIT} new archive queries in a minute from one address, or one /64 on IPv6\n` +
         "Wait a minute and call again, or run npx -y @agntn/archives mcp, which asks the archives from your machine",
     );
   });

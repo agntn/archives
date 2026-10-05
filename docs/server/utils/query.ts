@@ -174,14 +174,44 @@ function clientAddress(event: H3Event): string {
   return getRequestHeader(event, "cf-connecting-ip") ?? getRequestIP(event) ?? "unknown";
 }
 
+/** `::ffff:1.2.3.4` after the URL parser: one IPv4 client, not a /64 shared by all of them. */
+const IPV4_MAPPED = /^::ffff:[\da-f]{1,4}:[\da-f]{1,4}$/;
+
+/** The eight groups of a canonical IPv6 address, `::` filled with zeros. */
+function ipv6Groups(host: string): string[] {
+  const [head = "", tail] = host.split("::");
+  const left = head === "" ? [] : head.split(":");
+  if (tail === undefined) return left;
+  const right = tail === "" ? [] : tail.split(":");
+  return [...left, ...Array<string>(8 - left.length - right.length).fill("0"), ...right];
+}
+
+/** An IPv6 address as the URL parser spells it, or undefined for anything else. */
+function canonicalIPv6(address: string): string | undefined {
+  try {
+    const { hostname } = new URL(`http://[${address}]/`);
+    return hostname.startsWith("[") ? hostname.slice(1, -1) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** IPv4 counts by address, IPv6 by its /64: one routed prefix hands out 2^64 fresh addresses. */
+function rateLimitSubject(address: string): string {
+  const host = address.includes(":") ? canonicalIPv6(address) : undefined;
+  if (host === undefined) return address;
+  if (IPV4_MAPPED.test(host)) return host;
+  return `${ipv6Groups(host).slice(0, 4).join(":")}::/64`;
+}
+
 /**
- * Spends `count` queries from the address's allowance; false once this minute's is gone.
+ * Spends `count` queries from the client's allowance; false once this minute's is gone.
  *
  * Only a cache miss counts, so a demo that replays warmed answers never trips it, and
- * the archives behind the worker see at most {@link RATE_LIMIT} new questions from one address.
+ * the archives behind the worker see at most {@link RATE_LIMIT} new questions from one client.
  */
 export async function admitQueries(event: H3Event, count = 1): Promise<boolean> {
-  const key = hash(clientAddress(event));
+  const key = hash(rateLimitSubject(clientAddress(event)));
   const limiter = (event.context.cloudflare?.env as { ARCHIVE_LIMIT?: RateLimiter } | undefined)?.ARCHIVE_LIMIT;
   if (limiter) {
     for (let spent = 0; spent < count; spent++) {
@@ -205,7 +235,7 @@ export async function assertRateLimit(event: H3Event): Promise<void> {
     setResponseHeader(event, "Retry-After", 60);
     throw createError({
       statusCode: 429,
-      statusMessage: `More than ${RATE_LIMIT} new archive queries in a minute from one address; cached answers are not counted. Wait a moment.`,
+      statusMessage: `More than ${RATE_LIMIT} new archive queries in a minute from one address, or one /64 on IPv6; cached answers are not counted. Wait a moment.`,
     });
   }
 }

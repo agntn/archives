@@ -58,7 +58,7 @@ async function siteRefusal(
   }
   if (!(await admitQueries(useEvent(), queryCost(name, args)))) {
     return [
-      `${name} failed: more than ${RATE_LIMIT} new archive queries in a minute from one address`,
+      `${name} failed: more than ${RATE_LIMIT} new archive queries in a minute from one address, or one /64 on IPv6`,
       `Wait a minute and call again, ${LOCAL_HINT}`,
     ];
   }
