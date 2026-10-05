@@ -126,7 +126,7 @@ watch(domain, load);
           label="Coverage of one domain"
           :busy="state.loading"
           :sweep="state.result?.fetchedAt"
-          :meta="state.result ? `fetched ${shortStamp(state.result.fetchedAt)}` : 'asking seven archives'"
+          :meta="state.result ? `fetched ${shortStamp(state.result.fetchedAt)}` : 'asking every open archive'"
         >
           <div v-if="state.loading" class="archives-band">
             <p class="archives-note">

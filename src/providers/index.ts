@@ -4,6 +4,7 @@ import type {
   ArquivoOptions,
   WebarchivOptions,
   VefsafnOptions,
+  OszkOptions,
   ArchiveItOptions,
   ConiferOptions,
   ArchiveTodayOptions,
@@ -18,6 +19,7 @@ const loadWaybackModule = createRetryableLazyImport(() => import("./wayback.ts")
 const loadArquivoModule = createRetryableLazyImport(() => import("./arquivo.ts"));
 const loadWebarchivModule = createRetryableLazyImport(() => import("./webarchiv.ts"));
 const loadVefsafnModule = createRetryableLazyImport(() => import("./vefsafn.ts"));
+const loadOszkModule = createRetryableLazyImport(() => import("./oszk.ts"));
 const loadArchiveItModule = createRetryableLazyImport(() => import("./archive-it.ts"));
 const loadConiferModule = createRetryableLazyImport(() => import("./conifer.ts"));
 const loadArchiveTodayModule = createRetryableLazyImport(() => import("./archive-today.ts"));
@@ -73,6 +75,16 @@ export const providers = {
   async vefsafn(options?: Readonly<VefsafnOptions>): Promise<ArchiveProvider> {
     const { VefsafnProvider } = await loadVefsafnModule();
     return new VefsafnProvider(options);
+  },
+
+  /**
+   * Creates an OSZK Webarchívum provider for the Hungarian web archive.
+   * @param options - Configuration options for OSZK Webarchívum
+   * @returns {Promise<ArchiveProvider>} The OSZK Webarchívum provider
+   */
+  async oszk(options?: Readonly<OszkOptions>): Promise<ArchiveProvider> {
+    const { OszkProvider } = await loadOszkModule();
+    return new OszkProvider(options);
   },
 
   /**
@@ -188,6 +200,7 @@ export const providers = {
       this.arquivo(options),
       this.webarchiv(options),
       this.vefsafn(options),
+      this.oszk(options),
       this.archiveToday(options),
       this.commoncrawl(options),
       this.webcite(options),

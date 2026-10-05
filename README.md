@@ -17,7 +17,7 @@ Docs and a live timeline explorer: [archives.agntn.dev](https://archives.agntn.d
 
 ## ✨ Features
 
-- 🗂️ **Every provider, one shape.** Wayback Machine, Arquivo.pt, Webarchiv Österreich, Vefsafn, Archive-It, Conifer, Archive.today, Memento, Common Crawl, Perma.cc and WebCite. Dates come back as ISO 8601 from every one of them.
+- 🗂️ **Every provider, one shape.** Wayback Machine, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, Archive-It, Conifer, Archive.today, Memento, Common Crawl, Perma.cc and WebCite. Dates come back as ISO 8601 from every one of them.
 - 📄 **Reads captures, not just lists them.** `content()` goes through the raw `id_` replay or a WARC range where the archive has one. No toolbar, no rewritten links.
 - 🔀 **Diffs two versions of a page.** Both from the same archive, with the real capture dates on top.
 - 🕰️ **Time windows.** `from` and `to` take `2019`, `201903` or an ISO date. Both ends inclusive.
@@ -128,6 +128,7 @@ Want a few providers, not all? `createArchive(Promise.all([providers.wayback(), 
 | Arquivo.pt           | `providers.arquivo()`      | yes           | nothing                 | yes        |
 | Webarchiv Österreich | `providers.webarchiv()`    | yes           | an exact URL            | yes        |
 | Vefsafn              | `providers.vefsafn()`      | yes           | an exact URL            | yes        |
+| OSZK Webarchívum     | `providers.oszk()`         | yes           | nothing                 | yes        |
 | Archive.today        | `providers.archiveToday()` | rendered page | nothing                 | yes        |
 | Common Crawl         | `providers.commoncrawl()`  | yes           | nothing                 | yes        |
 | WebCite              | `providers.webcite()`      | no            | no listing API at all   | yes        |

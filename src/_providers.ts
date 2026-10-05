@@ -11,6 +11,8 @@ export type WebarchivOptions = ArchiveOptions;
 
 export type VefsafnOptions = ArchiveOptions;
 
+export type OszkOptions = ArchiveOptions;
+
 export interface ArchiveItOptions extends ArchiveOptions {
   collection: number | string;
   collapse?: string;
