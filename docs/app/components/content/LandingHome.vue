@@ -26,8 +26,9 @@ const { targets, target, index, paused, current, content, diff, step } = useLand
       ]"
     >
       A list of captures says when a page existed. Reading one says what it contained. The same
-      call works on Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, Archive-It and Common
-      Crawl WARC ranges, and returns the decoded body with its real capture date.
+      call works on Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum,
+      Archive-It and Common Crawl WARC ranges, and returns the decoded body with its real capture
+      date.
       <template #visual>
         <LandingRead :sample="content" />
       </template>

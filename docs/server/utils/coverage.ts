@@ -9,6 +9,7 @@ export const COVERAGE_PROVIDERS = [
   "arquivo",
   "webarchiv",
   "vefsafn",
+  "oszk",
   "archiveToday",
   "commoncrawl",
   "memento",

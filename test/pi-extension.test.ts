@@ -71,6 +71,12 @@ vi.mock("../src/providers", () => ({
       snapshots: archivesMock.snapshots,
       content: archivesMock.content,
     }),
+    oszk: async () => ({
+      name: "OSZK Webarchívum",
+      slug: "oszk",
+      snapshots: archivesMock.snapshots,
+      content: archivesMock.content,
+    }),
     archiveIt: archivesMock.archiveIt,
     conifer: archivesMock.conifer,
     archiveToday: async () => ({

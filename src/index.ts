@@ -13,6 +13,7 @@ export { WaybackProvider } from "./providers/wayback.ts";
 export { ArquivoProvider } from "./providers/arquivo.ts";
 export { WebarchivProvider } from "./providers/webarchiv.ts";
 export { VefsafnProvider } from "./providers/vefsafn.ts";
+export { OszkProvider } from "./providers/oszk.ts";
 export { ArchiveItProvider } from "./providers/archive-it.ts";
 export { ConiferProvider } from "./providers/conifer.ts";
 export { ArchiveTodayProvider } from "./providers/archive-today.ts";

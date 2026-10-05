@@ -7,6 +7,7 @@ export const EVIDENCE_PROVIDER_SLUGS = [
   "arquivo",
   "webarchiv",
   "vefsafn",
+  "oszk",
   "archiveToday",
   "commoncrawl",
   "memento",

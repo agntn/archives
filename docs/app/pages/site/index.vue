@@ -22,7 +22,7 @@ function go(value = host.value) {
       eyebrow="coverage"
       title="One domain."
       accent="Every archive's holdings."
-      description="Seven archives asked in parallel: how many captures each one has, the first and the last, and a year by year heatmap of where the history actually lives."
+      description="Every archive that needs nothing from you, asked at once: how many captures each one has, the first and the last, and a year by year heatmap of where the history actually lives."
       circuit="domain"
     >
       <template #instrument>
@@ -31,7 +31,7 @@ function go(value = host.value) {
           tag="Call"
           label="Coverage of one domain"
           role="search"
-          meta="seven archives"
+          meta="every open archive"
           @submit.prevent="go()"
         >
           <template #title>coverage(<span class="tok-str">"{{ host || "example.com" }}"</span>)</template>

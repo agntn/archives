@@ -25,6 +25,7 @@ const providersMock = vi.hoisted(() => ({
   arquivo: vi.fn(),
   webarchiv: vi.fn(),
   vefsafn: vi.fn(),
+  oszk: vi.fn(),
   archiveIt: vi.fn(),
   archiveToday: vi.fn(),
   memento: vi.fn(),
@@ -233,6 +234,7 @@ describe("archives MCP server", () => {
     expect(listed).toContain("providers.arquivo() in provider=all");
     expect(listed).toContain("providers.webarchiv() in provider=all");
     expect(listed).toContain("providers.vefsafn() in provider=all");
+    expect(listed).toContain("providers.oszk() in provider=all");
     expect(listed).toContain("✓ memento \u2014 providers.memento()");
     expect(listed).toContain("⚠ permacc — providers.permacc() requires API key");
   });
@@ -730,6 +732,25 @@ describe("archives MCP server", () => {
     expect(response.isError).toBeUndefined();
     expect(text(response.content)).toContain("[provider=webarchiv] 1 snapshot(s)");
     expect(providersMock.webarchiv).toHaveBeenCalled();
+    expect(providersMock.all).not.toHaveBeenCalled();
+  });
+
+  it("dispatches an explicit OSZK Webarchívum query", async () => {
+    stubProvider(
+      providersMock.oszk,
+      success([page({ _meta: { provider: "oszk" } })], "oszk"),
+      "oszk",
+    );
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "oszk.hu", provider: "oszk" },
+    });
+
+    expect(response.isError).toBeUndefined();
+    expect(text(response.content)).toContain("[provider=oszk] 1 snapshot(s)");
+    expect(providersMock.oszk).toHaveBeenCalled();
     expect(providersMock.all).not.toHaveBeenCalled();
   });
 

@@ -525,6 +525,19 @@ export async function fetchBody(
 }
 
 /**
+ * A redirect names the served capture in its URL, pywb's silent swap only in `Memento-Datetime`.
+ * @param url - Final URL of the playback answer
+ * @param capturedAt - Its `Memento-Datetime`, when the archive sent one
+ * @param stamp - Capture stamp that was requested
+ * @returns {string} The stamp of the capture that was served.
+ */
+function servedCaptureStamp(url: string, capturedAt: string | undefined, stamp: string): string {
+  const urlStamp = unwrapSnapshotUrl(url).timestamp;
+  if (urlStamp && urlStamp !== stamp) return urlStamp;
+  return toWaybackTimestamp(capturedAt ?? "") || urlStamp || stamp;
+}
+
+/**
  * Reads one capture from a Wayback-style playback endpoint.
  *
  * The `id_` modifier is the whole point: without it the archive returns the
@@ -547,9 +560,7 @@ export async function readPlaybackCapture(
     : (params.policy ?? rawPlaybackPolicy(baseURL, prefix));
   const body = await fetchBody(baseURL, `${prefix}/${stamp}id_/${original}`, options, policy);
 
-  // A playback request for a timestamp the archive does not hold redirects to
-  // the capture it does hold, so the served URL is the honest one to report.
-  const servedStamp = unwrapSnapshotUrl(body.url).timestamp ?? stamp;
+  const servedStamp = servedCaptureStamp(body.url, body.capturedAt, stamp);
   // `waybackTimestampToISO` reports an unusable stamp as an empty string, so the
   // fallbacks chain on truthiness rather than on nullishness.
   const timestamp =
