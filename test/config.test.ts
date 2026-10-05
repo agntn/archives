@@ -1,5 +1,6 @@
 import { anyValue, objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
+import * as archives from "../src";
 import { getConfig, resolveConfig, resetConfig, setConfig, setConfigCwd } from "../src/config";
 import { loadConfig } from "c12";
 import memoryDriver from "unstorage/drivers/memory";
@@ -267,6 +268,16 @@ describe("Config", () => {
       await resolveConfig({ cwd: "/custom/path" });
 
       expect(mockedLoadConfig).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("exports every config function from the package entry", () => {
+    expect(archives).toMatchObject({
+      getConfig,
+      resolveConfig,
+      resetConfig,
+      setConfig,
+      setConfigCwd,
     });
   });
 });
