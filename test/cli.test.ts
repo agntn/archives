@@ -8,6 +8,7 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -164,6 +165,43 @@ describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp from the 
       expect(serve(packaged)).toMatchObject(served("bundle"));
     } finally {
       rmSync(packaged, { recursive: true, force: true });
+    }
+  });
+});
+
+describe.skipIf(!existsSync(join(root, "dist/mcp.mjs")))("a host embedding the bundle", () => {
+  it("runs the config of the root it pinned, not of its cwd", () => {
+    const sandbox = mkdtempSync(join(tmpdir(), "archives-host-"));
+    const pinned = join(sandbox, "pinned");
+    const browsed = join(sandbox, "browsed");
+    try {
+      for (const dir of [pinned, browsed]) {
+        mkdirSync(dir);
+        writeFileSync(
+          join(dir, "archives.config.ts"),
+          `(globalThis.configRuns ??= []).push(${JSON.stringify(dir)});\nexport default {};\n`,
+        );
+      }
+      const entry = (file: string): string => JSON.stringify(pathToFileURL(join(root, file)).href);
+      const host = `
+        import { setConfigCwd } from ${entry("dist/index.mjs")};
+        import { callTool } from ${entry("dist/mcp.mjs")};
+        setConfigCwd(${JSON.stringify(pinned)});
+        await callTool("archives_snapshots", { target: "example.com", provider: "webcite" });
+        process.stdout.write(JSON.stringify(globalThis.configRuns ?? []));
+      `;
+
+      const { stdout, stderr, status } = spawnSync(
+        process.execPath,
+        ["--input-type=module", "-e", host],
+        { cwd: browsed, env, encoding: "utf8" },
+      );
+
+      expect(stderr).toBe("");
+      expect(status).toBe(0);
+      expect(stdout).toBe(JSON.stringify([pinned]));
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
     }
   });
 });
