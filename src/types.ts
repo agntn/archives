@@ -81,6 +81,14 @@ export interface OszkMetadata extends ArchiveMetadata {
   provider: "oszk";
 }
 
+export interface NlnzMetadata extends ArchiveMetadata {
+  timestamp: string;
+  status?: number;
+  mime?: string;
+  digest?: string;
+  provider: "nlnz";
+}
+
 export interface CommonCrawlMetadata extends ArchiveMetadata {
   timestamp: string;
   status: number;

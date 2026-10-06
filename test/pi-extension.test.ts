@@ -77,6 +77,12 @@ vi.mock("../src/providers", () => ({
       snapshots: archivesMock.snapshots,
       content: archivesMock.content,
     }),
+    nlnz: async () => ({
+      name: "New Zealand Web Archive",
+      slug: "nlnz",
+      snapshots: archivesMock.snapshots,
+      content: archivesMock.content,
+    }),
     archiveIt: archivesMock.archiveIt,
     conifer: archivesMock.conifer,
     archiveToday: async () => ({

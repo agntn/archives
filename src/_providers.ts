@@ -13,6 +13,8 @@ export type VefsafnOptions = ArchiveOptions;
 
 export type OszkOptions = ArchiveOptions;
 
+export type NlnzOptions = ArchiveOptions;
+
 export interface ArchiveItOptions extends ArchiveOptions {
   collection: number | string;
   collapse?: string;

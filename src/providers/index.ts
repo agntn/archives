@@ -5,6 +5,7 @@ import type {
   WebarchivOptions,
   VefsafnOptions,
   OszkOptions,
+  NlnzOptions,
   ArchiveItOptions,
   ConiferOptions,
   ArchiveTodayOptions,
@@ -20,6 +21,7 @@ const loadArquivoModule = createRetryableLazyImport(() => import("./arquivo.ts")
 const loadWebarchivModule = createRetryableLazyImport(() => import("./webarchiv.ts"));
 const loadVefsafnModule = createRetryableLazyImport(() => import("./vefsafn.ts"));
 const loadOszkModule = createRetryableLazyImport(() => import("./oszk.ts"));
+const loadNlnzModule = createRetryableLazyImport(() => import("./nlnz.ts"));
 const loadArchiveItModule = createRetryableLazyImport(() => import("./archive-it.ts"));
 const loadConiferModule = createRetryableLazyImport(() => import("./conifer.ts"));
 const loadArchiveTodayModule = createRetryableLazyImport(() => import("./archive-today.ts"));
@@ -85,6 +87,16 @@ export const providers = {
   async oszk(options?: Readonly<OszkOptions>): Promise<ArchiveProvider> {
     const { OszkProvider } = await loadOszkModule();
     return new OszkProvider(options);
+  },
+
+  /**
+   * Creates a New Zealand Web Archive provider. It lists captures and can't read them.
+   * @param options - Configuration options for the New Zealand Web Archive
+   * @returns {Promise<ArchiveProvider>} The New Zealand Web Archive provider
+   */
+  async nlnz(options?: Readonly<NlnzOptions>): Promise<ArchiveProvider> {
+    const { NlnzProvider } = await loadNlnzModule();
+    return new NlnzProvider(options);
   },
 
   /**
@@ -201,6 +213,7 @@ export const providers = {
       this.webarchiv(options),
       this.vefsafn(options),
       this.oszk(options),
+      this.nlnz(options),
       this.archiveToday(options),
       this.commoncrawl(options),
       this.webcite(options),

@@ -9,6 +9,7 @@ export const PROVIDERS = [
   "webarchiv",
   "vefsafn",
   "oszk",
+  "nlnz",
   "archiveIt",
   "conifer",
   "archiveToday",
@@ -33,9 +34,9 @@ export const PROVIDER_INPUTS = [
 export type ProviderInput = (typeof PROVIDERS)[number];
 export type ProviderName = Exclude<ProviderInput, "auto">;
 
-export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, Archive.today, Common Crawl, and WebCite. Webarchiv Österreich and Vefsafn each search one exact URL through a public CDX endpoint. Memento uses the public MemGator service to query several archives and stays outside "all" to avoid duplicate requests. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
+export const PROVIDER_HINT = `Provider to use. "auto" (or omit) uses "all", which queries Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, the New Zealand Web Archive, Archive.today, Common Crawl, and WebCite. Webarchiv Österreich and Vefsafn each search one exact URL through a public CDX endpoint. Memento uses the public MemGator service to query several archives and stays outside "all" to avoid duplicate requests. Archive-It requires a numeric collection id. Conifer requires user and collection slugs. Perma.cc requires an API key from an environment variable and searches exact URLs accessible to that account.`;
 
-export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, Archive.today, and Common Crawl. Memento reads the selected TimeMap URI directly and uses MemGator's proxy as fallback. Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn and OSZK Webarchívum use raw replay endpoints; Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies and answer as unsupported.`;
+export const CONTENT_PROVIDER_HINT = `Provider to read from. "auto" (or omit) uses "all", which tries Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, Archive.today, and Common Crawl. Memento reads the selected TimeMap URI directly and uses MemGator's proxy as fallback. Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn and OSZK Webarchívum use raw replay endpoints; Archive.today serves its rendered wrapper page rather than the original bytes. Archive-It reads bodies too, with a numeric collection id. Conifer, WebCite and Perma.cc serve no readable capture bodies, and the New Zealand Web Archive keeps its replay behind a browser check; all four answer as unsupported.`;
 
 /** Rendering of the archived body: readable text, or decoded text with markup intact. */
 export const CONTENT_FORMATS = ["text", "raw"] as const;

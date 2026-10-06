@@ -7,7 +7,7 @@
 
 ## OVERVIEW
 
-Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Requests go through native `fetch` (`src/utils/_fetch.ts`); built on the unjs ecosystem: unstorage, c12, consola, ufo, changelogen, with obuild for the build and Vite+ (`vite-plus`) for lint, format and tests.
+Unified TypeScript interface for querying web archive providers (Wayback Machine, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, New Zealand Web Archive, Archive.today, Memento/MemGator, Common Crawl, Perma.cc, WebCite). Requests go through native `fetch` (`src/utils/_fetch.ts`); built on the unjs ecosystem: unstorage, c12, consola, ufo, changelogen, with obuild for the build and Vite+ (`vite-plus`) for lint, format and tests.
 
 ## STRUCTURE
 
@@ -79,6 +79,7 @@ archives/
 | `WebarchivProvider`         | class     | providers/webarchiv.ts | Austrian National Library public CDXJ index and raw `id_` replay for exact URLs.                             |
 | `VefsafnProvider`           | class     | providers/vefsafn.ts   | Icelandic web archive NDJSON CDX index, capped while streaming, and raw `id_` replay for exact URLs.         |
 | `OszkProvider`              | class     | providers/oszk.ts      | Hungarian web archive pywb CDX index with domain prefixes, and raw `id_` replay under `/pywb`.               |
+| `NlnzProvider`              | class     | providers/nlnz.ts      | New Zealand Web Archive pywb CDX index with domain prefixes; `content()` is unsupported behind Imperva.      |
 | `MementoProvider`           | class     | providers/memento.ts   | JSON TimeMap from several archives via ODU MemGator; reads exact Memento URI, then proxy fallback.           |
 | `ArchiveInterface`          | interface | types.ts               | Public API: `snapshots()`, `getPages()`, `content()`, `getContent()`, `use()`, `useAll()`.                   |
 | `ArchiveProvider`           | interface | types.ts:117           | Provider contract: `name`, `slug?`, `snapshots()`.                                                           |
@@ -181,6 +182,7 @@ pnpm release          # test + changelogen + publish
 - **Webarchiv Österreich uses CDXJ for one URL at a time**: query `https://webarchiv.onb.ac.at/web/cdx` with the URL written as HTTP, because the index canonicalizes schemes but the HTTPS version can fail upstream. `from`, `to`, `limit` and `reverse=true` are supported; wildcard and `sort` queries are not. Read raw bodies from `/web/<timestamp>id_/<url>`. It requires no credentials and belongs in `providers.all()`.
 - **Vefsafn ignores `limit`**: `https://vefsafn.is/cdx?output=json` streams every row it holds for a URL, tens of MB for a busy front page, so the provider sends `limit` but stops reading at it and cancels the stream. Prefix queries on a large host answered nothing within 25 s, so it takes exact URLs only, written as HTTP; the index canonicalizes schemes. Read raw bodies from `/<timestamp>id_/<url>` at the root. It requires no credentials and belongs in `providers.all()`.
 - **OSZK Webarchívum is plain pywb**: `https://webadmin.oszk.hu/pywb/cdx` answers NDJSON, honours `limit`, `from`, `to`, `sort=reverse` and domain prefixes, and the provider asks only for the six fields it maps through `fl`. `limit=0` means every row to pywb, so the provider never sends it. A capture that redirects to its own URL key (`oszk.hu` to `www.oszk.hu`) is skipped on replay without a redirect, and only `Memento-Datetime` names the capture served; `readPlaybackCapture` reads it there. Raw bodies come from `/pywb/<timestamp>id_/<url>`. It requires no credentials and belongs in `providers.all()`.
+- **The New Zealand Web Archive lists but never reads**: `https://ndhadeliver.natlib.govt.nz/webarchive/cdx` is pywb behind Imperva, answers NDJSON with domain prefixes, `limit`, `from` and `to`, and the provider asks for five fields through `fl`. `length` stays out because the index writes `"0"` for almost every record. Replay under `/webarchive/<timestamp>id_/<url>` answers a script, and headless Chromium, with an Imperva challenge page and status 200, so `content()` returns `createUnsupportedContentResponse` instead of reading that page as the capture. A challenge in place of the index fails the listing as a malformed CDX record. It requires no credentials and belongs in `providers.all()`.
 - **WebCite has no list-by-domain API**: `webcite.snapshots(domain)` returns `unsupported: true` with a `unsupportedReason`. Direct snapshot retrieval (`webcitation.org/<id>`) is planned via a future `getById` API. New archives have not been accepted since ~2019.
 - **Archive.today uses Memento API**: parses timemap link headers with regex. Fragile if format changes.
 - **Playground targets Cloudflare**: `nitro.preset = 'cloudflare_module'` with `nodeCompat: true`.
