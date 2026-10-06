@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.7.2
+
+[compare changes](https://github.com/agntn/archives/compare/v0.7.1...v0.7.2)
+
+### 🚀 Enhancements
+
+- Dig the archives over MCP without Node ([#151](https://github.com/agntn/archives/pull/151))
+- Decode Common Crawl in plain JavaScript ([#155](https://github.com/agntn/archives/pull/155))
+- Read Hungary's web archive too ([#159](https://github.com/agntn/archives/pull/159))
+- List New Zealand's web archive ([#161](https://github.com/agntn/archives/pull/161))
+
+### 🩹 Fixes
+
+- **docs:** Plug the IPv6 hole in the rate limit ([#157](https://github.com/agntn/archives/pull/157))
+- Export the setConfigCwd the docs promise ([#158](https://github.com/agntn/archives/pull/158))
+- **providers:** Ask Common Crawl the right crawl ([#162](https://github.com/agntn/archives/pull/162))
+- **docs:** Keep previews off production data ([#163](https://github.com/agntn/archives/pull/163))
+
+### 💅 Refactors
+
+- Hash cache keys without ohash ([#160](https://github.com/agntn/archives/pull/160))
+
+### ❤️ Contributors
+
+- Ori ([@oritwoen](https://github.com/oritwoen))
+- Aeitwoen ([@aeitwoen](https://github.com/aeitwoen))
+
 ## v0.7.1
 
 [compare changes](https://github.com/agntn/archives/compare/v0.7.0...v0.7.1)
