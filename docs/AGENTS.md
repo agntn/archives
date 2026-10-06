@@ -41,7 +41,7 @@ pnpm generate         # static output only; the /api routes need the worker
 
 Deployment: Nitro preset `cloudflare_module`, which is the Cloudflare Workers preset in Nitro 2.13 (its standard name `cloudflare_workers` is not resolvable from the config and og-image does not know it). Nuxt Content needs a D1 binding named `DB`; `wrangler.jsonc` carries the binding and the `NUXT_SITE_URL` var, Nitro merges it into the generated `.output/server/wrangler.json`. Create the database once with `wrangler d1 create agntn-archives` and put its id in `wrangler.jsonc`.
 
-The site bundles `@agntn/archives` from `../src` through the aliases in `nuxt.config.ts`, so it needs neither `dist/` nor a build of the parent package. Workers Builds installs only `docs/`, so every npm package the executors import (`c12`, `consola`, `diff`, `ohash`, `ufo`, `unstorage`) is a dependency here, pinned to the root version. A new package import under `src/` needs the same entry, or the deploy fails while a local build still passes.
+The site bundles `@agntn/archives` from `../src` through the aliases in `nuxt.config.ts`, so it needs neither `dist/` nor a build of the parent package. Workers Builds installs only `docs/`, so every npm package the executors import (`@agntn/hashes`, `c12`, `consola`, `diff`, `ufo`, `unstorage`) is a dependency here, pinned to the root version. A new package import under `src/` needs the same entry, or the deploy fails while a local build still passes.
 
 Workers Builds never reads `engines`: it takes Node from the root `.node-version` and falls back to its own default without it, which was 24 while `engines` asked for 26. Keep that file on the major `engines` names.
 
