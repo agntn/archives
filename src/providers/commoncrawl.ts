@@ -31,6 +31,7 @@ import {
   resolveRequestedTimestamp,
   selectCapture,
   splitWarcRecord,
+  timestampLowerBound,
   timestampUpperBound,
   toWaybackTimestamp,
   withHeaderSlack,
@@ -64,9 +65,20 @@ interface CrawlCapture {
 }
 
 interface CrawlIndex {
-  collectionName: string;
-  indexName: string;
+  readonly collectionName: string;
+  readonly indexName: string;
+  /** First and last capture of the crawl as archive digits, when collinfo dates it. */
+  readonly from?: string;
+  readonly to?: string;
 }
+
+interface DatedCrawl extends CrawlIndex {
+  readonly from: string;
+  readonly to: string;
+}
+
+/** collinfo.json, newest crawl first, never empty once fetched. */
+type CrawlList = readonly [CrawlIndex, ...CrawlIndex[]];
 
 interface CrawlRecordBody {
   text: string;
@@ -82,6 +94,8 @@ interface CollinfoEntry {
   name?: string;
   "cdx-api"?: string;
   cdxApi?: string;
+  from?: unknown;
+  to?: unknown;
 }
 
 function indexName(collection: string): string {
@@ -92,13 +106,18 @@ function listingQuery(
   domain: string,
   options: Readonly<CommonCrawlOptions>,
 ): Record<string, string> {
-  return {
+  const params: Record<string, string> = {
     url: normalizeDomain(domain),
     output: "json",
     fl: "url,timestamp,status,mime,length,offset,filename,digest",
     collapse: "digest",
     limit: String(options.limit ?? 1000),
   };
+  const from = resolveRequestedTimestamp(options.from, "from");
+  const to = resolveRequestedTimestamp(options.to, "to");
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return params;
 }
 
 function listingPage(
@@ -187,11 +206,7 @@ function collinfoApi(entry: Readonly<CollinfoEntry>): string | undefined {
   return typeof primary === "string" && primary ? primary : entry.cdxApi;
 }
 
-function parseCollinfo(value: unknown): CrawlIndex | undefined {
-  if (!Array.isArray(value) || value.length === 0) return undefined;
-  const first: unknown = value[0];
-  if (typeof first !== "object" || first === null) return undefined;
-  const entry = first as CollinfoEntry;
+function collinfoIndex(entry: Readonly<CollinfoEntry>): CrawlIndex | undefined {
   const api = collinfoApi(entry);
   if (typeof api === "string") {
     const path = normalizeCdxApi(api);
@@ -200,6 +215,56 @@ function parseCollinfo(value: unknown): CrawlIndex | undefined {
   }
   if (typeof entry.name !== "string") return undefined;
   return { collectionName: entry.name, indexName: indexName(entry.name) };
+}
+
+/* A collinfo date such as `2026-09-04T13:16:03` as fourteen archive digits. */
+function crawlStamp(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const digits = value.replaceAll(/\D/g, "");
+  return digits.length === 14 ? digits : undefined;
+}
+
+function collinfoCrawl(value: unknown): CrawlIndex | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const entry = value as CollinfoEntry;
+  const index = collinfoIndex(entry);
+  const from = crawlStamp(entry.from);
+  const to = crawlStamp(entry.to);
+  return index && from && to ? { ...index, from, to } : index;
+}
+
+function parseCollinfo(value: unknown): CrawlIndex[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry: unknown) => collinfoCrawl(entry))
+    .filter((crawl): crawl is CrawlIndex => crawl !== undefined);
+}
+
+function isDated(crawl: Readonly<CrawlIndex>): crawl is DatedCrawl {
+  return crawl.from !== undefined && crawl.to !== undefined;
+}
+
+/* The crawl that began last among the given ones. */
+function lastStarted(crawls: readonly DatedCrawl[]): DatedCrawl | undefined {
+  return crawls.toSorted((a, b) => b.from.localeCompare(a.from))[0];
+}
+
+/* The newest crawl that overlaps the window, or none when no crawl ran inside it. */
+function crawlForWindow(crawls: CrawlList, from: string, to: string): CrawlIndex | undefined {
+  const dated = crawls.filter((crawl) => isDated(crawl));
+  if ((!from && !to) || dated.length === 0) return crawls[0];
+  const lower = from ? timestampLowerBound(from) : "";
+  const upper = to ? timestampUpperBound(to) : "99999999999999";
+  return lastStarted(dated.filter((crawl) => crawl.from <= upper && crawl.to >= lower));
+}
+
+/* The newest crawl begun by the instant, else the oldest, the rule `selectCapture` applies to captures. */
+function crawlForTimestamp(crawls: CrawlList, wanted: string): CrawlIndex {
+  const dated = crawls.filter((crawl) => isDated(crawl));
+  if (!wanted || dated.length === 0) return crawls[0];
+  const bound = timestampUpperBound(wanted);
+  const oldest = dated.toSorted((a, b) => a.from.localeCompare(b.from))[0];
+  return lastStarted(dated.filter((crawl) => crawl.from <= bound)) ?? oldest ?? crawls[0];
 }
 
 function commonCrawlContentResponse(
@@ -326,7 +391,10 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
 
     try {
       const options = await this.resolveOptions(reqOptions);
-      const index = await this.resolveIndex(options);
+      const from = resolveRequestedTimestamp(options.from, "from");
+      const to = resolveRequestedTimestamp(options.to, "to");
+      const index = await this.resolveIndex(options, (crawls) => crawlForWindow(crawls, from, to));
+      if (!index) return createSuccessResponse([], "commoncrawl", { count: 0 });
       const collection = index.collectionName;
       collectionName = collection;
 
@@ -375,7 +443,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       }
 
       const wanted = resolveRequestedTimestamp(options.timestamp);
-      const index = await this.resolveIndex(options);
+      const index = await this.resolveIndex(options, (crawls) => crawlForTimestamp(crawls, wanted));
       collectionName = index.collectionName;
 
       const captures = await this.findCaptures(index.indexName, target, wanted, options);
@@ -399,28 +467,29 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
   }
 
   /**
-   * Resolves which crawl to query: the configured collection, or the newest one
-   * `collinfo.json` advertises.
+   * Resolves which crawl to query: the configured collection, or the one
+   * `pick` chooses from what `collinfo.json` advertises.
    *
    * The endpoint names differ from the collection ids by an `-index` suffix, and
    * the two are reported separately because the collection id is what a caller
    * sees in the response while the endpoint name is what the query needs.
-
    *
    * @param options - Options.
-   * @returns {Promise<{ collectionName: string; indexName: string }>} A promise resolving to the operation result.
+   * @param pick - Chooses a crawl from collinfo.json, newest first.
+   * @returns {Promise<T | CrawlIndex>} The crawl to query, or whatever `pick` returned instead.
    */
-  private async resolveIndex(options: Readonly<Partial<CommonCrawlOptions>>): Promise<CrawlIndex> {
+  private async resolveIndex<T extends CrawlIndex | undefined>(
+    options: Readonly<Partial<CommonCrawlOptions>>,
+    pick: (crawls: CrawlList) => T,
+  ): Promise<T | CrawlIndex> {
     const configured = options.collection;
     if (configured && configured !== "CC-MAIN-latest") {
       return { collectionName: configured, indexName: indexName(configured) };
     }
-    return this.fetchLatestIndex(options);
+    return pick(await this.fetchCrawls(options));
   }
 
-  private async fetchLatestIndex(
-    options: Readonly<Partial<CommonCrawlOptions>>,
-  ): Promise<CrawlIndex> {
+  private async fetchCrawls(options: Readonly<Partial<CommonCrawlOptions>>): Promise<CrawlList> {
     const fetchOptions = await createFetchOptions(
       BASE_URL,
       {},
@@ -431,9 +500,9 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       },
     );
     const response: unknown = await fetchData("/collinfo.json", fetchOptions);
-    const index = parseCollinfo(response);
-    if (!index) throw new Error("Common Crawl collinfo.json returned no usable collection");
-    return index;
+    const [newest, ...older] = parseCollinfo(response);
+    if (!newest) throw new Error("Common Crawl collinfo.json returned no usable collection");
+    return [newest, ...older];
   }
 
   /**
