@@ -225,7 +225,7 @@ describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp config", 
   ].join("");
 
   /* Serves one tool call from `browsed` and returns the roots whose config ran. */
-  function configRoots(dist: boolean): string[] {
+  function configRoots(dist: boolean, args: readonly string[] = ["mcp"]): string[] {
     const sandbox = mkdtempSync(join(tmpdir(), "archives-mcp-"));
     const log = join(sandbox, "runs.log");
     try {
@@ -236,7 +236,7 @@ describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp config", 
           `import { appendFileSync } from "node:fs";\nappendFileSync(${JSON.stringify(log)}, ${JSON.stringify(`${dir}\n`)});\nexport default {};\n`,
         );
       }
-      const { status, stdout } = bin(["mcp"], {
+      const { status, stdout } = bin(args, {
         cwd: join(sandbox, "browsed"),
         env: { HOME: join(sandbox, "home"), ...(dist ? { ARCHIVES_DIST: "1" } : {}) },
         input: call,
@@ -255,6 +255,10 @@ describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp config", 
 
   it.skipIf(!stripsTypes)("runs the home config from the source too", () => {
     expect(configRoots(false)).toEqual(["home"]);
+  });
+
+  it("runs the home config after an option terminator", () => {
+    expect(configRoots(true, ["mcp", "--"])).toEqual(["home"]);
   });
 });
 

@@ -2,6 +2,7 @@
 
 /** Archives CLI: a command per archive tool, plus `mcp`, which pins its config to home. */
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCli } from "@agntn/tools/cli";
@@ -51,20 +52,22 @@ function isRefusal(error: unknown): boolean {
 }
 
 /**
- * A bare `mcp` skips the one `runCli` adds, which reads the config of the client's cwd.
+ * `mcp` alone or with option terminators, which `runCli` would serve with the client's cwd config.
+ * Any other `mcp` line still gets the home config before `runCli` reads it.
  * @param args - Every argument after the bin.
- * @returns {boolean} Whether the line is a bare `mcp`.
+ * @returns {boolean} Whether the line starts the stdio server.
  */
 function servesStdio(args: readonly string[]): boolean {
-  return args.length === 1 && args[0] === "mcp";
+  const [command, ...rest] = args;
+  return command === "mcp" && rest.every((word) => word === "--");
 }
 
 const argv = process.argv.slice(2);
 if (servesStdio(argv)) {
-  await (
-    await loadServer()
-  )();
+  const serve = await loadServer();
+  await serve();
 } else {
+  if (argv[0] === "mcp") (await import("./config.ts")).setConfigCwd(homedir());
   await runCli(
     {
       name: "archives",
