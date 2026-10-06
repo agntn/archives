@@ -7,6 +7,7 @@ import {
   resetConfig,
 } from "../src";
 import memoryDriver from "unstorage/drivers/memory";
+import { generateStorageKey } from "../src/storage.ts";
 
 // Create a mock provider for testing
 const mockProvider = {
@@ -106,6 +107,19 @@ describe("Cache", () => {
     expect(secondResponse.success).toBe(true);
     expect(secondResponse.fromCache).toBeUndefined();
     expect(mockProvider.snapshots).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the cache keys ohash wrote", () => {
+    expect(
+      generateStorageKey({ name: "Wayback Machine", slug: "wayback" }, "example.com", {
+        limit: 10,
+      }),
+    ).toBe(
+      "archives:Ufa55xA21S22Jb8WSX_d0OXF8BjapJJCrybS4ikmV2w:oOUoeATGYS9Rw2qzJbuqo2Q5TraVl9AcrOm5CXUf5mI",
+    );
+    expect(generateStorageKey({ name: "Zażółć 😀" }, "lone\uD800.example")).toBe(
+      "archives:ZGj4G4zUuf7-InV8qYrKuZzXl3gDR6pjPx4Z2_g-QvI:Ve6YwHFbE6g_ZbQ-zdcNkdEcenOU753JBI0Oo1supS0",
+    );
   });
 
   it("should use different cache keys for different limits", async () => {

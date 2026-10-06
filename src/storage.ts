@@ -1,7 +1,7 @@
 import { createStorage, type Storage, type Driver } from "unstorage";
 import memoryDriver from "unstorage/drivers/memory";
 import { consola } from "consola";
-import { digest } from "ohash/crypto";
+import { sha256 } from "@agntn/hashes";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -16,6 +16,19 @@ export const storage: Storage = createStorage({
 
 let storagePrefix = "archives";
 let storageInitialized = false;
+
+/**
+ * Byte for byte what ohash's digest gave, so a warm cache outlives the swap.
+ *
+ * @param text - Key part to hash.
+ * @returns {string} Unpadded base64url SHA-256 of its UTF-8 bytes.
+ */
+function digest(text: string): string {
+  return sha256(new TextEncoder().encode(text)).toBase64({
+    alphabet: "base64url",
+    omitPadding: true,
+  });
+}
 
 function serializeStorageKey(providerKey: string, parts: readonly string[]): string {
   return `${storagePrefix}:${digest(providerKey)}:${digest(JSON.stringify(parts))}`;
