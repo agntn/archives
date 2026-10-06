@@ -252,6 +252,7 @@ export const contentTool = defineTool({
     },
     { additionalProperties: false },
   ),
+  cli: { positional: ["target"], description: "Read the body of one archived capture" },
   execute: async (params, { signal }) => (await loadOperations()).contentArchives(params, signal),
 });
 
@@ -332,6 +333,10 @@ export const diffTool = defineTool({
     },
     { additionalProperties: false },
   ),
+  cli: {
+    positional: ["target", "before", "after"],
+    description: "Compare two captures of one URL from the same archive",
+  },
   execute: async (params, { signal }) => (await loadOperations()).diffArchives(params, signal),
 });
 
@@ -346,6 +351,7 @@ export const providersTool = defineTool({
   ],
   effect: "read",
   input: Type.Object({}),
+  cli: { description: "List the providers and whether Perma.cc has a key" },
   execute: async () => (await loadOperations()).listArchiveProviders(),
 });
 

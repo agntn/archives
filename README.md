@@ -24,7 +24,7 @@ Docs and a live timeline explorer: [archives.agntn.dev](https://archives.agntn.d
 - 🙅 **"Unsupported" is an answer.** A provider without the endpoint says so and tells you why. No fake empty list.
 - 🧯 **Survives a bad archive day.** One provider times out, the rest still answer. The failure lands in `_meta.errors`.
 - 🌳 **Tree-shakable.** Every provider sits behind a dynamic import. Ask for Wayback, get Wayback.
-- 🤖 **MCP, Pi and OMP.** Four tools, and every surface answers the same.
+- 🤖 **A CLI, MCP, Pi and OMP.** Four tools, and every surface answers the same.
 
 ## 📦 Install
 
@@ -70,6 +70,36 @@ available
 No key, no config. That's the HTML example.com served in 2002. Still not for sale, by the way.
 
 Wayback keeps one capture per year by default, so three rows are three years. Its index is in no hurry. Lookups close to a minute happen, so Wayback waits 60 seconds. So do Common Crawl, whose index likes to think it over, and Archive.today. The rest get ten. More on listings and reading: [Snapshots](https://archives.agntn.dev/guide/snapshots), [Reading content](https://archives.agntn.dev/guide/content).
+
+### Commands
+
+```bash
+npx @agntn/archives snapshots example.com --provider wayback --limit 3
+```
+
+```
+[provider=wayback] 3 snapshot(s) for "example.com"
+
+1. 2002-01-20T14:25:10Z [wayback]
+   https://web.archive.org/web/20020120142510/http://example.com:80/
+   200 · text/html · 1.8 kB record · digest HT2DYGA5UKZCPBSFVCV3JOBXGW2G5UUA
+2. 2003-02-07T05:52:28Z [wayback]
+   https://web.archive.org/web/20030207055228/http://www.example.com:80/
+   200 · text/html · 525 B record · digest EF7YLJGKQUMLJFP3F7A7LBALC65T5W2O
+3. 2004-01-05T04:55:15Z [wayback]
+   https://web.archive.org/web/20040105045515/http://www.example.com/
+   200 · text/html · 522 B record · digest EF7YLJGKQUMLJFP3F7A7LBALC65T5W2O
+```
+
+Same digest in 2003 and 2004. A whole year online and not one byte moved. Every tool is a command here, and its flags come straight from the schema. So `--help` can't drift from what the tool takes. Want data instead of text? Add `--json`.
+
+| Command                          | What it does                                         |
+| -------------------------------- | ---------------------------------------------------- |
+| `snapshots <target>`             | Lists captures. A JSON list looks up several at once |
+| `content <target>`               | Reads one capture. `--path` keeps the bytes too      |
+| `diff <target> <before> <after>` | Compares two captures from one archive               |
+| `providers`                      | Lists the providers and whether Perma.cc has a key   |
+| `mcp`                            | Runs the MCP server over stdio                       |
 
 ## 🔍 What changed?
 
