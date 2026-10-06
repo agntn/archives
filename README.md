@@ -17,7 +17,7 @@ Docs and a live timeline explorer: [archives.agntn.dev](https://archives.agntn.d
 
 ## ✨ Features
 
-- 🗂️ **Every provider, one shape.** Wayback Machine, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, Archive-It, Conifer, Archive.today, Memento, Common Crawl, Perma.cc and WebCite. Dates come back as ISO 8601 from every one of them.
+- 🗂️ **Every provider, one shape.** Wayback Machine, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, the New Zealand Web Archive, Archive-It, Conifer, Archive.today, Memento, Common Crawl, Perma.cc and WebCite. Dates come back as ISO 8601 from every one of them.
 - 📄 **Reads captures, not just lists them.** `content()` goes through the raw `id_` replay or a WARC range where the archive has one. No toolbar, no rewritten links.
 - 🔀 **Diffs two versions of a page.** Both from the same archive, with the real capture dates on top.
 - 🕰️ **Time windows.** `from` and `to` take `2019`, `201903` or an ISO date. Both ends inclusive.
@@ -122,22 +122,23 @@ Want a few providers, not all? `createArchive(Promise.all([providers.wayback(), 
 
 ## 🗺️ Providers
 
-| Provider             | Factory                    | Reads bodies  | Needs                   | In `all()` |
-| -------------------- | -------------------------- | ------------- | ----------------------- | ---------- |
-| Wayback Machine      | `providers.wayback()`      | yes           | nothing                 | yes        |
-| Arquivo.pt           | `providers.arquivo()`      | yes           | nothing                 | yes        |
-| Webarchiv Österreich | `providers.webarchiv()`    | yes           | an exact URL            | yes        |
-| Vefsafn              | `providers.vefsafn()`      | yes           | an exact URL            | yes        |
-| OSZK Webarchívum     | `providers.oszk()`         | yes           | nothing                 | yes        |
-| Archive.today        | `providers.archiveToday()` | rendered page | nothing                 | yes        |
-| Common Crawl         | `providers.commoncrawl()`  | yes           | nothing                 | yes        |
-| WebCite              | `providers.webcite()`      | no            | no listing API at all   | yes        |
-| Archive-It           | `providers.archiveIt()`    | yes           | a `collection` ID       | no         |
-| Conifer              | `providers.conifer()`      | no            | `user` and `collection` | no         |
-| Memento              | `providers.memento()`      | yes           | nothing                 | no         |
-| Perma.cc             | `providers.permacc()`      | no            | an `apiKey`             | no         |
+| Provider                | Factory                    | Reads bodies  | Needs                   | In `all()` |
+| ----------------------- | -------------------------- | ------------- | ----------------------- | ---------- |
+| Wayback Machine         | `providers.wayback()`      | yes           | nothing                 | yes        |
+| Arquivo.pt              | `providers.arquivo()`      | yes           | nothing                 | yes        |
+| Webarchiv Österreich    | `providers.webarchiv()`    | yes           | an exact URL            | yes        |
+| Vefsafn                 | `providers.vefsafn()`      | yes           | an exact URL            | yes        |
+| OSZK Webarchívum        | `providers.oszk()`         | yes           | nothing                 | yes        |
+| New Zealand Web Archive | `providers.nlnz()`         | no            | nothing                 | yes        |
+| Archive.today           | `providers.archiveToday()` | rendered page | nothing                 | yes        |
+| Common Crawl            | `providers.commoncrawl()`  | yes           | nothing                 | yes        |
+| WebCite                 | `providers.webcite()`      | no            | no listing API at all   | yes        |
+| Archive-It              | `providers.archiveIt()`    | yes           | a `collection` ID       | no         |
+| Conifer                 | `providers.conifer()`      | no            | `user` and `collection` | no         |
+| Memento                 | `providers.memento()`      | yes           | nothing                 | no         |
+| Perma.cc                | `providers.permacc()`      | no            | an `apiKey`             | no         |
 
-Memento goes through ODU's MemGator, which already asks several archives. Put it in `all()` and you'd get everything twice. Archive.today has no raw endpoint, so you get the page as it renders it. Running your own MemGator? `providers.memento({ baseUrl })` takes it, over HTTPS unless it's local.
+Memento goes through ODU's MemGator, which already asks several archives. Put it in `all()` and you'd get everything twice. Archive.today has no raw endpoint, so you get the page as it renders it. The New Zealand Web Archive lists happily, but its replay hides behind a bot check, so reading there is off. Running your own MemGator? `providers.memento({ baseUrl })` takes it, over HTTPS unless it's local.
 
 Some of these are history themselves. The original Memento Time Travel is gone. WebCite stopped taking new pages around 2019. Conifer only serves existing collections, read-only. Quirks per archive: [Providers](https://archives.agntn.dev/providers).
 

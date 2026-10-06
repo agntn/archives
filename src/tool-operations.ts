@@ -882,6 +882,7 @@ const PROVIDER_FACTORIES: Readonly<Record<SingleProviderName, ProviderFactory>> 
   webarchiv: (options) => providers.webarchiv(options),
   vefsafn: (options) => providers.vefsafn(options),
   oszk: (options) => providers.oszk(options),
+  nlnz: (options) => providers.nlnz(options),
   archiveIt: archiveItFactory,
   conifer: coniferFactory,
   archiveToday: (options) => providers.archiveToday(options),
@@ -1180,7 +1181,7 @@ function getProviderStatuses(): ProviderStatus[] {
       includedInAll: false,
       requiresApiKey: false,
       configured: true,
-      note: "Queries Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, Archive.today, Common Crawl, and WebCite; excludes Archive-It, Conifer, Memento, and Perma.cc.",
+      note: "Queries Wayback, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, the New Zealand Web Archive, Archive.today, Common Crawl, and WebCite; excludes Archive-It, Conifer, Memento, and Perma.cc.",
     },
     {
       name: "wayback",
@@ -1221,6 +1222,14 @@ function getProviderStatuses(): ProviderStatus[] {
       requiresApiKey: false,
       configured: true,
       note: "OSZK Webarchívum, the Hungarian web archive: public CDX index with raw replay support; domain prefix lookup.",
+    },
+    {
+      name: "nlnz",
+      factory: "providers.nlnz()",
+      includedInAll: true,
+      requiresApiKey: false,
+      configured: true,
+      note: "New Zealand Web Archive: public CDX index with domain prefix lookup; replay sits behind a browser check, so content is unsupported.",
     },
     {
       name: "archiveIt",
