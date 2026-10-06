@@ -1,57 +1,83 @@
 #!/usr/bin/env node
 
+/** Archives CLI: a command per archive tool, plus `mcp`, which pins its config to home. */
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineCommand, runMain } from "citty";
-import type McpCommand from "./commands/mcp.ts";
+import { runCli } from "@agntn/tools/cli";
+import { snapshotsCommand } from "./cli-commands.ts";
+import type { serveStdio } from "./mcp-stdio.ts";
+import { archivesTools } from "./tools.ts";
 import { version } from "./version.ts";
 
 /** The same file from `src/cli.ts` and `dist/cli.mjs`; the npm package ships only `dist`. */
-const sourceMcpCommand = new URL("../src/commands/mcp.ts", import.meta.url);
-const sourceMcpCommandPath = fileURLToPath(sourceMcpCommand);
+const sourceStdio = new URL("../src/mcp-stdio.ts", import.meta.url);
+const sourceStdioPath = fileURLToPath(sourceStdio);
 
 /**
  * Narrows the module a runtime URL import returned, which TypeScript types as `any`.
  * @param value - The imported module namespace.
- * @returns {value is { default: typeof McpCommand }} Whether it exports a default command.
+ * @returns {value is { serveStdio: typeof serveStdio }} Whether it exports the server.
  */
-function isCommandModule(value: unknown): value is { default: typeof McpCommand } {
-  return typeof value === "object" && value !== null && "default" in value;
+function isStdioModule(value: unknown): value is { serveStdio: typeof serveStdio } {
+  return typeof value === "object" && value !== null && "serveStdio" in value;
 }
 
 /**
- * Loads the MCP command. A built bin inside a checkout runs the live source, like the Pi and OMP
- * extensions, so a local server needs a restart after a change instead of `pnpm build`. Node
- * strips types by default only from 22.18 and never under `node_modules`, so an older Node and
- * an installed copy keep the bundle, and `ARCHIVES_DIST=1` keeps it everywhere, for tests of the
- * built output. The URL is built at runtime so the bundler leaves `src` out.
- * @returns {Promise<typeof McpCommand>} The citty command that starts the stdio server.
+ * Inside a checkout the server comes from `src/`, so a change needs a restart, not `pnpm build`.
+ * `node_modules`, a Node without type stripping and `ARCHIVES_DIST=1` keep the bundle.
+ * @returns {Promise<typeof serveStdio>} What starts the stdio server.
  */
-async function loadMcpCommand(): Promise<typeof McpCommand> {
+async function loadServer(): Promise<typeof serveStdio> {
   const fromSource =
     !import.meta.url.endsWith(".ts") &&
     process.env["ARCHIVES_DIST"] !== "1" &&
     Boolean(process.features.typescript) &&
-    !sourceMcpCommandPath.includes(`${sep}node_modules${sep}`) &&
-    existsSync(sourceMcpCommandPath);
-  if (!fromSource) return (await import("./commands/mcp.ts")).default;
-  const module: unknown = await import(sourceMcpCommand.href);
-  if (!isCommandModule(module)) {
-    throw new TypeError(`${sourceMcpCommandPath} has no default command`);
-  }
-  return module.default;
+    !sourceStdioPath.includes(`${sep}node_modules${sep}`) &&
+    existsSync(sourceStdioPath);
+  if (!fromSource) return (await import("./mcp-stdio.ts")).serveStdio;
+  const module: unknown = await import(sourceStdio.href);
+  if (!isStdioModule(module)) throw new TypeError(`${sourceStdioPath} has no serveStdio`);
+  return module.serveStdio;
 }
 
-const main = defineCommand({
-  meta: {
-    name: "archives",
-    version,
-    description: "Unified interface for web archive providers",
-  },
-  subCommands: {
-    mcp: loadMcpCommand,
-  },
-});
+/**
+ * Every refusal the executors make is an `Error` with a message meant for the caller.
+ * @param error - What a command threw.
+ * @returns {boolean} Whether it prints as one line instead of a stack trace.
+ */
+function isRefusal(error: unknown): boolean {
+  return error instanceof Error;
+}
 
-await runMain(main);
+/**
+ * `mcp` alone or with option terminators, which `runCli` would serve with the client's cwd config.
+ * Any other `mcp` line still gets the home config before `runCli` reads it.
+ * @param args - Every argument after the bin.
+ * @returns {boolean} Whether the line starts the stdio server.
+ */
+function servesStdio(args: readonly string[]): boolean {
+  const [command, ...rest] = args;
+  return command === "mcp" && rest.every((word) => word === "--");
+}
+
+const argv = process.argv.slice(2);
+if (servesStdio(argv)) {
+  const serve = await loadServer();
+  await serve();
+} else {
+  if (argv[0] === "mcp") (await import("./config.ts")).setConfigCwd(homedir());
+  await runCli(
+    {
+      name: "archives",
+      version,
+      description: "Unified interface for web archive providers",
+      tools: archivesTools,
+      commands: [snapshotsCommand],
+      mcp: true,
+      expected: isRefusal,
+    },
+    argv,
+  );
+}

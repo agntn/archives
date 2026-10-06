@@ -30,17 +30,14 @@ importers:
         specifier: 0.5.0
         version: 0.5.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@oh-my-pi/pi-coding-agent@18.4.8)(typebox@1.3.15)(zod@4.4.3)
       '@agntn/tools':
-        specifier: 0.0.0
-        version: 0.0.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)
+        specifier: 0.2.0
+        version: 0.2.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)
       '@modelcontextprotocol/server':
         specifier: 2.2.0
         version: 2.2.0
       c12:
         specifier: 4.0.0-beta.5
         version: 4.0.0-beta.5(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magicast@0.5.4)
-      citty:
-        specifier: 0.2.2
-        version: 0.2.2
       consola:
         specifier: 3.4.2
         version: 3.4.2
@@ -221,6 +218,27 @@ packages:
       '@oh-my-pi/pi-coding-agent':
         optional: true
       ai:
+        optional: true
+
+  '@agntn/tools@0.2.0':
+    resolution: {integrity: sha512-LjQv7gZrAIoiGgS4Da9I9RgtKMbkSqgkMmTZkbtsAKvKPlCy36Ws3THf7BKKLP+rbqeQw/QjulxnanVdUNzknA==}
+    engines: {node: '>=26'}
+    peerDependencies:
+      '@earendil-works/pi-coding-agent': '>=0.84.2 <2'
+      '@modelcontextprotocol/server': '>=2.2.0 <3'
+      '@oh-my-pi/pi-coding-agent': '>=18.0.0 <19'
+      ai: '>=7.0.0 <8'
+      h3-mcp: '>=0.2.0 <0.3'
+    peerDependenciesMeta:
+      '@earendil-works/pi-coding-agent':
+        optional: true
+      '@modelcontextprotocol/server':
+        optional: true
+      '@oh-my-pi/pi-coding-agent':
+        optional: true
+      ai:
+        optional: true
+      h3-mcp:
         optional: true
 
   '@anthropic-ai/sdk@0.124.0':
@@ -5772,6 +5790,12 @@ snapshots:
       oxlint-tsgolint: 7.0.2003
 
   '@agntn/tools@0.0.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)':
+    optionalDependencies:
+      '@earendil-works/pi-coding-agent': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3)
+      '@modelcontextprotocol/server': 2.2.0
+      '@oh-my-pi/pi-coding-agent': 18.4.8
+
+  '@agntn/tools@0.2.0(@earendil-works/pi-coding-agent@0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)':
     optionalDependencies:
       '@earendil-works/pi-coding-agent': 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.1)(@smithy/signature-v4@5.6.12)(ws@8.21.3)(zod@4.4.3)
       '@modelcontextprotocol/server': 2.2.0

@@ -169,6 +169,99 @@ describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp from the 
   });
 });
 
+/* Runs the built bin with no stdin; `input` feeds `mcp` its JSON-RPC lines. */
+function bin(
+  args: readonly string[],
+  options: Readonly<{ cwd?: string; env?: Readonly<Record<string, string>>; input?: string }> = {},
+) {
+  return spawnSync(process.execPath, [join(root, "dist/cli.mjs"), ...args], {
+    cwd: options.cwd ?? root,
+    encoding: "utf8",
+    env: { ...env, ...options.env },
+    input: options.input ?? "",
+    timeout: 20_000,
+  });
+}
+
+describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives commands", () => {
+  it("lists a command per tool, and mcp", () => {
+    const { status, stdout } = bin(["--help"]);
+
+    expect(status).toBe(0);
+    for (const command of ["snapshots", "content", "diff", "providers", "mcp"]) {
+      expect(stdout).toMatch(new RegExp(`^ {2}${command} `, "mu"));
+    }
+  });
+
+  it("takes a snapshot target as a plain word, not JSON", () => {
+    const { status, stderr } = bin(["snapshots", "example.com", "--provider", "webcite"]);
+
+    expect(stderr).toContain('0 snapshot(s) for "example.com"');
+    expect(stderr).toContain("Unsupported: WebCite has no list-by-domain API.");
+    expect(status).toBe(1);
+  });
+
+  it("takes the diff target and periods as words and refuses on one line", () => {
+    const { status, stderr } = bin(["diff", "example.com", "2019", "2018"]);
+
+    expect(stderr).toBe("before must name a period earlier than after\n");
+    expect(status).toBe(1);
+  });
+});
+
+describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp config", () => {
+  const call = [
+    initialize,
+    `${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`,
+    `${JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: {
+        name: "archives_snapshots",
+        arguments: { target: "example.com", provider: "webcite" },
+      },
+    })}\n`,
+  ].join("");
+
+  /* Serves one tool call from `browsed` and returns the roots whose config ran. */
+  function configRoots(dist: boolean, args: readonly string[] = ["mcp"]): string[] {
+    const sandbox = mkdtempSync(join(tmpdir(), "archives-mcp-"));
+    const log = join(sandbox, "runs.log");
+    try {
+      for (const dir of ["home", "browsed"]) {
+        mkdirSync(join(sandbox, dir));
+        writeFileSync(
+          join(sandbox, dir, "archives.config.ts"),
+          `import { appendFileSync } from "node:fs";\nappendFileSync(${JSON.stringify(log)}, ${JSON.stringify(`${dir}\n`)});\nexport default {};\n`,
+        );
+      }
+      const { status, stdout } = bin(args, {
+        cwd: join(sandbox, "browsed"),
+        env: { HOME: join(sandbox, "home"), ...(dist ? { ARCHIVES_DIST: "1" } : {}) },
+        input: call,
+      });
+      expect(status).toBe(0);
+      expect(stdout).toContain('"id":2');
+      return existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean) : [];
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  }
+
+  it("runs the home config from the bundle, never the client's cwd", () => {
+    expect(configRoots(true)).toEqual(["home"]);
+  });
+
+  it.skipIf(!stripsTypes)("runs the home config from the source too", () => {
+    expect(configRoots(false)).toEqual(["home"]);
+  });
+
+  it("runs the home config after an option terminator", () => {
+    expect(configRoots(true, ["mcp", "--"])).toEqual(["home"]);
+  });
+});
+
 describe.skipIf(!existsSync(join(root, "dist/mcp.mjs")))("a host embedding the bundle", () => {
   it("runs the config of the root it pinned, not of its cwd", () => {
     const sandbox = mkdtempSync(join(tmpdir(), "archives-host-"));
