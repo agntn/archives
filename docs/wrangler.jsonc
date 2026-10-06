@@ -34,5 +34,30 @@
   "cache": {
     "enabled": true
   },
-  "routes": [{ "pattern": "archives.agntn.dev", "custom_domain": true }]
+  "routes": [{ "pattern": "archives.agntn.dev", "custom_domain": true }],
+  "previews": {
+    "vars": {
+      "NUXT_SITE_URL": "https://archives.agntn.dev"
+    },
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "agntn-archives-preview",
+        "database_id": "1fbffdef-290c-448b-beda-a86d7ee0ce53"
+      }
+    ],
+    "kv_namespaces": [
+      {
+        "binding": "CACHE",
+        "id": "f4055ea0e6e94dfc9d3200e02dafcb7b"
+      }
+    ],
+    "ratelimits": [
+      {
+        "name": "ARCHIVE_LIMIT",
+        "namespace_id": "3303",
+        "simple": { "limit": 30, "period": 60 }
+      }
+    ]
+  }
 }
