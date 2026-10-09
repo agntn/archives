@@ -27,7 +27,7 @@
     "unstorage": "1.17.5",
     "zod": "4.6.5"
   },
-  "packageManager": "pnpm@11.24.0",
+  "packageManager": "pnpm@12.10.1",
   "devDependencies": {
     "@iconify-json/lucide": "1.2.128",
     "@iconify-json/simple-icons": "1.2.94",
