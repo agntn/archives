@@ -93,7 +93,7 @@
   "devDependencies": {
     "@agntn/ox": "^0.1.0",
     "@earendil-works/pi-coding-agent": "0.99.1",
-    "@earendil-works/pi-tui": "0.99.1",
+    "@earendil-works/pi-tui": "1.0.4",
     "@modelcontextprotocol/client": "2.2.0",
     "@oh-my-pi/omptype": "18.4.8",
     "@oh-my-pi/pi-coding-agent": "18.4.8",
