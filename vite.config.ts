@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "#shared": fileURLToPath(new URL("./docs/shared", import.meta.url)),
+      "#config-discovery": fileURLToPath(new URL("./src/config-discovery.ts", import.meta.url)),
       "@agntn/archives/tool-operations": fileURLToPath(
         new URL("./src/tool-operations.ts", import.meta.url),
       ),

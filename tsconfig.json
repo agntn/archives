@@ -9,7 +9,10 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "#config-discovery": ["./src/config-discovery.ts"]
+    }
   },
   "include": ["src", "build.config.ts"]
 }

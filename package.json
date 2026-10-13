@@ -44,6 +44,13 @@
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
+  "imports": {
+    "#config-discovery": {
+      "browser": "./dist/config-discovery.browser.mjs",
+      "workerd": "./dist/config-discovery.browser.mjs",
+      "default": "./dist/config-discovery.mjs"
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
