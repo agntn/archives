@@ -8,7 +8,7 @@ import type { CallToolResult, Server, Tool } from "@modelcontextprotocol/server"
 import { archivesTools } from "./tools.ts";
 import { version } from "./version.ts";
 
-/** The `tools/list` entries shared by `archives mcp` and the MCP server of the docs site. */
+/** The `tools/list` entries `archives mcp` answers with. */
 export const toolListings: readonly Tool[] = archivesTools.map((tool) => ({
   name: tool.name,
   title: tool.title,
