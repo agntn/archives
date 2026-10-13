@@ -1,12 +1,5 @@
-import { callTool, toolListings } from "@agntn/archives/mcp";
-import { MAX_SNAPSHOT_TARGETS } from "@agntn/archives/tool-operations";
-import { errorResult } from "@agntn/tools/mcp";
-import {
-  defineMcpTool,
-  type McpToolDefinition,
-  type McpToolDefinitionListItem,
-} from "@nuxtjs/mcp-toolkit/server";
-import { z } from "zod";
+import { sanitizeLine, type ToolDefinition, type ToolResult } from "@agntn/tools";
+import { archivesTools } from "../../../src/tools.ts";
 import { admitQueries, LIMITS, RATE_LIMIT } from "./query";
 import { unreachableReason } from "./reach";
 
@@ -15,7 +8,6 @@ const LOCAL_HINT = "or run npx -y @agntn/archives mcp, which asks the archives f
 
 /**
  * Queries a call spends from {@link RATE_LIMIT}: one per target, none for the provider list.
- * A longer list than the tool takes costs the cap, so a junk array can't keep the binding busy.
  *
  * @param {string} name - The tool's name.
  * @param {Readonly<Record<string, unknown>>} args - The arguments the client sent.
@@ -24,7 +16,7 @@ const LOCAL_HINT = "or run npx -y @agntn/archives mcp, which asks the archives f
 function queryCost(name: string, args: Readonly<Record<string, unknown>>): number {
   if (name === "archives_providers") return 0;
   const target = args["target"];
-  return Array.isArray(target) ? Math.min(Math.max(1, target.length), MAX_SNAPSHOT_TARGETS) : 1;
+  return Array.isArray(target) ? target.length : 1;
 }
 
 /**
@@ -67,37 +59,27 @@ async function siteRefusal(
 }
 
 /**
- * An `archives mcp` tool for Docus: its own schema in `tools/list`, its own checks on the call.
+ * The `archives mcp` tools with this worker's limits checked before each one runs.
  *
- * @param {string} name - The tool's name, such as `archives_snapshots`.
- * @returns {McpToolDefinitionListItem} The tool definition for `server/mcp/tools/`.
+ * @returns {ToolDefinition[]} The tools in `archivesTools` order.
  */
-export function archivesMcpTool(name: string): McpToolDefinitionListItem {
-  const listing = toolListings.find((candidate) => candidate.name === name);
-  if (listing === undefined) {
-    throw new Error(`Unknown archives tool: ${name}`);
-  }
-  /**
-   * Any object passes Zod, so `callTool` refuses a bad one in the library's words, sanitized. Not
-   * `z.fromJSONSchema()`: Zod quotes an unknown key raw, bidi overrides included.
-   */
-  const schema = z.looseObject({});
-  schema._zod.toJSONSchema = () => ({ ...listing.inputSchema });
-  /** The SDK hands Zod a missing `arguments` untouched, so read it as the `{}` stdio gets. */
-  const run = schema._zod.run.bind(schema._zod);
-  schema._zod.run = (payload, context) =>
-    run(payload.value === undefined ? { ...payload, value: {} } : payload, context);
-  /** The toolkit types a raw shape only, and the SDK behind it takes a whole object too. */
-  const inputSchema = schema as unknown as NonNullable<McpToolDefinition["inputSchema"]>;
-  return defineMcpTool({
-    name: listing.name,
-    title: listing.title,
-    description: listing.description,
-    annotations: listing.annotations,
-    inputSchema,
-    handler: async (args: Readonly<Record<string, unknown>>, extra) => {
-      const refusal = await siteRefusal(name, args);
-      return refusal === undefined ? callTool(name, args, extra.signal) : errorResult(...refusal);
+export function siteTools(): ToolDefinition[] {
+  return archivesTools.map((tool) => ({
+    ...tool,
+    execute: async (input, context) => {
+      const refusal = await siteRefusal(tool.name, input);
+      return refusal === undefined ? await tool.execute(input, context) : refusalResult(refusal);
     },
-  });
+  }));
+}
+
+/**
+ * A refusal as a result, worded and sanitized like the library's own errors.
+ *
+ * @param {readonly string[]} lines - The refusal lines.
+ * @returns {ToolResult} The sanitized error, as `archives mcp` words one.
+ */
+function refusalResult(lines: readonly string[]): ToolResult {
+  const text = lines.map(sanitizeLine).join("\n");
+  return { content: [{ type: "text", text }], details: undefined, isError: true };
 }

@@ -17,6 +17,5 @@ Run `pnpm install`, then `pnpm --dir docs install`: `test/docs-mcp.test.ts` load
 ## Tools
 
 - What a tool does lives in `src/tool-operations.ts`, and its definition in `src/tools.ts`. MCP, Pi and OMP register those definitions, so a fix never goes into one surface only.
-- A new tool also needs its file in `docs/server/mcp/tools/`; `test/docs-mcp.test.ts` fails without it.
 - An MCP client sees only `content[].text`, so anything the next call needs is there, and `details` never carries a second, longer copy of the body.
 - Archived bodies and provider fields are untrusted: bound every read and render them as text.

@@ -19,8 +19,6 @@ export default defineNuxtConfig({
    */
   alias: {
     "@agntn/archives/tool-operations": resolve(librarySource, "tool-operations.ts"),
-    /** The tool listings and the executor `archives mcp` serves, for the MCP server at /mcp. */
-    "@agntn/archives/mcp": resolve(librarySource, "mcp.ts"),
     "@agntn/archives": resolve(librarySource, "index.ts"),
   },
   // Both would be resolved from the root workspace otherwise.

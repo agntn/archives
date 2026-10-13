@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import type { ToolkitTool } from "../docs/node_modules/@agntn/tools/dist/toolkit.mjs";
 import { Client as SiteClient } from "../docs/node_modules/@modelcontextprotocol/sdk/dist/esm/client/index.js";
 import { InMemoryTransport as SiteTransport } from "../docs/node_modules/@modelcontextprotocol/sdk/dist/esm/inMemory.js";
 import { McpServer } from "../docs/node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.js";
@@ -7,15 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { callTool, toolListings } from "../src/mcp.ts";
 import { RATE_LIMIT } from "../docs/server/utils/query";
 
-/* The toolkit's entry pulls in Nitro, and `defineMcpTool` only hands its input back. */
+/* The toolkit's entry pulls in Nitro, so the handler gets its page tools and options here. */
 vi.mock(
   "../docs/node_modules/@nuxtjs/mcp-toolkit/dist/runtime/server/mcp/definitions/index.js",
   () => ({
-    defineMcpTool: (definition: unknown) => definition,
+    defineMcpHandler: (options: unknown) => options,
+    getMcpTools: async () => [{ name: "list-pages" }, { name: "get-page" }],
   }),
 );
-
-const toolsDir = new URL("../docs/server/mcp/tools/", import.meta.url);
 
 const openConnections: Array<{ close(): Promise<void> }> = [];
 
@@ -51,16 +50,21 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-/* An SDK client on every docs tool, through the same SDK copy the worker runs. */
+/* What `server/mcp/index.ts` serves for one request, Docus page tools included. */
+async function siteTools(): Promise<ReadonlyArray<Readonly<ToolkitTool>>> {
+  const { default: handler } = await import("../docs/server/mcp/index.ts");
+  const { tools } = handler;
+  if (typeof tools !== "function") throw new TypeError("the handler should resolve its tools");
+  return (await tools(undefined as never)) as ToolkitTool[];
+}
+
+/* An SDK client on every archive tool, through the same SDK copy the worker runs. */
 async function siteClient(): Promise<SiteClient> {
-  const { archivesMcpTool } = await import("../docs/server/utils/archives-mcp.ts");
   const server = new McpServer({ name: "archives-docs", version: "0.0.0" });
-  for (const listing of toolListings) {
-    const tool = archivesMcpTool(listing.name);
-    const handler = tool.handler as (
-      args: Readonly<Record<string, unknown>>,
-    ) => Promise<CallToolResult>;
-    server.registerTool(listing.name, tool, handler);
+  for (const tool of await siteTools()) {
+    if (!tool.name.startsWith("archives_")) continue;
+    const handler = tool.handler as (args: unknown) => Promise<CallToolResult>;
+    server.registerTool(tool.name, tool as never, handler);
   }
   const [clientTransport, serverTransport] = SiteTransport.createLinkedPair();
   const client = new SiteClient({ name: "archives-docs-test", version: "0.0.0" });
@@ -75,17 +79,12 @@ function firstText(result: Readonly<{ content?: unknown }>): string {
 }
 
 describe("docs MCP tools", () => {
-  it("serves every tool `archives mcp` lists, one file each", () => {
-    const files = readdirSync(toolsDir).sort();
-    expect(files).toEqual(
-      toolListings.map((tool) => `${tool.name.replaceAll("_", "-")}.ts`).sort(),
-    );
-    for (const file of files) {
-      const name = file.slice(0, -".ts".length).replaceAll("-", "_");
-      expect(readFileSync(new URL(file, toolsDir), "utf8")).toBe(
-        `export default archivesMcpTool(${JSON.stringify(name)});\n`,
-      );
-    }
+  it("serves every tool `archives mcp` lists after the Docus page tools", async () => {
+    expect((await siteTools()).map((tool) => tool.name)).toEqual([
+      "list-pages",
+      "get-page",
+      ...toolListings.map((tool) => tool.name),
+    ]);
   });
 
   it("lists the schemas `archives mcp` lists, under the draft the SDK names", async () => {
@@ -137,22 +136,26 @@ describe("docs MCP tools", () => {
     expect(limiter.spent).toBe(0);
   });
 
-  it("spends one query per target, capped, and none on the provider list", async () => {
+  it("spends one query per target, none on the provider list or a call it turns down", async () => {
+    vi.stubGlobal("fetch", async () => {
+      throw new Error("offline");
+    });
     const client = await siteClient();
     await client.callTool({ name: "archives_providers", arguments: {} });
     expect(limiter.spent).toBe(0);
 
     await client.callTool({
       name: "archives_snapshots",
-      arguments: { target: ["a.example", "b.example", "c.example"], limit: 0 },
+      arguments: { target: ["a.example", "b.example", "c.example"], provider: "wayback" },
     });
     expect(limiter.spent).toBe(3);
 
-    await client.callTool({
+    const junk = await client.callTool({
       name: "archives_snapshots",
       arguments: { target: Array.from({ length: 5000 }, () => "a.example") },
     });
-    expect(limiter.spent).toBe(13);
+    expect(junk.isError).toBe(true);
+    expect(limiter.spent).toBe(3);
   });
 
   it("answers a call past the limit with a tool error, not a thrown 429", async () => {
@@ -160,7 +163,7 @@ describe("docs MCP tools", () => {
     const client = await siteClient();
     const refused = await client.callTool({
       name: "archives_snapshots",
-      arguments: { target: "example.com", limit: 0 },
+      arguments: { target: "example.com", provider: "wayback" },
     });
     expect(refused.isError).toBe(true);
     expect(firstText(refused)).toBe(
