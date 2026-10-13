@@ -5,8 +5,8 @@ import {
   toolAnnotations,
 } from "@agntn/tools/mcp";
 import type { CallToolResult, Server, Tool } from "@modelcontextprotocol/server";
+import { serverInfo } from "./server-info.ts";
 import { archivesTools } from "./tools.ts";
-import { version } from "./version.ts";
 
 /** The `tools/list` entries `archives mcp` answers with. */
 export const toolListings: readonly Tool[] = archivesTools.map((tool) => ({
@@ -54,5 +54,5 @@ export async function callTool(
  * @returns {Server} Unconnected MCP server.
  */
 export function createMcpServer(): Server {
-  return createToolServer({ name: "archives", version }, archivesTools);
+  return createToolServer(serverInfo, archivesTools);
 }

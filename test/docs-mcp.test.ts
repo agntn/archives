@@ -5,6 +5,7 @@ import { McpServer } from "../docs/node_modules/@modelcontextprotocol/sdk/dist/e
 import type { CallToolResult } from "../docs/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { callTool, toolListings } from "../src/mcp.ts";
+import { serverInfo } from "../src/server-info.ts";
 import { RATE_LIMIT } from "../docs/server/utils/query";
 
 /* The toolkit's entry pulls in Nitro, so the handler gets its page tools and options here. */
@@ -79,6 +80,12 @@ function firstText(result: Readonly<{ content?: unknown }>): string {
 }
 
 describe("docs MCP tools", () => {
+  it("introduces itself like `archives mcp`", async () => {
+    const { default: handler } = await import("../docs/server/mcp/index.ts");
+
+    expect(handler).toMatchObject(serverInfo);
+  });
+
   it("serves every tool `archives mcp` lists after the Docus page tools", async () => {
     expect((await siteTools()).map((tool) => tool.name)).toEqual([
       "list-pages",

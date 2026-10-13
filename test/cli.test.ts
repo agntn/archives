@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it } from "vite-plus/test";
+import { serverInfo } from "../src/server-info.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 /** Node 22 before 22.18 strips types only with a flag; the bin keeps the bundle there. */
@@ -69,8 +70,8 @@ function origin(base: string, stderr: string): "bundle" | "source" | "unknown" {
  * @param options - Extra environment and Node flags for the child.
  * @param options.env - Environment on top of the inherited one.
  * @param options.flags - Node flags placed before the bin.
- * @returns {{ code: number | null, from: string, name: string | undefined, stderr: string }} The
- * exit code, where the server came from, the server name from the reply and stderr.
+ * @returns {{ code: number | null, from: string, info: unknown, stderr: string }} The exit code,
+ * where the server came from, the `serverInfo` of the reply and stderr.
  */
 function serve(
   base: string,
@@ -81,17 +82,18 @@ function serve(
     [...(options.flags ?? []), "--import", recordLoads, join(base, "dist/cli.mjs"), "mcp"],
     { encoding: "utf8", env: { ...env, ...options.env }, input: initialize, timeout: 20_000 },
   );
-  const name = /"serverInfo":\{"name":"([^"]+)"/.exec(stdout)?.[1];
-  return { code: status, from: origin(base, stderr), name, stderr };
+  const [line = "{}"] = stdout.split("\n");
+  const reply = JSON.parse(line) as { result?: { serverInfo?: unknown } };
+  return { code: status, from: origin(base, stderr), info: reply.result?.serverInfo, stderr };
 }
 
 /**
  * A run that answered the initialize request.
  * @param from - Where the server has to come from.
- * @returns {{ code: number, from: string, name: string }} The fields `serve` has to match.
+ * @returns {{ code: number, from: string, info: object }} The fields `serve` has to match.
  */
 function served(from: "bundle" | "source") {
-  return { code: 0, from, name: "archives" };
+  return { code: 0, from, info: serverInfo };
 }
 
 describe("src under plain Node", () => {

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { runCli } from "@agntn/tools/cli";
 import { snapshotsCommand } from "./cli-commands.ts";
 import type { serveStdio } from "./mcp-stdio.ts";
+import { serverInfo } from "./server-info.ts";
 import { archivesTools } from "./tools.ts";
 import { version } from "./version.ts";
 
@@ -75,7 +76,7 @@ if (servesStdio(argv)) {
       description: "Unified interface for web archive providers",
       tools: archivesTools,
       commands: [snapshotsCommand],
-      mcp: true,
+      mcp: serverInfo,
       expected: isRefusal,
     },
     argv,
