@@ -13,12 +13,17 @@ export default defineNuxtConfig({
    * every Nuxt runtime package resolvable from docs/ for the same reason.
    */
   workspaceDir: fileURLToPath(new URL("./", import.meta.url)),
+  /**
+   * Workers Builds installs docs/ alone, so every npm package `../src` imports is a dependency
+   * in docs/package.json, pinned to the root version, or the deploy fails while a local build passes.
+   */
   alias: {
     "@agntn/archives/tool-operations": resolve(librarySource, "tool-operations.ts"),
     /** The tool listings and the executor `archives mcp` serves, for the MCP server at /mcp. */
     "@agntn/archives/mcp": resolve(librarySource, "mcp.ts"),
     "@agntn/archives": resolve(librarySource, "index.ts"),
   },
+  // Both would be resolved from the root workspace otherwise.
   devtools: { enabled: false },
   telemetry: false,
   site: {

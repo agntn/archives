@@ -1,6 +1,8 @@
 packages:
   - .
 
+# Without it docs/node_modules holds only direct dependencies, Node walks up to the root
+# node_modules, and SSR gets a second copy of Vue: `Cannot read properties of null (reading 'ce')`.
 shamefullyHoist: true
 
 allowBuilds:

@@ -254,7 +254,8 @@ interface CachedEntry<T> {
  * A produced answer that carries a provider failure is kept for {@link DEGRADED_TTL}
  * only, so a transient outage never pins a bad listing for the full window, and a
  * thrown failure is not stored at all. The key is the exact parameter set: URL paths
- * are case sensitive, so nothing is lowercased on the way in.
+ * are case sensitive, so nothing is lowercased on the way in. Every route goes through it, since
+ * the archives behind it are public services.
  */
 export async function cachedAnswer<T>(
   event: H3Event,

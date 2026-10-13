@@ -28,7 +28,8 @@ function queryCost(name: string, args: Readonly<Record<string, unknown>>): numbe
 }
 
 /**
- * Why this worker turns down a call `archives mcp` would run, if it does.
+ * Why this worker turns down a call `archives mcp` would run, if it does. `/mcp` skips
+ * `cachedAnswer`, so this stands in for its limits.
  *
  * @param {string} name - The tool's name.
  * @param {Readonly<Record<string, unknown>>} args - The arguments the client sent.
@@ -76,7 +77,10 @@ export function archivesMcpTool(name: string): McpToolDefinitionListItem {
   if (listing === undefined) {
     throw new Error(`Unknown archives tool: ${name}`);
   }
-  /** Any object passes Zod, so `callTool` refuses a bad one in the library's words, sanitized. */
+  /**
+   * Any object passes Zod, so `callTool` refuses a bad one in the library's words, sanitized. Not
+   * `z.fromJSONSchema()`: Zod quotes an unknown key raw, bidi overrides included.
+   */
   const schema = z.looseObject({});
   schema._zod.toJSONSchema = () => ({ ...listing.inputSchema });
   /** The SDK hands Zod a missing `arguments` untouched, so read it as the `{}` stdio gets. */
