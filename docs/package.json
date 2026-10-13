@@ -17,7 +17,6 @@
     "@modelcontextprotocol/server": "2.2.0",
     "agents": "0.26.0",
     "better-sqlite3": "12.11.1",
-    "c12": "4.0.0-beta.5",
     "consola": "3.4.2",
     "diff": "9.0.0",
     "docus": "5.13.0",
