@@ -1,8 +1,10 @@
 import { objectContaining, rangeDescription } from "./_matchers";
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { callTool, createMcpServer, toolListings } from "../src/mcp";
+import { serverInfo } from "../src/server-info";
 import { storage } from "../src/storage";
 import { MAX_CONTENT_OFFSET, MAX_DIFF_OFFSET, diffArchives } from "../src/tool-operations";
 import type {
@@ -135,6 +137,16 @@ afterEach(async () => {
 });
 
 describe("archives MCP server", () => {
+  it("introduces itself with a description and icons the site serves", async () => {
+    const client = await connectTestClient();
+
+    expect(client.getServerVersion()).toEqual(serverInfo);
+    for (const icon of serverInfo.icons) {
+      const file = new URL(`../docs/public${new URL(icon.src).pathname}`, import.meta.url);
+      expect(existsSync(file), icon.src).toBe(true);
+    }
+  });
+
   it("advertises every tool, the network ones as open-world", async () => {
     const client = await connectTestClient();
 
