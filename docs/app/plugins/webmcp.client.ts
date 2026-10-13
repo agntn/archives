@@ -1,6 +1,11 @@
 import { createEvidenceTools, EVIDENCE_TOOL_NAMES } from "../utils/webmcp";
 
-/** Registers evidence tools when the experimental browser API exists. */
+/**
+ * Registers evidence tools when the experimental browser API exists, on the canonical
+ * `document.modelContext` with no navigator fallback. WebMCP only adds to the page: without it
+ * every action still works by hand. Each registration is tied to an `AbortController`, and no tool
+ * is exposed cross-origin.
+ */
 export default defineNuxtPlugin(() => {
   const room = useEvidenceRoom();
   const modelContext = document.modelContext;

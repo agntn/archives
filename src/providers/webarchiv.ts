@@ -57,6 +57,7 @@ function exactTarget(value: string, operation: string): string {
     );
   }
   const target = normalized.search(/[/?#]/u) === -1 ? `${normalized}/` : normalized;
+  // The index canonicalizes the scheme, but an HTTPS query can fail upstream.
   return `http://${target}`;
 }
 

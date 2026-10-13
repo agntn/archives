@@ -36,6 +36,13 @@ interface VefsafnCapture {
   digest?: string;
 }
 
+/**
+ * Narrows a target to one exact URL: prefix queries on a large host answered nothing within 25 s.
+ *
+ * @param value - The URL or domain asked for.
+ * @param operation - What the target is for, named in the error.
+ * @returns {string} The URL the index is asked for.
+ */
 function exactTarget(value: string, operation: string): string {
   const normalized = normalizeDomain(value, false).trim();
   if (!normalized) throw new Error(`Vefsafn ${operation} target must not be empty`);

@@ -81,7 +81,8 @@ const tabItems = computed(() =>
 const unavailable = computed(() => modes.value.filter((option) => !option.enabled));
 
 /**
- * The archived markup as a document the browser can draw without running it.
+ * The archived markup as a document the browser can draw without running it. This viewer is the
+ * one place archived bodies are rendered; never put them in the page's own DOM.
  *
  * The frame is sandboxed with no scripts and no origin, the policy admits only
  * images, styles, fonts and media from the archive's own host, and `<base>` makes
