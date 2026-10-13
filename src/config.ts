@@ -53,7 +53,7 @@ const getDefaultConfig = () =>
     },
   }) as ArchivesConfig;
 
-type ConfigLayer = Readonly<{
+export type ConfigLayer = Readonly<{
   storage?: Readonly<ArchivesConfig["storage"]>;
   performance?: Readonly<ArchivesConfig["performance"]>;
   $env?: Readonly<Record<string, ConfigLayer>>;
@@ -62,7 +62,7 @@ type ConfigLayer = Readonly<{
   $test?: ConfigLayer;
 }>;
 
-type ResolveConfigOptions = Readonly<{
+export type ResolveConfigOptions = Readonly<{
   cwd?: string;
   defaults?: ConfigLayer;
   overrides?: ConfigLayer;
@@ -90,19 +90,45 @@ function replaceCachedConfig(config?: ArchivesConfig): void {
 // Directory c12 searches when a caller does not pass its own `cwd`.
 let configCwd: string | undefined;
 
-let c12: Promise<typeof import("c12")> | undefined;
+type Discovery = typeof import("#config-discovery");
+
+let discovery: Promise<Discovery> | undefined;
 
 /**
- * Loads c12 on the first discovery, so a host that never discovers never needs a filesystem.
+ * Tells a loaded discovery module from anything else a computed import can return.
  *
- * @returns {Promise<typeof import("c12")>} The c12 module
+ * @param value - The imported module
+ * @returns {boolean} Whether it has `discoverConfig`
  */
-function loadC12(): Promise<typeof import("c12")> {
-  c12 ??= import("c12").catch((error: unknown) => {
-    c12 = undefined;
+function isDiscovery(value: unknown): value is Discovery {
+  return typeof value === "object" && value !== null && "discoverConfig" in value;
+}
+
+/**
+ * `#config-discovery` maps into `dist/`, so `src/` run straight from Node imports its sibling.
+ *
+ * @returns {Promise<Discovery>} The discovery module
+ */
+async function importDiscovery(): Promise<Discovery> {
+  if (!import.meta.url.endsWith(".ts")) return import("#config-discovery");
+  const module: unknown = await import(
+    import.meta.url.replace(/config\.ts$/u, "config-discovery.ts")
+  );
+  if (!isDiscovery(module)) throw new TypeError("config-discovery.ts has no discoverConfig");
+  return module;
+}
+
+/**
+ * Loads discovery once: c12 under Node, a version with no disk access under `browser` or `workerd`.
+ *
+ * @returns {Promise<Discovery>} The discovery module
+ */
+function loadDiscovery(): Promise<Discovery> {
+  discovery ??= importDiscovery().catch((error: unknown) => {
+    discovery = undefined;
     throw error;
   });
-  return c12;
+  return discovery;
 }
 
 /**
@@ -152,32 +178,17 @@ export async function resolveConfig(options: ResolveConfigOptions = {}): Promise
   const generation = configGeneration;
   const defaults = getDefaultConfig();
 
-  // Load config using c12
-  const { config } = await loadArchivesConfig(options, defaults);
+  const { discoverConfig } = await loadDiscovery();
+  const config = await discoverConfig({ ...options, cwd: options.cwd ?? configCwd }, defaults);
 
   // Apply post-processing
-  const resolvedConfig = postProcessConfig(config as ArchivesConfig, defaults);
+  const resolvedConfig = postProcessConfig(config, defaults);
 
   if (shouldCache && generation === configGeneration) {
     cachedConfig = resolvedConfig;
   }
 
   return resolvedConfig;
-}
-
-async function loadArchivesConfig(options: ResolveConfigOptions, defaults: ArchivesConfig) {
-  const { loadConfig } = await loadC12();
-  return loadConfig({
-    name: "archives",
-    defaults,
-    defaultConfig: options.defaults ?? undefined,
-    overrides: options.overrides ?? undefined,
-    envName: options.envName ?? process.env.NODE_ENV,
-    cwd: options.cwd ?? configCwd,
-    configFile: options.configFile,
-    rcFile: options.rcFile ?? ".archives",
-    packageJson: true,
-  });
 }
 
 /*

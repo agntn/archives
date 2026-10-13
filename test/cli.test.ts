@@ -114,6 +114,34 @@ describe("src under plain Node", () => {
     expect(stderr).toBe("");
     expect(status).toBe(0);
   });
+
+  it.skipIf(!stripsTypes)("discovers config files without a dist build", () => {
+    const checkout = mkdtempSync(join(tmpdir(), "archives-source-"));
+    try {
+      for (const entry of ["src", "package.json"]) {
+        cpSync(join(root, entry), join(checkout, entry), { recursive: true });
+      }
+      symlinkSync(join(root, "node_modules"), join(checkout, "node_modules"), "dir");
+      writeFileSync(
+        join(checkout, "archives.config.ts"),
+        "export default { performance: { timeout: 4321 } };\n",
+      );
+      const script = `
+        const { getConfig } = await import(${JSON.stringify(pathToFileURL(join(checkout, "src/config.ts")).href)});
+        process.stdout.write(String((await getConfig()).performance.timeout));
+      `;
+      const { status, stderr, stdout } = spawnSync(
+        process.execPath,
+        ["--input-type=module", "-e", script],
+        { cwd: checkout, encoding: "utf8", env },
+      );
+
+      expect(stderr).toBe("");
+      expect({ status, stdout }).toEqual({ status: 0, stdout: "4321" });
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+    }
+  });
 });
 
 describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp from the built bin", () => {
@@ -300,3 +328,53 @@ describe.skipIf(!existsSync(join(root, "dist/mcp.mjs")))("a host embedding the b
     }
   });
 });
+
+describe.skipIf(!existsSync(join(root, "dist/config-discovery.browser.mjs")))(
+  "config discovery by export condition",
+  () => {
+    /* Asks the built entry for its config next to an `archives.config.ts` and watches for c12. */
+    function discover(flags: readonly string[]) {
+      const sandbox = mkdtempSync(join(tmpdir(), "archives-discovery-"));
+      try {
+        writeFileSync(
+          join(sandbox, "archives.config.ts"),
+          "export default { performance: { timeout: 1234 } };\n",
+        );
+        const host = `
+          import { getConfig } from ${JSON.stringify(pathToFileURL(join(root, "dist/index.mjs")).href)};
+          process.stdout.write(String((await getConfig()).performance.timeout));
+        `;
+        const { status, stderr, stdout } = spawnSync(
+          process.execPath,
+          [...flags, "--import", recordLoads, "--input-type=module", "-e", host],
+          { cwd: sandbox, encoding: "utf8", env },
+        );
+        const loaded: unknown = JSON.parse(stderr.slice(stderr.lastIndexOf("\nLOADED ") + 8));
+        const urls = Array.isArray(loaded) ? loaded.map(String) : [];
+        return {
+          status,
+          timeout: stdout,
+          c12: urls.some((url) => url.includes("/node_modules/c12/")),
+          browser: urls.includes(
+            pathToFileURL(join(root, "dist/config-discovery.browser.mjs")).href,
+          ),
+        };
+      } finally {
+        rmSync(sandbox, { recursive: true, force: true });
+      }
+    }
+
+    it("reads the config file through c12 under plain Node", () => {
+      expect(discover([])).toEqual({ status: 0, timeout: "1234", c12: true, browser: false });
+    });
+
+    it.each(["browser", "workerd"])("never loads c12 under the %s condition", (condition) => {
+      expect(discover([`--conditions=${condition}`])).toEqual({
+        status: 0,
+        timeout: "10000",
+        c12: false,
+        browser: true,
+      });
+    });
+  },
+);

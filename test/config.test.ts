@@ -2,6 +2,7 @@ import { anyValue, objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import * as archives from "../src";
 import { getConfig, resolveConfig, resetConfig, setConfig, setConfigCwd } from "../src/config";
+import { discoverConfig } from "../src/config-discovery.browser";
 import { loadConfig } from "c12";
 import memoryDriver from "unstorage/drivers/memory";
 import type { ArchivesConfig } from "../src/config";
@@ -278,6 +279,29 @@ describe("Config", () => {
       resetConfig,
       setConfig,
       setConfigCwd,
+    });
+  });
+
+  describe("discovery for browsers and Workers", () => {
+    it("merges the layers it was given and never reaches for c12", async () => {
+      const driver = memoryDriver();
+
+      const config = await discoverConfig(
+        {
+          cwd: "/nowhere",
+          overrides: { performance: { timeout: 2000, retries: undefined } },
+          defaults: { storage: { driver, prefix: "page" }, performance: { retries: 4 } },
+        },
+        defaultMockConfig,
+      );
+
+      expect(mockedLoadConfig).not.toHaveBeenCalled();
+      expect(config.storage).toEqual({ ...defaultMockConfig.storage, driver, prefix: "page" });
+      expect(config.performance).toEqual({
+        ...defaultMockConfig.performance,
+        timeout: 2000,
+        retries: 4,
+      });
     });
   });
 });

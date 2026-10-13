@@ -11,6 +11,8 @@ export default defineBuildConfig({
         "./src/mcp.ts",
         "./src/tool-operations.ts",
         "./src/tools.ts",
+        "./src/config-discovery.ts",
+        "./src/config-discovery.browser.ts",
       ],
     },
   ],

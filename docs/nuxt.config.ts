@@ -14,12 +14,15 @@ export default defineNuxtConfig({
    */
   workspaceDir: fileURLToPath(new URL("./", import.meta.url)),
   /**
-   * Workers Builds installs docs/ alone, so every npm package `../src` imports is a dependency
-   * in docs/package.json, pinned to the root version, or the deploy fails while a local build passes.
+   * Workers Builds installs docs/ alone, so every npm package the aliased `../src` imports is a
+   * dependency in docs/package.json, pinned to the root version, or the deploy fails while a local
+   * build passes.
    */
   alias: {
     "@agntn/archives/tool-operations": resolve(librarySource, "tool-operations.ts"),
     "@agntn/archives": resolve(librarySource, "index.ts"),
+    /** The browser build of discovery, which keeps c12 out of the worker. */
+    "#config-discovery": resolve(librarySource, "config-discovery.browser.ts"),
   },
   // Both would be resolved from the root workspace otherwise.
   devtools: { enabled: false },
