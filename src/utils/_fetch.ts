@@ -76,9 +76,12 @@ export function timeoutMilliseconds(timeout: number | undefined): number | undef
   return Math.ceil(timeout);
 }
 
+/* Appends params without reparsing the path's query, where `withQuery` turns `%20` into `+`. */
 function requestURL(request: string, options: Readonly<FetchOptions>): string {
   const url = options.baseURL ? withBase(request, options.baseURL) : request;
-  return options.params ? withQuery(url, options.params as QueryObject) : url;
+  const query = options.params ? withQuery("", options.params as QueryObject).slice(1) : "";
+  if (!query) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}${query}`;
 }
 
 /* A deadline per attempt, so a retry never inherits a signal its predecessor already spent. */
