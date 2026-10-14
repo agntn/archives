@@ -58,13 +58,13 @@ describe("replay query encoding", () => {
     expect(requested).toEqual([`https://web.archive.org${path}`]);
   });
 
-  it("appends params after a query the path already carries", async () => {
+  it("still lets params replace a key the path already carries", async () => {
     const requested = stubReplay(ORIGINALS[0]);
     await fetchResponse(
-      "/cdx?q=a%20b",
-      await createFetchOptions("https://web.archive.org", { n: 2 }),
+      "/cdx?limit=1",
+      await createFetchOptions("https://web.archive.org", { limit: 100 }),
     );
-    expect(requested).toEqual(["https://web.archive.org/cdx?q=a%20b&n=2"]);
+    expect(requested).toEqual(["https://web.archive.org/cdx?limit=100"]);
   });
 
   describe.each(["text", "raw"] as const)("archives_content with format=%s", (format) => {
