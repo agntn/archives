@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.7.3
+
+[compare changes](https://github.com/agntn/archives/compare/v0.7.2...v0.7.3)
+
+### 🚀 Enhancements
+
+- Add MCP server description and icons ([#170](https://github.com/agntn/archives/pull/170))
+
+### 🩹 Fixes
+
+- Keep c12 out of browser bundles ([#171](https://github.com/agntn/archives/pull/171))
+- **providers:** Keep replay queries as recorded ([#175](https://github.com/agntn/archives/pull/175))
+
+### 💅 Refactors
+
+- Build the CLI with runCli ([#165](https://github.com/agntn/archives/pull/165))
+- Build /mcp with toToolkitTools ([#169](https://github.com/agntn/archives/pull/169))
+
+### 📖 Documentation
+
+- Move AGENTS.md into the code and CONTRIBUTING.md ([#168](https://github.com/agntn/archives/pull/168))
+
+### ❤️ Contributors
+
+- Aeitwoen
+- Ori
+
 ## v0.7.2
 
 [compare changes](https://github.com/agntn/archives/compare/v0.7.1...v0.7.2)
