@@ -29,8 +29,7 @@ export default defineConfig({
   },
   fmt: {
     ...oxfmt,
-    /** CHANGELOG.md keeps the changelogen history as written, which oxfmt would reshape. */
-    ignorePatterns: ["dist", "coverage", ".nuxt", ".output", "docs", "CHANGELOG.md"],
+    ignorePatterns: ["dist", "coverage", ".nuxt", ".output", "docs"],
   },
   lint: {
     ...oxlint,
