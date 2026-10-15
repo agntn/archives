@@ -1,5 +1,7 @@
 # Changelog
 
+Newer releases write their own notes now. uppt drafts them in the release PR and they land on [GitHub Releases](https://github.com/agntn/archives/releases). Everything below is the changelogen era, kept for the archaeologists.
+
 ## v0.7.3
 
 [compare changes](https://github.com/agntn/archives/compare/v0.7.2...v0.7.3)
