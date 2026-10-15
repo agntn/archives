@@ -36,8 +36,7 @@
   },
   "files": [
     "dist",
-    "packages/pi/extensions",
-    "packages/omp/extensions"
+    "extensions"
   ],
   "type": "module",
   "sideEffects": false,
@@ -136,12 +135,12 @@
   "packageManager": "pnpm@12.11.2",
   "omp": {
     "extensions": [
-      "./packages/omp/extensions/archives.ts"
+      "./extensions/omp/archives.ts"
     ]
   },
   "pi": {
     "extensions": [
-      "./packages/pi/extensions/*.ts"
+      "./extensions/pi/*.ts"
     ]
   }
 }

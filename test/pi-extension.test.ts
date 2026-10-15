@@ -8,7 +8,7 @@ import type {
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import archivesExtension from "../packages/pi/extensions/archives";
+import archivesExtension from "../extensions/pi/archives";
 import { storage } from "../src/storage";
 import {
   CONTENT_FORMAT_HINT,
