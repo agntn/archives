@@ -1,5 +1,4 @@
 import { fetchData } from "../utils/_fetch.ts";
-import { cleanDoubleSlashes } from "ufo";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
@@ -127,7 +126,7 @@ function listingPage(
   if (!isoTimestamp) return undefined;
   const filename = record["filename"] ?? "";
   return {
-    url: cleanDoubleSlashes(record["url"] ?? ""),
+    url: record["url"] ?? "",
     timestamp: isoTimestamp,
     snapshot: `${DATA_BASE_URL}/${filename}`,
     _meta: {
@@ -270,7 +269,7 @@ function commonCrawlContentResponse(
   const mime = record.mime ?? capture.mime;
   return createContentResponse(
     {
-      url: cleanDoubleSlashes(capture.url),
+      url: capture.url,
       timestamp: waybackTimestampToISO(capture.timestamp),
       snapshot: `${DATA_BASE_URL}/${capture.filename}`,
       content: record.text,

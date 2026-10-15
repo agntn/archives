@@ -1155,6 +1155,27 @@ describe("common crawl content", () => {
     });
   });
 
+  it("names the URL the index recorded, double slashes and all", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          url: "https://example.com/a//b",
+          timestamp: "20240101000000",
+          status: "200",
+          length: "512",
+          offset: "1024",
+          filename: "crawl-data/CC-MAIN-2024-10/segment.warc.gz",
+        }),
+      )
+      .mockResolvedValueOnce(gzipSync(record));
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("https://example.com/a//b");
+
+    expect(response.content?.url).toBe("https://example.com/a//b");
+  });
+
   it("reports the missing capture when the index answers no-captures", async () => {
     const noCaptures = Object.assign(new Error("404 Not Found"), {
       statusCode: 404,
