@@ -151,6 +151,19 @@ export function timestampLowerBound(timestamp: string): string {
 }
 
 /**
+ * Refuses a window that ends before it starts, so no archive gets asked for one.
+ *
+ * @param from - Normalized lower edge, empty when the window is open there
+ * @param to - Normalized upper edge, empty when the window is open there
+ * @throws {Error} When `from` names a later period than `to`
+ */
+export function assertWindowOrder(from: string, to: string): void {
+  if (from && to && timestampLowerBound(from) > timestampUpperBound(to)) {
+    throw new Error(`Window is inverted: from "${from}" is later than to "${to}"`);
+  }
+}
+
+/**
  * Splits an archive playback URL back into the original URL and capture stamp.
  *
  * `snapshots()` prints playback URLs, so they are what a caller holds when it

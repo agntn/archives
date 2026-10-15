@@ -611,9 +611,7 @@ describe("archives MCP server", () => {
     });
 
     expect(response.isError).toBe(true);
-    expect(text(response.content)).toBe(
-      'archives_snapshots failed: Window is inverted: from "2020" is later than to "2019"',
-    );
+    expect(text(response.content)).toBe('Window is inverted: from "2020" is later than to "2019"');
     expect(snapshots).not.toHaveBeenCalled();
   });
 
@@ -970,19 +968,56 @@ describe("archives MCP server", () => {
     expect(text(response.content)).toContain("PERMA_CC_API_KEY or PERMACC_API_KEY");
   });
 
-  it("reports a failed query as a tool error instead of a transport failure", async () => {
-    const client = await connectTestClient();
+  it.each([
+    [
+      "archives_snapshots",
+      { target: "example.com", provider: "archiveIt" },
+      /^provider=archiveIt requires a numeric collection id\.$/u,
+    ],
+    ["archives_snapshots", { target: "  " }, /^Target cannot be empty$/u],
+    [
+      "archives_snapshots",
+      { target: "example.com", provider: "wayback", from: "2020", to: "2010" },
+      /^Window is inverted: from "2020" is later than to "2010"$/u,
+    ],
+    [
+      "archives_content",
+      { target: "https://example.com/", timestamp: "soon" },
+      /^Invalid timestamp "soon": use archive digits/u,
+    ],
+    [
+      "archives_content",
+      { target: "https://example.com/", path: "../escape.html" },
+      /^path "\.\.\/escape\.html" leaves the capture directory /u,
+    ],
+    [
+      "archives_diff",
+      { target: "example.com", before: "2010", after: "2020", offset: 10 },
+      /^digest from the prior continue line is required when offset is greater than 0$/u,
+    ],
+    [
+      "archives_diff",
+      { target: "example.com", before: "2020", after: "2010" },
+      /^before must name a period earlier than after$/u,
+    ],
+    [
+      "archives_snapshots",
+      { target: "example.com", provider: "permacc" },
+      /^archives_snapshots failed: Perma\.cc provider requires an API key/u,
+    ],
+  ])(
+    "saves the failed: prefix for what the arguments didn't cause, %s %j",
+    async (name, args, reason) => {
+      const client = await connectTestClient();
 
-    const response = await client.callTool({
-      name: "archives_snapshots",
-      arguments: { target: "example.com", provider: "archiveIt" },
-    });
+      const response = await client.callTool({ name, arguments: args });
 
-    expect(response.isError).toBe(true);
-    expect(text(response.content)).toContain(
-      "archives_snapshots failed: provider=archiveIt requires a numeric collection id.",
-    );
-  });
+      expect(response.isError).toBe(true);
+      expect(text(response.content)).toMatch(reason);
+      expect(providersMock.all).not.toHaveBeenCalled();
+      expect(providersMock.wayback).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects arguments that miss the schema", async () => {
     const client = await connectTestClient();

@@ -13,6 +13,7 @@ import type {
 } from "./types.ts";
 import { getStoredContent, getStoredResponse, storeContent, storeResponse } from "./storage.ts";
 import {
+  assertWindowOrder,
   mergeOptions,
   processInParallel,
   resolveRequestedTimestamp,
@@ -515,13 +516,7 @@ export class Archive implements ArchiveInterface {
     const windowed = providerArray.map((provider) => {
       const windowFrom = from || resolveRequestedTimestamp(provider.options?.from, "from");
       const windowTo = to || resolveRequestedTimestamp(provider.options?.to, "to");
-      if (
-        windowFrom &&
-        windowTo &&
-        timestampLowerBound(windowFrom) > timestampUpperBound(windowTo)
-      ) {
-        throw new Error(`Window is inverted: from "${windowFrom}" is later than to "${windowTo}"`);
-      }
+      assertWindowOrder(windowFrom, windowTo);
       return { provider, windowFrom, windowTo };
     });
 
