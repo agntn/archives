@@ -10,6 +10,7 @@
  */
 
 import { sha256 } from "@agntn/hashes";
+import { ToolInputError } from "@agntn/tools";
 import { createArchive } from "./archive.ts";
 import { getConfig } from "./config.ts";
 import { diffArchivedContent } from "./diff.ts";
@@ -28,6 +29,7 @@ import type {
   ArchivedPage,
 } from "./types.ts";
 import {
+  assertWindowOrder,
   htmlToText,
   isTextualMime,
   processInParallel,
@@ -337,10 +339,10 @@ export async function snapshotArchives(
 ): Promise<ToolResult<SnapshotDetails>> {
   const target = params.target.trim();
   if (!target) {
-    throw new Error("Target cannot be empty");
+    throw new ToolInputError(["Target cannot be empty"]);
   }
   if (target.length > MAX_TARGET_LENGTH) {
-    throw new Error(`Target must be at most ${MAX_TARGET_LENGTH} characters`);
+    throw new ToolInputError([`Target must be at most ${MAX_TARGET_LENGTH} characters`]);
   }
 
   const provider = normalizeProvider(params.provider);
@@ -408,10 +410,10 @@ export async function snapshotBatchArchives(
   const providerCount = Array.isArray(archiveProvider) ? archiveProvider.length : 1;
   const limit = options.concurrency ?? (await getConfig()).performance.concurrency ?? 3;
   const targetConcurrency = Math.max(1, Math.floor(limit / Math.min(providerCount, limit)));
-  // processInParallel logs a rejection and drops its item, which would shift
-  // every later block onto the wrong target. What throws here (an inverted
-  // window, a provider that fails to load) is the same for every target, so it
-  // fails the call the way it does for a single one.
+  /*
+   * processInParallel drops a rejected item, which would shift later blocks onto the wrong
+   * target, so a failure every target shares (a provider that won't load) fails the call.
+   */
   const settled = await processInParallel(
     targets,
     (target) =>
@@ -471,15 +473,17 @@ function serializedTargets(target: string | readonly string[]): string | readonl
 }
 
 function validateSnapshotTargets(targets: readonly string[]): string[] {
-  if (targets.length === 0) throw new Error("Target list cannot be empty");
+  if (targets.length === 0) throw new ToolInputError(["Target list cannot be empty"]);
   if (targets.length > MAX_SNAPSHOT_TARGETS) {
-    throw new Error(`Target list must have at most ${MAX_SNAPSHOT_TARGETS} entries`);
+    throw new ToolInputError([`Target list must have at most ${MAX_SNAPSHOT_TARGETS} entries`]);
   }
   return targets.map((raw, index) => {
     const target = raw.trim();
-    if (!target) throw new Error(`Target ${index + 1} cannot be empty`);
+    if (!target) throw new ToolInputError([`Target ${index + 1} cannot be empty`]);
     if (target.length > MAX_TARGET_LENGTH) {
-      throw new Error(`Target ${index + 1} must be at most ${MAX_TARGET_LENGTH} characters`);
+      throw new ToolInputError([
+        `Target ${index + 1} must be at most ${MAX_TARGET_LENGTH} characters`,
+      ]);
     }
     return target;
   });
@@ -607,11 +611,11 @@ interface DiffSearchResult {
 }
 
 function resolveDiffTimes(params: Readonly<DiffParams>): { before: string; after: string } {
-  const before = resolveRequestedTimestamp(params.before, "before");
-  const after = resolveRequestedTimestamp(params.after, "after");
-  if (!before || !after) throw new Error("before and after are required");
+  const before = requestedTimestamp(params.before, "before");
+  const after = requestedTimestamp(params.after, "after");
+  if (!before || !after) throw new ToolInputError(["before and after are required"]);
   if (timestampUpperBound(before) >= timestampLowerBound(after)) {
-    throw new Error("before must name a period earlier than after");
+    throw new ToolInputError(["before must name a period earlier than after"]);
   }
   return { before, after };
 }
@@ -625,9 +629,9 @@ function resolveDiffPosition(params: Readonly<DiffParams>): {
   if (offset === 0) return { offset, digest: undefined };
   const digest = normalizeDiffDigest(params.digest);
   if (!digest) {
-    throw new Error(
+    throw new ToolInputError([
       "digest from the prior continue line is required when offset is greater than 0",
-    );
+    ]);
   }
   return { offset, digest };
 }
@@ -637,9 +641,9 @@ async function resolveDiffRequest(
   signal: Readonly<AbortSignal> | undefined,
 ): Promise<ResolvedDiffRequest> {
   const target = params.target.trim();
-  if (!target) throw new Error("Target cannot be empty");
+  if (!target) throw new ToolInputError(["Target cannot be empty"]);
   if (target.length > MAX_TARGET_LENGTH) {
-    throw new Error(`Target must be at most ${MAX_TARGET_LENGTH} characters`);
+    throw new ToolInputError([`Target must be at most ${MAX_TARGET_LENGTH} characters`]);
   }
 
   checkBounds(params, MAX_DIFF_OFFSET);
@@ -862,7 +866,7 @@ type ProviderFactory = (
 function archiveItFactory(options: Readonly<SnapshotOptions | ContentOptions>) {
   const collection = options.collection?.trim();
   if (collection === undefined || !/^\d+$/.test(collection)) {
-    throw new Error("provider=archiveIt requires a numeric collection id.");
+    throw new ToolInputError(["provider=archiveIt requires a numeric collection id."]);
   }
   return providers.archiveIt({ ...options, collection });
 }
@@ -871,7 +875,7 @@ function coniferFactory(options: Readonly<SnapshotOptions | ContentOptions>) {
   const user = options.user?.trim();
   const collection = options.collection?.trim();
   if (!user || !collection) {
-    throw new Error("provider=conifer requires user and collection slugs.");
+    throw new ToolInputError(["provider=conifer requires user and collection slugs."]);
   }
   return providers.conifer({ ...options, user, collection });
 }
@@ -914,7 +918,7 @@ export function normalizeProvider(provider: string | undefined): ProviderName {
   const alias = PROVIDER_ALIASES[raw as keyof typeof PROVIDER_ALIASES];
   if (alias) return alias;
   if (!isKnownProvider(raw)) {
-    throw new Error(`Unknown provider "${raw}". Available: ${PROVIDERS.join(", ")}.`);
+    throw new ToolInputError([`Unknown provider "${raw}". Available: ${PROVIDERS.join(", ")}.`]);
   }
   return raw === "auto" ? "all" : raw;
 }
@@ -978,24 +982,44 @@ function checkNumber(
   const { minimum, maximum: configuredMaximum } = NUMERIC_BOUNDS[name];
   const maximum = maximumOverride ?? configuredMaximum;
   if (!Number.isInteger(value)) {
-    throw new TypeError(`${name} must be a whole number`);
+    throw new ToolInputError([`${name} must be a whole number`]);
   }
   if (value < minimum || value > maximum) {
-    throw new Error(`${name} must be between ${minimum} and ${maximum}`);
+    throw new ToolInputError([`${name} must be between ${minimum} and ${maximum}`]);
   }
 }
 
 function checkText(name: keyof typeof TEXT_BOUNDS, value: string | undefined): void {
   if (value === undefined) return;
   if (value.length > TEXT_BOUNDS[name]) {
-    throw new Error(`${name} must be at most ${TEXT_BOUNDS[name]} characters`);
+    throw new ToolInputError([`${name} must be at most ${TEXT_BOUNDS[name]} characters`]);
+  }
+}
+
+/* A timestamp no archive could parse is the caller's to fix, so it leaves as input. */
+function requestedTimestamp(value: string | undefined, name: string): string {
+  try {
+    return resolveRequestedTimestamp(value, name);
+  } catch (error) {
+    throw new ToolInputError([toErrorMessage(error)]);
+  }
+}
+
+/* Refuses a window that runs backwards before a provider gets built for it. */
+function checkWindow(from: string | undefined, to: string | undefined): void {
+  const lower = requestedTimestamp(from, "from");
+  const upper = requestedTimestamp(to, "to");
+  try {
+    assertWindowOrder(lower, upper);
+  } catch (error) {
+    throw new ToolInputError([toErrorMessage(error)]);
   }
 }
 
 function normalizeDiffDigest(value: string | undefined): string | undefined {
   if (value === undefined || value.trim() === "") return undefined;
   if (!/^[a-f\d]{64}$/.test(value)) {
-    throw new TypeError("digest must be a lowercase SHA-256 hexadecimal string");
+    throw new ToolInputError(["digest must be a lowercase SHA-256 hexadecimal string"]);
   }
   return value;
 }
@@ -1041,6 +1065,7 @@ function buildSnapshotOptions(
   provider: ProviderName,
 ): SnapshotOptions {
   checkBounds(params);
+  checkWindow(params.from, params.to);
   const options: SnapshotOptions = {
     limit: params.limit ?? DEFAULT_LIMIT,
     ...snapshotPassthroughOptions(params),
@@ -1058,7 +1083,9 @@ function buildSnapshotOptions(
 export function normalizeFormat(format: string | undefined): ContentFormat {
   const raw = format ?? "text";
   if (!(CONTENT_FORMATS as readonly string[]).includes(raw)) {
-    throw new Error(`Unknown format "${raw}". Available: ${CONTENT_FORMATS.join(", ")}.`);
+    throw new ToolInputError([
+      `Unknown format "${raw}". Available: ${CONTENT_FORMATS.join(", ")}.`,
+    ]);
   }
   return raw as ContentFormat;
 }
@@ -1082,7 +1109,7 @@ function contentPassthroughOptions(params: Readonly<ContentParams>): Partial<Con
 
 function contentTimestamp(value: string | undefined): Partial<ContentOptions> {
   if (value === undefined) return {};
-  const timestamp = resolveRequestedTimestamp(value);
+  const timestamp = requestedTimestamp(value, "timestamp");
   return timestamp ? { timestamp } : {};
 }
 
@@ -1375,10 +1402,10 @@ function sanitizeResponse<TResponse extends { _meta?: ArchiveResponse["_meta"] }
 function requireContentTarget(raw: string): string {
   const target = raw.trim();
   if (!target) {
-    throw new Error("Target cannot be empty");
+    throw new ToolInputError(["Target cannot be empty"]);
   }
   if (target.length > MAX_TARGET_LENGTH) {
-    throw new Error(`Target must be at most ${MAX_TARGET_LENGTH} characters`);
+    throw new ToolInputError([`Target must be at most ${MAX_TARGET_LENGTH} characters`]);
   }
   return target;
 }
@@ -1401,8 +1428,8 @@ const NO_CAPTURE_FILE: SavedCapture = { lines: [], written: false, failed: false
  */
 async function prepareCaptureFile(path: string | undefined): Promise<CaptureFile | undefined> {
   if (path === undefined) return undefined;
-  if (!path.trim()) throw new Error("path cannot be empty");
-  if (path.includes("\0")) throw new Error("path cannot contain a NUL byte");
+  if (!path.trim()) throw new ToolInputError(["path cannot be empty"]);
+  if (path.includes("\0")) throw new ToolInputError(["path cannot contain a NUL byte"]);
   const { resolveCapturePath } = await import("./utils/_capture-file.ts");
   return resolveCapturePath(path);
 }

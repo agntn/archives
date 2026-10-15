@@ -3,6 +3,7 @@
 import { lstat, mkdir, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import process from "node:process";
+import { ToolInputError } from "@agntn/tools";
 import { CAPTURE_DIR_ENV } from "../tool-contract.ts";
 
 /** Where one capture goes: the checked directory and the file inside it. */
@@ -21,13 +22,13 @@ export async function resolveCapturePath(path: string): Promise<CaptureFile> {
   const root = await captureRoot();
   const target = resolve(root, path);
   if (!isInside(root, target)) {
-    throw new Error(
+    throw new ToolInputError([
       `path ${quote(path)} leaves the capture directory ${quote(root)}. Set ${CAPTURE_DIR_ENV} to write elsewhere`,
-    );
+    ]);
   }
   await assertNoLinkOut(root, dirname(target));
   if (await exists(target)) {
-    throw new Error(`${quote(target)} already exists. Pass a path that does not`);
+    throw new ToolInputError([`${quote(target)} already exists. Pass a path that does not`]);
   }
   return { root, target };
 }
@@ -98,7 +99,9 @@ function isInside(root: string, path: string): boolean {
 async function assertNoLinkOut(root: string, directory: string): Promise<void> {
   const real = await deepestExisting(directory);
   if (real !== root && !isInside(root, real)) {
-    throw new Error(`path leads out of the capture directory ${quote(root)} through a link`);
+    throw new ToolInputError([
+      `path leads out of the capture directory ${quote(root)} through a link`,
+    ]);
   }
 }
 
