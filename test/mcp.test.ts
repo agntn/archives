@@ -1043,6 +1043,51 @@ describe("archives MCP server", () => {
     );
   });
 
+  it("says when a capture postdates the time asked for", async () => {
+    stubContentProvider(providersMock.wayback, capture());
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback", timestamp: "2020" },
+    });
+
+    expect(text(response.content)).toContain(
+      "captured: 2024-01-02T03:04:05Z (later than requested)\n",
+    );
+  });
+
+  it("flags a diff whose before capture came from after its requested time", async () => {
+    const content = vi.fn((_target: string, options: Readonly<{ timestamp?: string }>) =>
+      Promise.resolve(
+        options.timestamp === "2020"
+          ? capture({ timestamp: "2022-05-01T00:00:00Z", content: "first capture" })
+          : capture({ timestamp: "2023-01-01T00:00:00Z", content: "second capture" }),
+      ),
+    );
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_diff",
+      arguments: {
+        target: "https://example.com/",
+        provider: "wayback",
+        before: "2020",
+        after: "2023",
+      },
+    });
+
+    const rendered = text(response.content);
+    expect(rendered).toContain("before: 2022-05-01T00:00:00Z (later than requested);");
+    expect(rendered).toContain("after: 2023-01-01T00:00:00Z;");
+  });
+
   it("reports the SHA-256 of the whole patch as the diff digest", async () => {
     const content = vi.fn((_target: string, options: Readonly<{ timestamp?: string }>) =>
       Promise.resolve(

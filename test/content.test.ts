@@ -482,6 +482,7 @@ describe("wayback content", () => {
       params: objectContaining({ to: "20190301" }),
     });
     expect(response.content?.timestamp).toBe("2019-02-28T12:00:00Z");
+    expect(response.content?._meta.selection).toBeUndefined();
   });
 
   it("falls back to the closest later capture when none precedes the request", async () => {
@@ -500,6 +501,32 @@ describe("wayback content", () => {
     expect(fallback).toMatchObject({ from: "2019", limit: "5" });
     expect(fallback).not.toHaveProperty("to");
     expect(response.content?.timestamp).toBe("2021-05-05T00:00:00Z");
+    expect(response.content?._meta.selection).toBe("after");
+  });
+
+  it("leaves a capture from the last second of a partial timestamp unmarked", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20191231235959", "200"]]));
+    rawMock.mockResolvedValueOnce(rawResponse("december", { url: "" }));
+
+    const response = await createArchive(createWayback()).content("example.com", {
+      timestamp: "2019",
+    });
+
+    expect(response.content?._meta.selection).toBeUndefined();
+  });
+
+  it("marks a later capture served from the cache too", async () => {
+    fetchMock
+      .mockResolvedValueOnce(cdxRows([]))
+      .mockResolvedValueOnce(cdxRows([["https://example.com/", "20210505000000", "200"]]));
+    rawMock.mockResolvedValueOnce(rawResponse("later", { url: "" }));
+    const archive = createArchive(createWayback());
+
+    await archive.content("example.com", { timestamp: "2019" });
+    const cached = await archive.content("example.com", { timestamp: "2019" });
+
+    expect(cached.fromCache).toBe(true);
+    expect(cached.content?._meta.selection).toBe("after");
   });
 
   it("reads an ISO instant that names its offset as the UTC one", async () => {

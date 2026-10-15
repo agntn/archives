@@ -1609,7 +1609,7 @@ function buildContentHeader(
   return [
     `[provider=${provider}] read 1 capture for "${sanitizeField(target)}"${cacheNote}`,
     `url: ${sanitizeField(capture.url)}`,
-    `captured: ${sanitizeField(capture.timestamp)}`,
+    `captured: ${sanitizeField(capture.timestamp)}${laterCaptureNote(capture._meta.selection)}`,
     `snapshot: ${sanitizeField(capture.snapshot)}`,
     ...captureStatusLine(capture._meta),
     `type: ${sanitizeField(capture.mime ?? "unknown")}; ${capture.bytes} bytes read${truncatedNote}${sliceNote}`,
@@ -1742,11 +1742,20 @@ function formatDiffAttempts(attempts: readonly Readonly<DiffAttempt>[]): string[
   ];
 }
 
+/**
+ * A fallback capture reads like any other, so the text says when it postdates the request.
+ * @param selection - The capture's `selection`
+ * @returns {string} The note, or nothing for a capture from the time asked.
+ */
+function laterCaptureNote(selection: string | undefined): string {
+  return selection === "after" ? " (later than requested)" : "";
+}
+
 function formatDiffCapture(label: string, capture: ArchivedContentSummary): string[] {
   const truncated = capture.truncated ? "; body truncated before comparison" : "";
   const archive = capture.archive ? `; archive=${sanitizeField(capture.archive)}` : "";
   return [
-    `${label}: ${sanitizeField(capture.timestamp)}; ${capture.bytes} bytes${archive}${truncated}`,
+    `${label}: ${sanitizeField(capture.timestamp)}${laterCaptureNote(capture.selection)}; ${capture.bytes} bytes${archive}${truncated}`,
     `${label} snapshot: ${sanitizeField(capture.snapshot)}`,
   ];
 }

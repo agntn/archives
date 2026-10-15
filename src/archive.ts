@@ -279,6 +279,25 @@ export function combineContentResults(
   return winner ? combineContentWinner(winner, state) : combinedContentFailure(responses, state);
 }
 
+/**
+ * Marks a capture that postdates the request, so it can't pass for the page on the date asked.
+ * @param response - One provider's answer
+ * @param requested - Timestamp the read asked for
+ * @returns {ArchiveContentResponse} The answer, with `selection: "after"` on a later capture.
+ */
+function markLaterCapture(
+  response: ArchiveContentResponse,
+  requested: string | undefined,
+): ArchiveContentResponse {
+  const wanted = toWaybackTimestamp(requested ?? "");
+  const captured = toWaybackTimestamp(response.content?.timestamp ?? "");
+  if (!response.content || !wanted || !captured) return response;
+  if (timestampLowerBound(captured) <= timestampUpperBound(wanted)) return response;
+
+  const content = response.content;
+  return { ...response, content: { ...content, _meta: { ...content._meta, selection: "after" } } };
+}
+
 /*
  * Drops the pages outside the requested window.
  *
@@ -695,7 +714,10 @@ export class Archive implements ArchiveInterface {
 
     const responses: ArchiveContentResponse[] = [];
     for (const provider of providerArray) {
-      const response = await this.readContentFromProvider(provider, unwrapped.url, options);
+      const response = markLaterCapture(
+        await this.readContentFromProvider(provider, unwrapped.url, options),
+        timestamp,
+      );
       responses.push(response);
       if (response.success && response.content) break;
     }
