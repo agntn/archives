@@ -16,4 +16,17 @@ export default defineBuildConfig({
       ],
     },
   ],
+  hooks: {
+    /**
+     * `diff` has no `sideEffects` flag, so in a chunk with `Archive` it rode into every bundle.
+     * @param config - Output options obuild built; what `diff.ts` imports stays in its own chunks.
+     */
+    rolldownOutput(config) {
+      if (typeof config.codeSplitting !== "object") return;
+      config.codeSplitting.groups = [
+        ...(config.codeSplitting.groups ?? []),
+        { name: "diff", test: /\/src\/diff\.ts$/u, includeDependenciesRecursively: false },
+      ];
+    },
+  },
 });
