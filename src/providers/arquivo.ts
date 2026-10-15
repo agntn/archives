@@ -1,4 +1,3 @@
-import { consola } from "consola";
 import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
@@ -123,10 +122,7 @@ function arquivoCapture(record: Readonly<Record<string, string>>): ArquivoCaptur
 
 function arquivoPage(record: Readonly<Record<string, string>>): ArchivedPage | undefined {
   const capture = arquivoCapture(record);
-  if (!capture) {
-    consola.debug("[arquivo] Dropping CDX record without a usable URL and timestamp", record);
-    return undefined;
-  }
+  if (!capture) return undefined;
 
   const metadata: ArquivoMetadata = {
     timestamp: capture.timestamp,

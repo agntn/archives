@@ -10,7 +10,6 @@
  */
 
 import { sha256 } from "@agntn/hashes";
-import { consola } from "consola";
 import { fetchResponse } from "./_fetch.ts";
 import type { ArchiveContentOptions, ArchivedContent } from "../types.ts";
 import { createFetchOptions, waybackTimestampToISO, withoutDefaultPort } from "./_utils.ts";
@@ -1227,7 +1226,7 @@ function decodeBytes(bytes: Uint8Array, charset?: string): string {
     try {
       return new TextDecoder(charset).decode(bytes);
     } catch {
-      consola.debug(`[content] Unknown charset "${charset}", decoding as UTF-8`);
+      /* An unknown label falls through to UTF-8. */
     }
   }
   return new TextDecoder("utf-8").decode(bytes);

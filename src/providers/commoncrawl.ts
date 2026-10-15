@@ -1,4 +1,3 @@
-import { consola } from "consola";
 import { fetchData } from "../utils/_fetch.ts";
 import { cleanDoubleSlashes } from "ufo";
 import type {
@@ -125,13 +124,7 @@ function listingPage(
   collection: string,
 ): ArchivedPage | undefined {
   const isoTimestamp = waybackTimestampToISO(record["timestamp"] ?? "");
-  if (!isoTimestamp) {
-    consola.debug("[commoncrawl] Dropping record with invalid timestamp", {
-      timestamp: record["timestamp"],
-      url: record["url"],
-    });
-    return undefined;
-  }
+  if (!isoTimestamp) return undefined;
   const filename = record["filename"] ?? "";
   return {
     url: cleanDoubleSlashes(record["url"] ?? ""),

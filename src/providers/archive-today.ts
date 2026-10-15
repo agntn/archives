@@ -1,4 +1,3 @@
-import { consola } from "consola";
 import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
@@ -86,13 +85,7 @@ function archiveTodayPage(
     const isoTimestamp = Number.isNaN(parsedDate.getTime())
       ? waybackTimestampToISO(timestamp)
       : parsedDate.toISOString();
-    if (!isoTimestamp) {
-      consola.debug("[archive-today] Dropping memento with unreadable capture time", {
-        datetime,
-        snapshot: snapshotUrl,
-      });
-      return undefined;
-    }
+    if (!isoTimestamp) return undefined;
     const originalUrl = origUrl.includes("://") ? origUrl : `https://${origUrl}`;
     return {
       url: originalUrl,
@@ -101,7 +94,7 @@ function archiveTodayPage(
       _meta: { hash: timestamp, raw_date: datetime, position } as ArchiveTodayMetadata,
     };
   } catch (error) {
-    consola.error("Error parsing archive.today snapshot:", error);
+    console.error("Error parsing archive.today snapshot:", error);
     return undefined;
   }
 }

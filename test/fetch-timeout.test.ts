@@ -1,6 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { consola } from "consola";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createArchive, providers } from "../src/index";
 import { createMcpServer } from "../src/mcp";
@@ -415,8 +414,7 @@ describe("native fetch client", () => {
   });
 
   it("keeps an expected no-captures 404 out of the error log", async () => {
-    const error = vi.spyOn(consola, "error").mockImplementation(() => undefined);
-    const debug = vi.spyOn(consola, "debug").mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     answer(
       Response.json(
         { message: "No Captures found for: example.com/art" },
@@ -429,11 +427,10 @@ describe("native fetch client", () => {
     );
     expect(result).toMatchObject({ success: true, pages: [] });
     expect(error).not.toHaveBeenCalled();
-    expect(debug).toHaveBeenCalledWith(expect.stringContaining("failed with status 404"));
   });
 
   it("still logs a 404 from an index that does not exist", async () => {
-    const error = vi.spyOn(consola, "error").mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     answer(new Response("Not Found", { status: 404, statusText: "Not Found" }));
     const result = await commonCrawl({ collection: "CC-MAIN-2018-47" }).snapshots(
       "example.com/art",
