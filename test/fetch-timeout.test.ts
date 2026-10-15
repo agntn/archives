@@ -1,8 +1,10 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
+import { consola } from "consola";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createArchive, providers } from "../src/index";
 import { createMcpServer } from "../src/mcp";
+import commonCrawl from "../src/providers/commoncrawl";
 import { createFetchOptions, fetchBody, isNoCaptureError, USER_AGENT } from "../src/utils";
 import { FetchError, fetchData, fetchResponse, type FetchOptions } from "../src/utils/_fetch";
 
@@ -410,6 +412,24 @@ describe("native fetch client", () => {
       statusCode: 404,
     });
     expect(isNoCaptureError(failure, "No Captures found")).toBe(true);
+  });
+
+  it("keeps an expected no-captures 404 out of the error log", async () => {
+    const error = vi.spyOn(consola, "error").mockImplementation(() => undefined);
+    const debug = vi.spyOn(consola, "debug").mockImplementation(() => undefined);
+    answer(
+      Response.json(
+        { message: "No Captures found for: example.com/art" },
+        { status: 404, statusText: "Not Found" },
+      ),
+    );
+    const result = await commonCrawl({ collection: "CC-MAIN-2018-47" }).snapshots(
+      "example.com/art",
+      { retries: 0 },
+    );
+    expect(result).toMatchObject({ success: true, pages: [] });
+    expect(error).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("failed with status 404"));
   });
 
   it("retries a listed status and gives up with the last failure", async () => {

@@ -489,8 +489,9 @@ export async function createFetchOptions(
     retry: options.retry ?? options.retries ?? config.performance.retries,
     retryDelay: options.retryDelay ?? 300,
     retryStatusCodes: options.retryStatusCodes,
+    /* A 404 is often just "nothing archived". The provider decides, so this log stays quiet. */
     onResponseError: ({ method, url, status }) => {
-      consola.error(`[fetch error] ${method} ${url} failed with status ${status}`);
+      consola.debug(`[fetch error] ${method} ${url} failed with status ${status}`);
     },
     signal: options.signal,
     redirect: options.redirect,
