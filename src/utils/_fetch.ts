@@ -19,7 +19,9 @@ export interface FetchOptions {
   redirect?: RequestRedirect;
   responseType?: ResponseType;
   /** Called for every 4xx/5xx answer, retried ones included. */
-  onResponseError?: (failure: Readonly<{ method: string; url: string; status: number }>) => void;
+  onResponseError?: (
+    failure: Readonly<{ method: string; url: string; status: number; data: string }>,
+  ) => void;
 }
 
 const DEFAULT_RETRY_STATUS_CODES: readonly number[] = [408, 409, 425, 429, 500, 502, 503, 504];
@@ -135,8 +137,9 @@ async function attempt(
   }
   if (response.status < 400 || response.status >= 600) return response;
 
-  options.onResponseError?.({ method, url, status: response.status });
-  return new FetchError(method, url, { response, data: await errorBody(response) });
+  const data = await errorBody(response);
+  options.onResponseError?.({ method, url, status: response.status, data });
+  return new FetchError(method, url, { response, data });
 }
 
 async function pause(milliseconds: number | undefined): Promise<void> {

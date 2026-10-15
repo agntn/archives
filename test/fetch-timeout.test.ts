@@ -432,15 +432,15 @@ describe("native fetch client", () => {
     expect(debug).toHaveBeenCalledWith(expect.stringContaining("failed with status 404"));
   });
 
-  it("still logs an index failure the provider did not expect", async () => {
+  it("still logs a 404 from an index that does not exist", async () => {
     const error = vi.spyOn(consola, "error").mockImplementation(() => undefined);
-    answer(new Response("down", { status: 500 }));
+    answer(new Response("Not Found", { status: 404, statusText: "Not Found" }));
     const result = await commonCrawl({ collection: "CC-MAIN-2018-47" }).snapshots(
       "example.com/art",
       { retries: 0 },
     );
     expect(result.success).toBe(false);
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("failed with status 500"));
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("failed with status 404"));
   });
 
   it("retries a listed status and gives up with the last failure", async () => {

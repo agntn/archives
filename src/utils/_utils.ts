@@ -465,9 +465,9 @@ export function createContentErrorResponse(
   };
 }
 
-interface ExpectedStatuses {
-  /** Statuses the caller reads as an answer, not a failure, so they log at debug. */
-  expectedStatuses?: readonly number[];
+interface ExpectedFailure {
+  /** Tells an answer, like a "no captures" 404, from a failure, so the answer logs at debug. */
+  isExpectedFailure?: (failure: Readonly<{ status: number; data: string }>) => boolean;
 }
 
 /**
@@ -481,7 +481,7 @@ interface ExpectedStatuses {
 export async function createFetchOptions(
   baseURL: string,
   params: Readonly<Record<string, unknown>> = {},
-  options: Readonly<FetchOptions & ArchiveOptions & ExpectedStatuses> = {},
+  options: Readonly<FetchOptions & ArchiveOptions & ExpectedFailure> = {},
 ): Promise<FetchOptions> {
   const config = await getConfig();
   const timeout = options.timeout ?? config.performance.timeout;
@@ -494,9 +494,10 @@ export async function createFetchOptions(
     retry: options.retry ?? options.retries ?? config.performance.retries,
     retryDelay: options.retryDelay ?? 300,
     retryStatusCodes: options.retryStatusCodes,
-    onResponseError: ({ method, url, status }) => {
+    onResponseError: (failure) => {
+      const { method, url, status } = failure;
       const message = `[fetch error] ${method} ${url} failed with status ${status}`;
-      if (options.expectedStatuses?.includes(status)) consola.debug(message);
+      if (options.isExpectedFailure?.(failure)) consola.debug(message);
       else consola.error(message);
     },
     signal: options.signal,
