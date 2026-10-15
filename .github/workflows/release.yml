@@ -72,9 +72,31 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  # the full suite on the tag itself, on its own runner so pack stays scriptless
+  test:
+    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Installs docs/ too: test/docs-mcp.test.ts loads the /mcp helper and its toolkit from there.
+      - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+        with:
+          node-version: 26
+          run-install: |
+            - cwd: .
+              args: ['--frozen-lockfile']
+            - cwd: docs
+              args: ['--frozen-lockfile']
+      - run: pnpm test
+
   # the chained dispatch lands here on the vX.Y.Z tag; build the tarball
   pack:
     if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v')
+    needs: test
     runs-on: ubuntu-latest
     concurrency:
       group: pack-${{ github.ref }}
