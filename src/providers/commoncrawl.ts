@@ -312,6 +312,7 @@ async function fetchIndexRecords(
     signal: options.signal,
     timeout: options.timeout,
     responseType: "text",
+    expectedStatuses: [404],
   });
   try {
     const raw: unknown = await fetchData(`/${path}`, fetchOptions);

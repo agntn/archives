@@ -465,6 +465,11 @@ export function createContentErrorResponse(
   };
 }
 
+interface ExpectedStatuses {
+  /** Statuses the caller reads as an answer, not a failure, so they log at debug. */
+  expectedStatuses?: readonly number[];
+}
+
 /**
  * Request options every archive call starts from; a bad timeout fails here, before any request.
  *
@@ -476,7 +481,7 @@ export function createContentErrorResponse(
 export async function createFetchOptions(
   baseURL: string,
   params: Readonly<Record<string, unknown>> = {},
-  options: Readonly<FetchOptions & ArchiveOptions> = {},
+  options: Readonly<FetchOptions & ArchiveOptions & ExpectedStatuses> = {},
 ): Promise<FetchOptions> {
   const config = await getConfig();
   const timeout = options.timeout ?? config.performance.timeout;
@@ -489,9 +494,10 @@ export async function createFetchOptions(
     retry: options.retry ?? options.retries ?? config.performance.retries,
     retryDelay: options.retryDelay ?? 300,
     retryStatusCodes: options.retryStatusCodes,
-    /* A 404 is often just "nothing archived". The provider decides, so this log stays quiet. */
     onResponseError: ({ method, url, status }) => {
-      consola.debug(`[fetch error] ${method} ${url} failed with status ${status}`);
+      const message = `[fetch error] ${method} ${url} failed with status ${status}`;
+      if (options.expectedStatuses?.includes(status)) consola.debug(message);
+      else consola.error(message);
     },
     signal: options.signal,
     redirect: options.redirect,
