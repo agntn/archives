@@ -465,6 +465,11 @@ export function createContentErrorResponse(
   };
 }
 
+interface ExpectedFailure {
+  /** Tells an answer, like a "no captures" 404, from a failure, so the answer logs at debug. */
+  isExpectedFailure?: (failure: Readonly<{ status: number; data: string }>) => boolean;
+}
+
 /**
  * Request options every archive call starts from; a bad timeout fails here, before any request.
  *
@@ -476,7 +481,7 @@ export function createContentErrorResponse(
 export async function createFetchOptions(
   baseURL: string,
   params: Readonly<Record<string, unknown>> = {},
-  options: Readonly<FetchOptions & ArchiveOptions> = {},
+  options: Readonly<FetchOptions & ArchiveOptions & ExpectedFailure> = {},
 ): Promise<FetchOptions> {
   const config = await getConfig();
   const timeout = options.timeout ?? config.performance.timeout;
@@ -489,8 +494,11 @@ export async function createFetchOptions(
     retry: options.retry ?? options.retries ?? config.performance.retries,
     retryDelay: options.retryDelay ?? 300,
     retryStatusCodes: options.retryStatusCodes,
-    onResponseError: ({ method, url, status }) => {
-      consola.error(`[fetch error] ${method} ${url} failed with status ${status}`);
+    onResponseError: (failure) => {
+      const { method, url, status } = failure;
+      const message = `[fetch error] ${method} ${url} failed with status ${status}`;
+      if (options.isExpectedFailure?.(failure)) consola.debug(message);
+      else consola.error(message);
     },
     signal: options.signal,
     redirect: options.redirect,

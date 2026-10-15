@@ -312,6 +312,7 @@ async function fetchIndexRecords(
     signal: options.signal,
     timeout: options.timeout,
     responseType: "text",
+    isExpectedFailure: (failure) => isNoCaptureError(failure, NO_CAPTURES),
   });
   try {
     const raw: unknown = await fetchData(`/${path}`, fetchOptions);
