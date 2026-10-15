@@ -1,4 +1,5 @@
 packages:
+  - docs
   - playground
 autoInstallPeers: false
 catalog:
@@ -18,10 +19,14 @@ peerDependencyRules:
     vitest: "*"
 allowBuilds:
   "@google/genai": false
+  better-sqlite3: true
+  core-js-pure: false
   esbuild: true
   onnxruntime-node: false
   protobufjs: false
   sharp: false
+  vue-demi: true
+  workerd: true
 minimumReleaseAgeExclude:
   - "@agntn/*"
 

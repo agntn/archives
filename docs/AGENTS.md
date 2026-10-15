@@ -1,6 +1,6 @@
 # docs/
 
-Cloudflare Workers Builds deploys this site to archives.agntn.dev. It installs `docs/` alone and takes Node.js from the root `.node-version`, never from `engines`; without that file it falls back to its own default, which was 24.
+Cloudflare Workers Builds deploys this site to archives.agntn.dev. It runs `pnpm install` in `docs/`, which installs the whole workspace from the root lockfile, and takes Node.js from the root `.node-version`, never from `engines`; without that file it falls back to its own default, which was 24.
 
 Resources on the Cloudflare account, bound by id in `wrangler.jsonc`:
 
