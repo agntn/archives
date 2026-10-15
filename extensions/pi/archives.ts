@@ -4,7 +4,7 @@ import { sanitizeLine } from "@agntn/tools";
 import { registerPiTools, type PiRenderers } from "@agntn/tools/pi";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
-import type * as ArchivesTools from "../../../dist/tools.d.mts";
+import type * as ArchivesTools from "../../dist/tools.d.mts";
 
 interface WaybackResponseSummary {
   readonly success: boolean;
@@ -16,8 +16,8 @@ interface CommandNotice {
   level: "error" | "warning";
 }
 
-const sourceModuleUrl = new URL("../../../src/tools.ts", import.meta.url);
-const distributionModuleUrl = new URL("../../../dist/tools.mjs", import.meta.url);
+const sourceModuleUrl = new URL("../../src/tools.ts", import.meta.url);
+const distributionModuleUrl = new URL("../../dist/tools.mjs", import.meta.url);
 
 /**
  * Loads the tool definitions, from the source in a checkout and the build in the package.

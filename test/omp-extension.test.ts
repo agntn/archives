@@ -3,7 +3,7 @@ import { fetchData } from "../src/utils/_fetch";
 import { Value } from "typebox/value";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import archivesOmpExtension from "../packages/omp/extensions/archives.js";
+import archivesOmpExtension from "../extensions/omp/archives.js";
 import {
   CONTENT_FORMAT_HINT,
   MAX_CONTENT_CHARS,

@@ -188,7 +188,7 @@ describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp from the 
   it("keeps the bundle in a package that ships no src", () => {
     const packaged = mkdtempSync(join(tmpdir(), "archives-cli-"));
     try {
-      for (const entry of ["dist", "packages", "package.json"]) {
+      for (const entry of ["dist", "extensions", "package.json"]) {
         cpSync(join(root, entry), join(packaged, entry), { recursive: true });
       }
       symlinkSync(join(root, "node_modules"), join(packaged, "node_modules"), "dir");
