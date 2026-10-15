@@ -2,7 +2,7 @@
 
 ## Setup
 
-Run `pnpm install`, then `pnpm --dir docs install`: `test/docs-mcp.test.ts` loads the `/mcp` helper and its toolkit from `docs/node_modules`. `pnpm test` runs lint, the type checks and the suite with coverage.
+Run `pnpm install` and that's it: `docs/` and `playground/` sit in the same workspace, so one lockfile covers all three and the docs no longer need a second round. `pnpm test` runs lint, the type checks and the suite with coverage.
 
 ## Adding a provider
 

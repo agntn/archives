@@ -1,30 +1,17 @@
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { archivesTheme } from "./shiki-theme";
 
-/** Bundled from the checkout's sources: a deploy needs neither dist/ nor the root node_modules. */
+/** Bundled from the checkout's sources: no dist/ needed, and their imports resolve from the root. */
 const librarySource = resolve(import.meta.dirname, "../src");
 
 export default defineNuxtConfig({
   extends: ["docus"],
-  /**
-   * The repo root is its own pnpm workspace with a Nuxt playground, so Nuxt must not
-   * treat it as this site's workspace. Dependency hoisting in pnpm-workspace.yaml keeps
-   * every Nuxt runtime package resolvable from docs/ for the same reason.
-   */
-  workspaceDir: fileURLToPath(new URL("./", import.meta.url)),
-  /**
-   * Workers Builds installs docs/ alone, so every npm package the aliased `../src` imports is a
-   * dependency in docs/package.json, pinned to the root version, or the deploy fails while a local
-   * build passes.
-   */
   alias: {
     "@agntn/archives/tool-operations": resolve(librarySource, "tool-operations.ts"),
     "@agntn/archives": resolve(librarySource, "index.ts"),
     /** The browser build of discovery, which keeps c12 out of the worker. */
     "#config-discovery": resolve(librarySource, "config-discovery.browser.ts"),
   },
-  // Both would be resolved from the root workspace otherwise.
   devtools: { enabled: false },
   telemetry: false,
   site: {
