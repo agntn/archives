@@ -1,4 +1,3 @@
-import { consola } from "consola";
 import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
@@ -81,10 +80,7 @@ function parseCapture(line: string): NlnzCapture | undefined {
   const record = value as Readonly<Record<string, unknown>>;
   const url = field(record["url"]);
   const timestamp = toWaybackTimestamp(field(record["timestamp"]));
-  if (!url || !timestamp) {
-    consola.debug("[nlnz] Dropping CDX record without a usable URL and timestamp", record);
-    return undefined;
-  }
+  if (!url || !timestamp) return undefined;
   return { url, timestamp, ...optionalCaptureFields(record) };
 }
 

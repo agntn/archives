@@ -1,6 +1,5 @@
 import { createStorage, type Storage, type Driver } from "unstorage";
 import memoryDriver from "unstorage/drivers/memory";
-import { consola } from "consola";
 import { sha256 } from "@agntn/hashes";
 import type {
   ArchiveContentOptions,
@@ -203,7 +202,7 @@ export async function getStoredResponse(
     if (!cachedData) return undefined;
     return await restoreStoredResponse(key, cachedData);
   } catch (error) {
-    consola.error(`Storage read/parse error for ${key}:`, error);
+    console.error(`Storage read/parse error for ${key}:`, error);
   }
 
   return undefined;
@@ -246,7 +245,7 @@ export async function storeResponse(
 
     await storage.setItem(key, JSON.stringify(storedResponse));
   } catch (error) {
-    consola.error(`Storage write error for ${key}:`, error);
+    console.error(`Storage write error for ${key}:`, error);
   }
 }
 
@@ -323,7 +322,7 @@ export async function getStoredContent(
       fromCache: true,
     };
   } catch (error) {
-    consola.error(`Storage read/parse error for ${key}:`, error);
+    console.error(`Storage read/parse error for ${key}:`, error);
   }
 
   return undefined;
@@ -363,7 +362,7 @@ export async function storeContent(
 
     await storage.setItem(key, JSON.stringify(storedResponse));
   } catch (error) {
-    consola.error(`Storage write error for ${key}:`, error);
+    console.error(`Storage write error for ${key}:`, error);
   }
 }
 
@@ -392,7 +391,7 @@ export async function clearProviderStorage(
     }
   } catch (error) {
     const providerName = typeof provider === "string" ? provider : provider.name;
-    consola.error(`Failed to clear storage for provider ${providerName}:`, error);
+    console.error(`Failed to clear storage for provider ${providerName}:`, error);
   }
 }
 

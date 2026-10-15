@@ -1,6 +1,5 @@
 import { version } from "../version.ts";
 import { withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
-import { consola } from "consola";
 import type {
   ArchiveContentResponse,
   ArchiveOptions,
@@ -71,7 +70,7 @@ export async function processInParallel<T, R>(
           batchResults[i] = result;
         })
         .catch((error) => {
-          consola.error("Parallel processing error:", error);
+          console.error("Parallel processing error:", error);
         })
         .finally(() => {
           executing.delete(promise);
@@ -466,7 +465,7 @@ export function createContentErrorResponse(
 }
 
 interface ExpectedFailure {
-  /** Tells an answer, like a "no captures" 404, from a failure, so the answer logs at debug. */
+  /** Tells an answer, like a "no captures" 404, from a failure. Answers stay out of the log. */
   isExpectedFailure?: (failure: Readonly<{ status: number; data: string }>) => boolean;
 }
 
@@ -494,11 +493,9 @@ export async function createFetchOptions(
     retry: options.retry ?? options.retries ?? config.performance.retries,
     retryDelay: options.retryDelay ?? 300,
     retryStatusCodes: options.retryStatusCodes,
-    onResponseError: (failure) => {
-      const { method, url, status } = failure;
-      const message = `[fetch error] ${method} ${url} failed with status ${status}`;
-      if (options.isExpectedFailure?.(failure)) consola.debug(message);
-      else consola.error(message);
+    onResponseError: ({ method, url, status, data }) => {
+      if (options.isExpectedFailure?.({ status, data })) return;
+      console.error(`[fetch error] ${method} ${url} failed with status ${status}`);
     },
     signal: options.signal,
     redirect: options.redirect,
@@ -620,14 +617,7 @@ export async function mapCdxRows(
     const originalUrl = cleanDoubleSlashes(rawUrl ?? "");
     const timestampRaw = rawTimestamp ?? "";
     const isoTimestamp = waybackTimestampToISO(timestampRaw);
-    if (!isoTimestamp) {
-      consola.debug("[cdx] Dropping row with invalid timestamp", {
-        provider: providerSlug,
-        timestamp: timestampRaw,
-        url: originalUrl,
-      });
-      return undefined;
-    }
+    if (!isoTimestamp) return undefined;
 
     const snapUrl = `${snapshotBaseUrl}/${timestampRaw}/${originalUrl}`;
     return {
