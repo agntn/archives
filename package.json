@@ -73,7 +73,7 @@
   },
   "scripts": {
     "dev": "vp test watch",
-    "quality:prepare": "pnpm build && pnpm --dir playground exec nuxt prepare",
+    "quality:prepare": "pnpm build",
     "lint": "pnpm quality:prepare && vp lint && vp fmt --check",
     "lint:fix": "pnpm quality:prepare && vp lint --fix && vp fmt",
     "fmt": "pnpm quality:prepare && vp lint --fix && vp fmt",
