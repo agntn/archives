@@ -18,7 +18,7 @@ export interface FetchOptions {
   signal?: AbortSignal;
   redirect?: RequestRedirect;
   responseType?: ResponseType;
-  /** Called for every 4xx/5xx answer, retried ones included. */
+  /** Called once for the 4xx/5xx answer a request ends on; one a retry replaced stays quiet. */
   onResponseError?: (
     failure: Readonly<{ method: string; url: string; status: number; data: string }>,
   ) => void;
@@ -137,9 +137,23 @@ async function attempt(
   }
   if (response.status < 400 || response.status >= 600) return response;
 
-  const data = await errorBody(response);
-  options.onResponseError?.({ method, url, status: response.status, data });
-  return new FetchError(method, url, { response, data });
+  return new FetchError(method, url, { response, data: await errorBody(response) });
+}
+
+/**
+ * Reports the HTTP answer a request ends on; the ones a retry took back were never the result.
+ * @param failure - What the request ends with; one without a status got no answer at all.
+ * @param method - The method it went out with.
+ * @param options - Request options carrying `onResponseError`.
+ */
+function reportFailure(
+  failure: Readonly<Pick<FetchError, "request" | "status" | "data">>,
+  method: string,
+  options: Readonly<FetchOptions>,
+): void {
+  if (failure.status === undefined) return;
+  const { request: url, status, data = "" } = failure;
+  options.onResponseError?.({ method, url, status, data });
 }
 
 async function pause(milliseconds: number | undefined): Promise<void> {
@@ -167,7 +181,10 @@ export async function fetchResponse(
     options.signal?.throwIfAborted();
     const outcome = await attempt(url, method, options, milliseconds);
     if (outcome instanceof Response) return outcome;
-    if (!shouldRetry(outcome, retries, options.retryStatusCodes)) throw outcome;
+    if (!shouldRetry(outcome, retries, options.retryStatusCodes)) {
+      reportFailure(outcome, method, options);
+      throw outcome;
+    }
     await pause(options.retryDelay);
   }
 }

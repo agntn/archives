@@ -453,6 +453,30 @@ describe("native fetch client", () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it("reports a retried failure once, with the answer that ended the request", async () => {
+    answer(
+      new Response("busy", { status: 503 }),
+      new Response("busy", { status: 503 }),
+      new Response("still busy", { status: 503 }),
+    );
+    const onResponseError = vi.fn<NonNullable<FetchOptions["onResponseError"]>>();
+    await expect(fetchData("https://example.com/", { retry: 2, onResponseError })).rejects.toThrow(
+      "503",
+    );
+    expect(onResponseError.mock.calls).toEqual([
+      [{ method: "GET", url: "https://example.com/", status: 503, data: "still busy" }],
+    ]);
+  });
+
+  it("keeps a failure the retry recovered from out of the report", async () => {
+    answer(new Response("busy", { status: 504 }), Response.json([]));
+    const onResponseError = vi.fn<NonNullable<FetchOptions["onResponseError"]>>();
+    await expect(fetchData("https://example.com/", { retry: 1, onResponseError })).resolves.toEqual(
+      [],
+    );
+    expect(onResponseError).not.toHaveBeenCalled();
+  });
+
   it("does not retry a status outside the list", async () => {
     const fetch = answer(new Response("gone", { status: 410 }), new Response("[]"));
     await expect(fetchData("https://example.com/", { retry: 2 })).rejects.toMatchObject({
