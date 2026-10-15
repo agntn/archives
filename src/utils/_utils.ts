@@ -1,5 +1,5 @@
 import { version } from "../version.ts";
-import { withTrailingSlash, withoutProtocol, cleanDoubleSlashes } from "ufo";
+import { withTrailingSlash, withoutProtocol } from "ufo";
 import type {
   ArchiveContentResponse,
   ArchiveOptions,
@@ -614,7 +614,7 @@ export async function mapCdxRows(
   function rowToArchivedPage([rawUrl, rawTimestamp, rawStatus, ...optional]: readonly string[]):
     | ArchivedPage
     | undefined {
-    const originalUrl = cleanDoubleSlashes(rawUrl ?? "");
+    const originalUrl = rawUrl ?? "";
     const timestampRaw = rawTimestamp ?? "";
     const isoTimestamp = waybackTimestampToISO(timestampRaw);
     if (!isoTimestamp) return undefined;

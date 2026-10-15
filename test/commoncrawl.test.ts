@@ -132,6 +132,22 @@ describe("Common Crawl", () => {
     expect(fetchData).toHaveBeenCalledTimes(1);
   });
 
+  it("lists the URL the index recorded, double slashes and all", async () => {
+    const record = {
+      url: "https://www.kernel.org/doc//Documentation/cgroup-v1/",
+      timestamp: "20220302043704",
+      status: "200",
+      filename: "crawl-data/CC-MAIN-2022-05/segment.warc.gz",
+    };
+    vi.mocked(fetchData)
+      .mockResolvedValueOnce([{ id: "CC-MAIN-2022-05", "cdx-api": "https://index.test/CC" }])
+      .mockResolvedValueOnce(JSON.stringify(record));
+
+    const result = await createArchive(createCommonCrawl()).snapshots("kernel.org");
+
+    expect(result.pages[0].url).toBe("https://www.kernel.org/doc//Documentation/cgroup-v1/");
+  });
+
   it("handles empty results", async () => {
     // CommonCrawl returns no data for empty results
     // Mock collection info then empty NDJSON

@@ -241,6 +241,19 @@ describe("mapCdxRows", () => {
     expect(pages[0].url).toBe("https://example.com/leap-valid");
     expect(pages[0].timestamp).toBe("2020-02-29T00:00:00Z");
   });
+
+  it("keeps the URL the index recorded, double slashes and all", async () => {
+    const rows = [["https://mozilla.org//$USER", "20150905041534", "301"]];
+
+    const pages = await mapCdxRows(rows, "https://web.archive.org/web", "wayback", {
+      batchSize: 50,
+    });
+
+    expect(pages[0].url).toBe("https://mozilla.org//$USER");
+    expect(pages[0].snapshot).toBe(
+      "https://web.archive.org/web/20150905041534/https://mozilla.org//$USER",
+    );
+  });
 });
 
 describe("toErrorMessage", () => {
