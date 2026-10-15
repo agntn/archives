@@ -458,6 +458,65 @@ describe("archives MCP server", () => {
     expect(response.isError).toBeUndefined();
   });
 
+  it("names each failure once when no provider answered", async () => {
+    providersMock.all.mockResolvedValue([
+      {
+        name: "wayback",
+        slug: "wayback",
+        snapshots: vi.fn().mockRejectedValue(new Error("wayback timed out")),
+      },
+      {
+        name: "commoncrawl",
+        slug: "commoncrawl",
+        snapshots: vi.fn().mockRejectedValue(new Error("commoncrawl timed out")),
+      },
+    ]);
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "example.com" },
+    });
+
+    const rendered = text(response.content);
+    expect(response.isError).toBe(true);
+    expect(rendered.split("\n")[0]).toBe(
+      '[provider=all] 0 snapshot(s) for "example.com"; failed=2',
+    );
+    expect(rendered.split("wayback timed out")).toHaveLength(2);
+    expect(rendered.split("commoncrawl timed out")).toHaveLength(2);
+    expect(rendered).not.toContain("Error:");
+  });
+
+  it("names each unsupported provider once when none of them can list", async () => {
+    const unsupported = (provider: string, reason: string) => ({
+      name: provider,
+      slug: provider,
+      snapshots: vi.fn().mockResolvedValue({
+        success: false,
+        pages: [],
+        unsupported: true,
+        unsupportedReason: reason,
+        _meta: { source: provider, provider },
+      } satisfies ArchiveResponse),
+    });
+    providersMock.all.mockResolvedValue([
+      unsupported("webcite", "no list-by-domain API"),
+      unsupported("permacc", "needs an API key"),
+    ]);
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "example.com" },
+    });
+
+    const rendered = text(response.content);
+    expect(rendered).toContain("  webcite: no list-by-domain API");
+    expect(rendered.split("no list-by-domain API")).toHaveLength(2);
+    expect(rendered.split("needs an API key")).toHaveLength(2);
+  });
+
   it("marks a query that reached no provider as a tool error", async () => {
     stubProvider(providersMock.wayback, {
       success: false,
@@ -1742,6 +1801,33 @@ describe("archives MCP server", () => {
     expect(rendered).toContain('[provider=all] no capture read for "https://example.com/"');
     expect(rendered).toContain("wayback: Wayback unavailable");
     expect(rendered).toContain("webcite: no archived-body endpoint");
+  });
+
+  it("names each read failure once when every provider failed", async () => {
+    const failing = (provider: string) => ({
+      name: provider,
+      slug: provider,
+      snapshots: vi.fn(),
+      content: vi.fn().mockResolvedValue({
+        success: false,
+        error: `${provider} timed out`,
+        _meta: { source: provider, provider },
+      }),
+    });
+    providersMock.all.mockResolvedValue([failing("wayback"), failing("arquivo")]);
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/" },
+    });
+
+    const rendered = text(response.content);
+    expect(response.isError).toBe(true);
+    expect(rendered).toContain("  wayback: wayback timed out");
+    expect(rendered.split("wayback timed out")).toHaveLength(2);
+    expect(rendered.split("arquivo timed out")).toHaveLength(2);
+    expect(rendered).not.toContain("Error:");
   });
 
   it("lets Perma.cc answer that it serves no bodies, key or no key", async () => {
