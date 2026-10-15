@@ -67,6 +67,18 @@ describe("archived content diff", () => {
     expect(result.patch).toContain("+<script>newRoute()</script>");
   });
 
+  it("carries a later capture's selection into its summary", () => {
+    const before = capture("2022-05-01T00:00:00Z", "first", {
+      _meta: { provider: "wayback", selection: "after" },
+    });
+    const after = capture("2023-01-01T00:00:00Z", "second");
+
+    const result = diffArchivedContent(before, after);
+
+    expect(result.before.selection).toBe("after");
+    expect(result.after).not.toHaveProperty("selection");
+  });
+
   it("refuses to compare captures with mismatched provenance or chronology", () => {
     const before = capture("2020-01-01T00:00:00Z", "before");
     const after = capture("2021-01-01T00:00:00Z", "after");

@@ -139,6 +139,8 @@ export interface ArchivedPageMetadata {
   status?: number | string;
   provider?: string;
   source?: string;
+  /** `pinned`: read without the index. `after`: the capture postdates the time asked for. */
+  selection?: "pinned" | "after";
 
   // Allow additional provider-specific metadata
   [key: string]: unknown;
@@ -153,10 +155,10 @@ export interface UnsupportedProviderRecord {
 
 // Options for reading one archived capture, on top of the shared ones.
 export interface ArchiveContentOptions extends ArchiveOptions {
-  // Capture to read, as a Wayback-style timestamp (YYYY through YYYYMMDDhhmmss)
-  // or an ISO 8601 date. Providers answer with the newest capture at or before
-  // it, or, when they hold nothing that old, with the closest capture after it;
-  // so the body can postdate the request. Without it, the newest capture.
+  /**
+   * Capture to read, as archive digits or an ISO 8601 date. Omitted, the newest.
+   * Nothing that old? The closest later capture comes back with `_meta.selection: "after"`.
+   */
   timestamp?: string;
   // Hard cap on the bytes read from the archived body (default 2 MiB).
   maxBytes?: number;
@@ -219,6 +221,8 @@ export interface ArchivedContentSummary {
   provider: string;
   /** Underlying archive host when the provider is an aggregator such as Memento. */
   archive?: string;
+  /** The capture's own `_meta.selection`, so a diff can't hide a late `before`. */
+  selection?: ArchivedPageMetadata["selection"];
 }
 
 /** A bounded line diff between two archived captures that preserves provenance. */

@@ -221,6 +221,7 @@ function summarizeCapture(capture: ArchivedContentView): ArchivedContentSummary 
     truncated: capture.truncated,
     provider,
     ...(archive ? { archive } : {}),
+    ...(capture._meta.selection ? { selection: capture._meta.selection } : {}),
   };
 }
 
