@@ -29,7 +29,7 @@ export default defineConfig({
   },
   fmt: {
     ...oxfmt,
-    ignorePatterns: ["dist", "coverage", ".nuxt", ".output", "docs"],
+    ignorePatterns: ["dist", "coverage", "docs"],
   },
   lint: {
     ...oxlint,
@@ -104,6 +104,6 @@ export default defineConfig({
         },
       ],
     },
-    ignorePatterns: ["dist", "coverage", ".nuxt", ".output", "docs"],
+    ignorePatterns: ["dist", "coverage", "docs"],
   },
 });

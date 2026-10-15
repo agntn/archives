@@ -21,6 +21,5 @@ jobs:
             - args: ['--frozen-lockfile']
       - run: pnpm lint
       - run: pnpm test:types
-      - run: pnpm --dir playground build
       - run: pnpm exec vp test run --coverage
       - uses: codecov/codecov-action@v5

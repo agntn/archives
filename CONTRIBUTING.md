@@ -2,7 +2,7 @@
 
 ## Setup
 
-Run `pnpm install` and that's it: `docs/` and `playground/` sit in the same workspace, so one lockfile covers all three and the docs no longer need a second round. `pnpm test` runs lint, the type checks and the suite with coverage.
+Run `pnpm install` and that's it: `docs/` sits in the same workspace, so one lockfile covers both and the docs no longer need a second round. `pnpm test` runs lint, the type checks and the suite with coverage.
 
 ## Adding a provider
 

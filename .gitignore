@@ -2,9 +2,6 @@ dist
 coverage
 node_modules
 
-.nuxt
-.output
-
 docs/.data
 docs/.nitro
 docs/.cache
