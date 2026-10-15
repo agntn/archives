@@ -1117,7 +1117,25 @@ async function readContentForPaging(
   );
   const pinnedProvider = await createProvider(provider, options);
   const pinnedArchive = createArchive(pinnedProvider, options);
-  return { response: await pinnedArchive.content(response.content.url, options), options };
+  const reread = await pinnedArchive.content(response.content.url, options);
+  return { response: keepLaterMark(reread, response.content._meta.selection), options };
+}
+
+/**
+ * The full-size reread asks for the capture's own date, so only the first read knows it came late.
+ * @param reread - Answer to the full-size reread
+ * @param selection - The first read's `selection`
+ * @returns {ArchiveContentResponse} The reread, still marked when the first read was late.
+ */
+function keepLaterMark(
+  reread: ArchiveContentResponse,
+  selection: string | undefined,
+): ArchiveContentResponse {
+  if (selection !== "after" || !reread.content) return reread;
+  return {
+    ...reread,
+    content: { ...reread.content, _meta: { ...reread.content._meta, selection } },
+  };
 }
 
 /**

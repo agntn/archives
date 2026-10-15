@@ -133,7 +133,7 @@ console.log(diffArchivedContent(before, after).patch);
 
 Even example.com rewrites its homepage. You asked for years, the header shows the captures you actually got.
 
-No capture from 2020 at all? Then the archive hands you its first one after that, and `before._meta.selection` reads `"after"`. Check it before you blame the site.
+Nothing archived until after 2020? Then you get the earliest capture after that, and `before._meta.selection` reads `"after"`. Check it before you blame the site.
 
 Pass the full URL here. A bare `example.com` can be `http://example.com:80/` one year and `http://www.example.com/` the next. The diff refuses to compare two different URLs. Want the markup, scripts and comments too? `{ format: "raw" }`. That's where the fun stuff hides anyway ;) More: [Comparing captures](https://archives.agntn.dev/guide/diff).
 

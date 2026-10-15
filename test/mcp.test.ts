@@ -1389,6 +1389,36 @@ describe("archives MCP server", () => {
     expect(rendered).toContain("\nshort\n");
   });
 
+  it("keeps the late note when a truncated read is fetched again in full", async () => {
+    const content = vi
+      .fn()
+      .mockImplementation((_target: string, options: Readonly<{ maxBytes: number }>) =>
+        Promise.resolve(
+          capture({
+            content: "late body",
+            truncated: options.maxBytes !== MAX_CONTENT_OFFSET,
+          }),
+        ),
+      );
+    providersMock.wayback.mockResolvedValue({
+      name: "wayback",
+      slug: "wayback",
+      snapshots: vi.fn(),
+      content,
+    });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback", timestamp: "2020" },
+    });
+
+    expect(content).toHaveBeenCalledTimes(2);
+    expect(text(response.content)).toContain(
+      "captured: 2024-01-02T03:04:05Z (later than requested)\n",
+    );
+  });
+
   it("pins the provider, collection and capture before exposing continuation", async () => {
     const maxFetchBytes = MAX_CONTENT_OFFSET;
     const collection = "CC-MAIN-2024-10";
