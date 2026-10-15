@@ -1327,6 +1327,11 @@ function snapshotFailureNote(response: ArchiveResponse): string {
   return count > 0 ? `; failed=${count}` : "";
 }
 
+/* The joined error, unless the failed-provider list already says it with names attached. */
+function standaloneError(response: ArchiveResponse | ArchiveContentResponse): string | undefined {
+  return providerErrors(response).length > 0 ? undefined : response.error;
+}
+
 /*
  * One-line summary above the snapshot records.
  *
@@ -1341,7 +1346,8 @@ function buildSnapshotHeader(
 ): string {
   const unsupportedNote = snapshotUnsupportedNote(response);
   const failedNote = snapshotFailureNote(response);
-  const errorNote = response.error ? `; error=${truncateSingleLine(response.error, 80)}` : "";
+  const error = standaloneError(response);
+  const errorNote = error ? `; error=${truncateSingleLine(error, 80)}` : "";
   const windowNote = snapshotWindowNote(options);
   // The tool is annotated open-world, so a replay from the 7-day cache has to say
   // so rather than pass for a fresh read of the archive.
@@ -1703,7 +1709,8 @@ function contentFailures(response: ArchiveContentResponse): string[] {
   if (response.unsupportedReason && !hasUnsupportedList) {
     lines.push("", `Unsupported: ${sanitizeField(response.unsupportedReason)}`);
   }
-  if (response.error) lines.push("", `Error: ${sanitizeField(response.error)}`);
+  const error = standaloneError(response);
+  if (error) lines.push("", `Error: ${sanitizeField(error)}`);
   return lines;
 }
 
@@ -1856,15 +1863,17 @@ function withHeader(header: string, body: readonly string[]): string {
 }
 
 function formatSnapshots(response: ArchiveResponse): string[] {
+  const unsupportedLines = unsupportedProviderLines(response);
   const lines = [
     ...response.pages.map((page, index) => formatPage(page, index)),
-    ...unsupportedProviderLines(response),
+    ...unsupportedLines,
     ...providerFailureLines(response),
   ];
-  if (response.unsupportedReason) {
+  if (response.unsupportedReason && unsupportedLines.length === 0) {
     lines.push("", `Unsupported: ${sanitizeField(response.unsupportedReason)}`);
   }
-  if (response.error) lines.push("", `Error: ${sanitizeField(response.error)}`);
+  const error = standaloneError(response);
+  if (error) lines.push("", `Error: ${sanitizeField(error)}`);
   return lines;
 }
 
