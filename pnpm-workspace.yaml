@@ -1,5 +1,6 @@
 packages:
   - playground
+autoInstallPeers: false
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.0.0
   vitest: 5.0.1
@@ -15,5 +16,14 @@ peerDependencyRules:
   allowedVersions:
     vite: "*"
     vitest: "*"
+allowBuilds:
+  "@google/genai": false
+  esbuild: true
+  onnxruntime-node: false
+  protobufjs: false
+  sharp: false
 minimumReleaseAgeExclude:
   - "@agntn/*"
+
+# Stops pnpm 12 from opening the lockfile with an env document, which GitHub reads as zero dependencies.
+pmOnFail: ignore
