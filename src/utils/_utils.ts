@@ -256,20 +256,31 @@ export function assertOrder(target: string, order: string | undefined): void {
   if (!isCaptureOrder(order)) {
     throw new TypeError(`Unknown order ${quote(order)}. Available: ${CAPTURE_ORDERS.join(", ")}.`);
   }
-  if (listingPattern(target, order).includes("*")) {
+  if (pattern(target, order).includes("*")) {
     throw new TypeError(
-      `order needs a page URL: ${quote(target)} lists every page under it, sorted by URL rather than by time. Write the page with its scheme (https://example.com/ for a home page), or narrow the domain with from and to.`,
+      `order needs a page URL: ${quote(target)} lists every page under it, sorted by URL rather than by time. Write the page with its scheme (https://example.com/ for a home page), or drop order and narrow the domain with from and to.`,
     );
   }
 }
 
 /**
- * The index pattern for a listing; ordered, a URL with its scheme means that one page.
+ * The index pattern for a listing, so a provider called directly refuses what `snapshots()` does.
  * @param target - Domain or URL, as `snapshots()` got it
  * @param order - Requested order, if any
  * @returns {string} The pattern for the index's `url` parameter
  */
 export function listingPattern(target: string, order: CaptureOrder | undefined): string {
+  assertOrder(target, order);
+  return pattern(target, order);
+}
+
+/**
+ * The pattern, unchecked; ordered, a URL with its scheme means that one page alone.
+ * @param target - Domain or URL
+ * @param order - Requested order, if any
+ * @returns {string} The pattern for the index's `url` parameter
+ */
+function pattern(target: string, order: CaptureOrder | undefined): string {
   return normalizeDomain(target, !(order && SCHEME.test(target.trim())));
 }
 

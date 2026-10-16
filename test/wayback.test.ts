@@ -269,6 +269,15 @@ describe("wayback machine", () => {
     );
   });
 
+  /** The provider is a public export, so it can't lean on `Archive.snapshots` for the refusal. */
+  it("refuses an ordered domain when called directly", async () => {
+    const result = await createWayback().snapshots("example.com", { order: "newest" });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('order needs a page URL: "example.com"');
+    expect(fetchData).not.toHaveBeenCalled();
+  });
+
   it("keeps the first rows when the oldest come first", async () => {
     vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
 
