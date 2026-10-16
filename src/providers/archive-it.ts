@@ -20,6 +20,8 @@ import {
   selectCapture,
   timestampUpperBound,
   toWaybackTimestamp,
+  reverseSortQuery,
+  listingPattern,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -106,7 +108,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
       const options = await this.resolveOptions(reqOptions);
       const collection = requireCollection(options.collection);
       const baseUrl = BASE_URL;
-      const urlPattern = normalizeDomain(domain);
+      const urlPattern = listingPattern(domain, options.order);
       const params: Record<string, string> = {
         url: urlPattern,
         fl: "original,timestamp,statuscode",
@@ -119,6 +121,7 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
       const to = resolveRequestedTimestamp(options.to, "to");
       if (from) params.from = from;
       if (to) params.to = to;
+      Object.assign(params, reverseSortQuery(options.order));
 
       const fetchOptions = await createFetchOptions(baseUrl, params, {
         retries: options.retries,

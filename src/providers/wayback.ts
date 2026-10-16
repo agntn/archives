@@ -21,6 +21,7 @@ import {
   selectCapture,
   unwrapSnapshotUrl,
   toWaybackTimestamp,
+  listingPattern,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -42,13 +43,23 @@ function requestedWindow(options: Readonly<WaybackOptions>): Record<string, stri
   return result;
 }
 
+/**
+ * A negative limit asks CDX for the last rows instead of the first, still oldest first.
+ * @param options - Request options
+ * @returns {string} The `limit` parameter
+ */
+function waybackLimit(options: Readonly<WaybackOptions>): string {
+  const limit = options.limit ?? 1000;
+  return options.order === "newest" && limit > 0 ? `-${limit}` : String(limit);
+}
+
 function waybackQuery(domain: string, options: Readonly<WaybackOptions>): Record<string, string> {
   const params: Record<string, string> = {
-    url: normalizeDomain(domain),
+    url: listingPattern(domain, options.order),
     output: "json",
     fl: "original,timestamp,statuscode,digest,mimetype,length",
     collapse: options.collapse ?? "timestamp:4",
-    limit: String(options.limit ?? 1000),
+    limit: waybackLimit(options),
   };
   if (options.filter !== undefined) params.filter = options.filter;
   return { ...params, ...requestedWindow(options) };
@@ -114,7 +125,8 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
         return createSuccessResponse([], "wayback", { queryParams: fetchOptions.params ?? {} });
       }
 
-      const dataRows = response.slice(1);
+      const rows = response.slice(1);
+      const dataRows = options.order === "newest" ? rows.toReversed() : rows;
       const pages: ArchivedPage[] = await mapCdxRows(
         dataRows,
         `${BASE_URL}/web`,

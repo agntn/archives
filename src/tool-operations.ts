@@ -29,7 +29,9 @@ import type {
   ArchivedPage,
 } from "./types.ts";
 import {
+  assertOrder,
   assertWindowOrder,
+  isCaptureOrder,
   htmlToText,
   isTextualMime,
   processInParallel,
@@ -68,6 +70,7 @@ import {
 
 export {
   CAPTURE_DIR_ENV,
+  CAPTURE_ORDERS,
   CONTENT_FORMAT_HINT,
   CONTENT_FORMATS,
   CONTENT_PATH_HINT,
@@ -95,6 +98,7 @@ export {
   PROVIDER_INPUTS,
   PROVIDERS,
   SNAPSHOT_FROM_HINT,
+  SNAPSHOT_ORDER_HINT,
   SNAPSHOT_TARGET_HINT,
   SNAPSHOT_TO_HINT,
 } from "./tool-contract.ts";
@@ -145,6 +149,7 @@ export interface SnapshotParams {
   target: string;
   provider?: string;
   limit?: number;
+  order?: string;
   cache?: boolean;
   ttl?: number;
   concurrency?: number;
@@ -346,6 +351,7 @@ export async function snapshotArchives(
   }
 
   const provider = normalizeProvider(params.provider);
+  checkOrder(target, params.order);
   const options = { ...buildSnapshotOptions(params, provider), signal };
   const archiveProvider = await createProvider(provider, options);
   const archive = createArchive(archiveProvider, options);
@@ -402,6 +408,7 @@ export async function snapshotBatchArchives(
 
   const targets = validateSnapshotTargets(requested);
   const provider = normalizeProvider(params.provider);
+  for (const target of targets) checkOrder(target, params.order);
   const options = { ...buildSnapshotOptions(params, provider), signal };
   const archiveProvider = await createProvider(provider, options);
   const archive = createArchive(archiveProvider, options);
@@ -1039,6 +1046,19 @@ const SNAPSHOT_OPTION_KEYS = [
   "to",
 ] as const satisfies readonly (keyof SnapshotParams & keyof SnapshotOptions)[];
 
+/**
+ * An order the listing can't keep is the caller's to fix, so it leaves as input.
+ * @param target - One snapshot target
+ * @param order - Requested order, if any
+ */
+function checkOrder(target: string, order: string | undefined): void {
+  try {
+    assertOrder(target, order);
+  } catch (error) {
+    throw new ToolInputError([toErrorMessage(error)]);
+  }
+}
+
 function snapshotPassthroughOptions(
   params: Readonly<Omit<SnapshotParams, "target">>,
 ): Partial<SnapshotOptions> {
@@ -1069,6 +1089,7 @@ function buildSnapshotOptions(
   const options: SnapshotOptions = {
     limit: params.limit ?? DEFAULT_LIMIT,
     ...snapshotPassthroughOptions(params),
+    ...(params.order !== undefined && isCaptureOrder(params.order) ? { order: params.order } : {}),
   };
   if (provider === "permacc") addPermaccApiKey(options);
   return options;
@@ -1349,6 +1370,22 @@ function snapshotWindowNote(options: Readonly<SnapshotOptions>): string {
   return `; window=${sanitizeField(options.from ?? "")}..${sanitizeField(options.to ?? "")}`;
 }
 
+/**
+ * Names the order once two records have a known one, or the first reads as the latest.
+ * @param provider - Queried provider
+ * @param response - The listing
+ * @param options - Request options
+ * @returns {string} The header note, or nothing
+ */
+function snapshotOrderNote(
+  provider: ProviderName,
+  response: ArchiveResponse,
+  options: Readonly<SnapshotOptions>,
+): string {
+  const order = options.order ?? (provider === "all" ? "newest" : undefined);
+  return order && response.pages.length > 1 ? `; ${order} first` : "";
+}
+
 function snapshotFailureNote(response: ArchiveResponse): string {
   const count = providerErrors(response).length;
   return count > 0 ? `; failed=${count}` : "";
@@ -1376,12 +1413,13 @@ function buildSnapshotHeader(
   const error = standaloneError(response);
   const errorNote = error ? `; error=${truncateSingleLine(error, 80)}` : "";
   const windowNote = snapshotWindowNote(options);
+  const orderNote = snapshotOrderNote(provider, response, options);
   // The tool is annotated open-world, so a replay from the 7-day cache has to say
   // so rather than pass for a fresh read of the archive.
   const cacheNote = response.fromCache ? "; cached" : "";
   // The target is caller-supplied and lands one line above the records, so a
   // newline in it forges a snapshot row exactly like a provider field would.
-  return `[provider=${provider}] ${response.pages.length} snapshot(s) for "${sanitizeField(target)}"${windowNote}${unsupportedNote}${failedNote}${errorNote}${cacheNote}`;
+  return `[provider=${provider}] ${response.pages.length} snapshot(s) for "${sanitizeField(target)}"${orderNote}${windowNote}${unsupportedNote}${failedNote}${errorNote}${cacheNote}`;
 }
 
 function sanitizeResponse<TResponse extends { _meta?: ArchiveResponse["_meta"] }>(

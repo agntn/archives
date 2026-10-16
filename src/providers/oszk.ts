@@ -21,6 +21,8 @@ import {
   selectCapture,
   toWaybackTimestamp,
   waybackTimestampToISO,
+  reverseSortQuery,
+  listingPattern,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -191,7 +193,11 @@ export class OszkProvider extends BaseProvider<OszkOptions> {
       if (limit <= 0) return createSuccessResponse([], "oszk");
 
       const { captures, queryParams } = await fetchCaptures(
-        { url: normalizeDomain(target), ...queryWindow(options) },
+        {
+          url: listingPattern(target, options.order),
+          ...queryWindow(options),
+          ...reverseSortQuery(options.order),
+        },
         limit,
         options,
       );

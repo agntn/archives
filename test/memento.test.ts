@@ -140,6 +140,26 @@ describe("Memento aggregator", () => {
     );
   });
 
+  it("sorts the TimeMap before the limit when the newest come first", async () => {
+    fetchMock.mockResolvedValueOnce({
+      original_uri: "http://www.example.com/about",
+      mementos: {
+        list: [
+          { datetime: "2018-01-01T00:00:00Z", uri: "https://archive.example/2018" },
+          { datetime: "2019-01-01T00:00:00Z", uri: "https://archive.example/2019" },
+        ],
+      },
+    });
+
+    const response = await createMemento().snapshots("http://www.example.com/about", {
+      limit: 1,
+      order: "newest",
+      cache: false,
+    });
+
+    expect(response.pages.map((page) => page.snapshot)).toEqual(["https://archive.example/2019"]);
+  });
+
   it("keeps constructor limits in separate cache partitions", async () => {
     fetchMock
       .mockResolvedValueOnce({

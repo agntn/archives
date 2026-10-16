@@ -38,6 +38,19 @@ describe("Archive-It", () => {
    * ArchiveOptions promises without going through Archive.snapshots; the digits
    * have to come out of the provider's own normalization then.
    */
+  it("asks the collection index for a page's newest captures first", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce("");
+
+    await createArchiveIt({ collection: 4399 }).snapshots("https://example.com/about", {
+      order: "newest",
+    });
+
+    expect(fetchData).toHaveBeenCalledWith(
+      "/4399/timemap/cdx",
+      objectContaining({ params: objectContaining({ sort: "reverse" }) }),
+    );
+  });
+
   it("normalizes ISO bounds when the provider is called directly", async () => {
     vi.mocked(fetchData).mockResolvedValueOnce("");
 

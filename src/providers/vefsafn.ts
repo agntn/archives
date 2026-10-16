@@ -233,7 +233,11 @@ export class VefsafnProvider extends BaseProvider<VefsafnOptions> {
   ): Promise<ArchiveResponse> {
     try {
       const options = await this.resolveOptions(reqOptions);
-      const params = { url: exactTarget(url, "listing"), ...queryWindow(options) };
+      const params = {
+        url: exactTarget(url, "listing"),
+        ...queryWindow(options),
+        ...(options.order === "newest" ? { reverse: "true" } : {}),
+      };
       const { captures, queryParams } = await fetchCaptures(params, options.limit ?? 1000, options);
       return createSuccessResponse(captures.map(page), "vefsafn", { queryParams });
     } catch (error) {

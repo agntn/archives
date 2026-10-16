@@ -22,6 +22,8 @@ import {
   selectCapture,
   toWaybackTimestamp,
   waybackTimestampToISO,
+  reverseSortQuery,
+  listingPattern,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -54,11 +56,12 @@ function queryWindow(options: Readonly<ArquivoOptions>): Record<string, string> 
 
 function listingQuery(domain: string, options: Readonly<ArquivoOptions>): Record<string, string> {
   return {
-    url: normalizeDomain(domain),
+    url: listingPattern(domain, options.order),
     output: "json",
     fields: CDX_FIELDS,
     limit: String(options.limit ?? 1000),
     ...queryWindow(options),
+    ...reverseSortQuery(options.order),
   };
 }
 

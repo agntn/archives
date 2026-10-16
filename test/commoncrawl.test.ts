@@ -231,6 +231,21 @@ describe("Common Crawl", () => {
     expect(result.pages[0].url).toBe("https://example.com/ok");
   });
 
+  /* sort=reverse answered newest first for https://sive.rs/ in CC-MAIN-2026-39 on 2026-10-16. */
+  it("asks the crawl index for a page's newest captures first", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce("");
+
+    await createCommonCrawl().snapshots("https://example.com/about", {
+      collection: "CC-MAIN-2023-50",
+      order: "newest",
+    });
+
+    expect(fetchData).toHaveBeenCalledWith(
+      "/CC-MAIN-2023-50-index",
+      objectContaining({ params: objectContaining({ sort: "reverse" }) }),
+    );
+  });
+
   it("returns an error response when fetching the selected index fails", async () => {
     vi.mocked(fetchData).mockRejectedValueOnce(new Error("API error"));
 

@@ -231,6 +231,78 @@ describe("wayback machine", () => {
     expect(fetchData).toHaveBeenCalledTimes(2);
   });
 
+  /** A plain limit keeps CDX's first rows, so old captures crowd out the latest ones. */
+  it("asks CDX for the last rows of a page when the newest come first", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce([
+      ["original", "timestamp", "statuscode"],
+      ["https://example.com/about", "20240101000000", "200"],
+      ["https://example.com/about", "20250101000000", "200"],
+    ]);
+
+    const result = await createArchive(createWayback()).snapshots("https://example.com/about", {
+      limit: 2,
+      order: "newest",
+    });
+
+    expect(fetchData).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      objectContaining({ params: objectContaining({ limit: "-2" }) }),
+    );
+    expect(result.pages.map((page) => page.timestamp)).toEqual([
+      "2025-01-01T00:00:00Z",
+      "2024-01-01T00:00:00Z",
+    ]);
+  });
+
+  /** Unordered, the same URL lists the whole site; ordered, only a page has a newest end. */
+  it("reads a home page written with its scheme as that one page when ordered", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+
+    const result = await createArchive(createWayback()).snapshots("https://example.com/", {
+      order: "newest",
+    });
+
+    expect(result.success).toBe(true);
+    expect(fetchData).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      objectContaining({ params: objectContaining({ url: "example.com/" }) }),
+    );
+  });
+
+  it("keeps the first rows when the oldest come first", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+
+    await createArchive(createWayback()).snapshots("https://example.com/about", {
+      limit: 2,
+      order: "oldest",
+    });
+
+    expect(fetchData).toHaveBeenCalledWith(
+      "/cdx/search/cdx",
+      objectContaining({ params: objectContaining({ limit: "2" }) }),
+    );
+  });
+
+  it("separates cache entries by order", async () => {
+    vi.mocked(fetchData)
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/about", "20250101000000", "200"],
+      ])
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/about", "20000101000000", "200"],
+      ]);
+
+    const archive = createArchive(createWayback());
+    const newest = await archive.snapshots("https://example.com/about", { order: "newest" });
+    const oldest = await archive.snapshots("https://example.com/about", { order: "oldest" });
+
+    expect(newest.pages[0].timestamp).toBe("2025-01-01T00:00:00Z");
+    expect(oldest.fromCache).not.toBe(true);
+    expect(oldest.pages[0].timestamp).toBe("2000-01-01T00:00:00Z");
+  });
+
   it("separates cache entries for CDX collapse and filter options", async () => {
     vi.mocked(fetchData)
       .mockResolvedValueOnce([

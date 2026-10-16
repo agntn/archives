@@ -21,6 +21,7 @@ import {
   unwrapSnapshotUrl,
   waybackTimestampToISO,
   withUserAgent,
+  orderPages,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -338,7 +339,8 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
     try {
       const options = await this.resolveOptions(reqOptions);
       target = this.originalURL(domain);
-      const { pages } = await this.fetchTimeMap(target, options);
+      const timeMap = await this.fetchTimeMap(target, options);
+      const pages = options.order ? orderPages(timeMap.pages, options.order) : timeMap.pages;
       const limitedPages =
         typeof options.limit === "number" ? pages.slice(0, Math.max(0, options.limit)) : pages;
 

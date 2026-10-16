@@ -6,11 +6,13 @@ import type {
   ArchiveResponse,
   ArchivedContent,
   ArchivedPage,
+  CaptureOrder,
   WaybackMetadata,
   ResponseMetadata,
 } from "../types.ts";
 import { getConfig } from "../config.ts";
 import { timeoutMilliseconds, type FetchOptions } from "./_fetch.ts";
+import { CAPTURE_ORDERS } from "../tool-contract.ts";
 
 const ALLOWED_WAYBACK_TIMESTAMP_LENGTHS = new Set([4, 6, 8, 10, 12, 14]);
 
@@ -219,6 +221,85 @@ export function normalizeDomain(domain: string, appendWildcard = true): string {
   const isBareHost = suffixStart === -1 || /^\/+$/u.test(normalizedDomain.slice(suffixStart));
 
   return isBareHost ? withTrailingSlash(normalizedDomain) + "*" : normalizedDomain;
+}
+
+/**
+ * Quotes a value for an error, also escaping the C1, bidi and line separators JSON keeps.
+ *
+ * @param value - Value the caller sent
+ * @returns {string} The value as a JSON string with those characters as escapes
+ */
+export function quote(value: string): string {
+  return JSON.stringify(value).replaceAll(
+    /[\u007F-\u009F\p{Cf}\p{Zl}\p{Zp}]/gu,
+    (char) => `\\u{${(char.codePointAt(0) ?? 0).toString(16)}}`,
+  );
+}
+
+/**
+ * Whether a value from outside TypeScript names an order.
+ * @param value - Value to check
+ * @returns {boolean} True for `newest` and `oldest`
+ */
+export function isCaptureOrder(value: string): value is CaptureOrder {
+  const orders: readonly CaptureOrder[] = CAPTURE_ORDERS;
+  return orders.some((order) => order === value);
+}
+
+/**
+ * Refuses an order a domain can't keep: its CDX index runs by URL, then by time.
+ * @param target - Domain or URL, as `snapshots()` got it
+ * @param order - Requested order, if any
+ */
+export function assertOrder(target: string, order: string | undefined): void {
+  if (order === undefined) return;
+  if (!isCaptureOrder(order)) {
+    throw new TypeError(`Unknown order ${quote(order)}. Available: ${CAPTURE_ORDERS.join(", ")}.`);
+  }
+  if (listingPattern(target, order).endsWith("*")) {
+    throw new TypeError(
+      `order needs a page URL: ${quote(target)} lists every page under it, sorted by URL rather than by time. Write the page with its scheme (https://example.com/ for a home page), or narrow the domain with from and to.`,
+    );
+  }
+}
+
+/**
+ * The index pattern for a listing; ordered, a URL with its scheme means that one page.
+ * @param target - Domain or URL, as `snapshots()` got it
+ * @param order - Requested order, if any
+ * @returns {string} The pattern for the index's `url` parameter
+ */
+export function listingPattern(target: string, order: CaptureOrder | undefined): string {
+  return normalizeDomain(target, !(order && SCHEME.test(target.trim())));
+}
+
+/**
+ * Sorts pages by capture time; captures of the same second keep the archive's order.
+ * @param pages - Pages to sort
+ * @param order - Which end comes first
+ * @returns {ArchivedPage[]} A sorted copy
+ */
+export function orderPages(pages: readonly ArchivedPage[], order: CaptureOrder): ArchivedPage[] {
+  const sign = order === "newest" ? -1 : 1;
+  return pages.toSorted((a, b) => sign * (captureTime(a.timestamp) - captureTime(b.timestamp)));
+}
+
+/**
+ * The pywb `sort=reverse` parameter, which turns one URL's index newest first.
+ * @param order - Requested order, if any
+ * @returns {Record<string, string>} The parameter, or nothing when the index's own order serves
+ */
+export function reverseSortQuery(order: CaptureOrder | undefined): Record<string, string> {
+  return order === "newest" ? { sort: "reverse" } : {};
+}
+
+/**
+ * An unparseable stamp sorts as the epoch rather than turning the comparator into NaN.
+ * @param timestamp - A capture's ISO timestamp
+ * @returns {number} Milliseconds since the epoch
+ */
+function captureTime(timestamp: string): number {
+  return Date.parse(timestamp) || 0;
 }
 
 /**
