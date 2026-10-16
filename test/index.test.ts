@@ -376,6 +376,36 @@ describe("Archive.snapshots / window", () => {
     expect(response.pages.map((page) => page.timestamp)).toEqual(["2010-01-01T00:00:00Z"]);
   });
 
+  it("merges in the order the providers were built with", async () => {
+    const built = (slug: string, timestamp: string): ArchiveProvider => ({
+      ...successProvider(slug, [pageAt(slug, timestamp)]),
+      options: { order: "oldest" },
+    });
+    const archive = createArchive([
+      built("a", "2020-01-01T00:00:00Z"),
+      built("b", "2010-01-01T00:00:00Z"),
+    ]);
+
+    const response = await archive.snapshots("https://example.com/about");
+
+    expect(response.pages.map((page) => page.timestamp)).toEqual([
+      "2010-01-01T00:00:00Z",
+      "2020-01-01T00:00:00Z",
+    ]);
+  });
+
+  it("refuses a domain when the order comes from the provider", async () => {
+    const provider: ArchiveProvider = {
+      ...successProvider("timemap", []),
+      options: { order: "newest" },
+    };
+
+    await expect(createArchive(provider).snapshots("example.com")).rejects.toThrow(
+      "order needs a page URL",
+    );
+    expect(provider.snapshots).not.toHaveBeenCalled();
+  });
+
   /** A CDX index sorts a domain by URL first, so its last row is the last page in the alphabet. */
   it("rejects an order for a domain before any provider is queried", async () => {
     const provider = successProvider("timemap", []);
@@ -387,6 +417,16 @@ describe("Archive.snapshots / window", () => {
     await expect(archive.snapshots("example.com/blog/*", { order: "oldest" })).rejects.toThrow(
       "order needs a page URL",
     );
+    expect(provider.snapshots).not.toHaveBeenCalled();
+  });
+
+  /** `*.example.com` ends in a letter, yet its index still runs by URL. */
+  it("refuses a wildcard anywhere in the target", async () => {
+    const provider = successProvider("timemap", []);
+
+    await expect(
+      createArchive(provider).snapshots("*.example.com", { order: "newest" }),
+    ).rejects.toThrow('order needs a page URL: "*.example.com"');
     expect(provider.snapshots).not.toHaveBeenCalled();
   });
 

@@ -247,7 +247,7 @@ export function isCaptureOrder(value: string): value is CaptureOrder {
 }
 
 /**
- * Refuses an order a domain can't keep: its CDX index runs by URL, then by time.
+ * Refuses an order a domain or wildcard can't keep: its CDX index runs by URL, then by time.
  * @param target - Domain or URL, as `snapshots()` got it
  * @param order - Requested order, if any
  */
@@ -256,7 +256,7 @@ export function assertOrder(target: string, order: string | undefined): void {
   if (!isCaptureOrder(order)) {
     throw new TypeError(`Unknown order ${quote(order)}. Available: ${CAPTURE_ORDERS.join(", ")}.`);
   }
-  if (listingPattern(target, order).endsWith("*")) {
+  if (listingPattern(target, order).includes("*")) {
     throw new TypeError(
       `order needs a page URL: ${quote(target)} lists every page under it, sorted by URL rather than by time. Write the page with its scheme (https://example.com/ for a home page), or narrow the domain with from and to.`,
     );

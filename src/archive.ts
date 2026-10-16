@@ -331,6 +331,16 @@ function limitPages(pages: readonly ArchivedPage[], limit: number | undefined): 
 }
 
 /**
+ * The order a fan-out merges in: the one every provider names, else newest first.
+ * @param providers - Each provider's effective order
+ * @returns {CaptureOrder} The merge order
+ */
+function fanOutOrder(providers: readonly Readonly<{ order?: CaptureOrder }>[]): CaptureOrder {
+  const order = providers[0]?.order;
+  return order && providers.every((provider) => provider.order === order) ? order : "newest";
+}
+
+/**
  * Sorts a single provider's answer too, since a cached one may predate the sort.
  * @param response - The provider's answer
  * @param order - Which end comes first
@@ -528,8 +538,6 @@ export class Archive implements ArchiveInterface {
 
     const from = resolveRequestedTimestamp(rawFrom, "from");
     const to = resolveRequestedTimestamp(rawTo, "to");
-    const { order } = restOptions;
-    assertOrder(domain, order);
 
     const providerArray = await this.resolveProviders();
 
@@ -538,7 +546,9 @@ export class Archive implements ArchiveInterface {
       const windowFrom = from || resolveRequestedTimestamp(provider.options?.from, "from");
       const windowTo = to || resolveRequestedTimestamp(provider.options?.to, "to");
       assertWindowOrder(windowFrom, windowTo);
-      return { provider, windowFrom, windowTo };
+      const order = restOptions.order ?? provider.options?.order;
+      assertOrder(domain, order);
+      return { provider, windowFrom, windowTo, order };
     });
 
     /*
@@ -556,13 +566,15 @@ export class Archive implements ArchiveInterface {
       provider,
       windowFrom,
       windowTo,
+      order,
     }: Readonly<(typeof windowed)[number]>): Promise<ArchiveResponse> => {
+      const ordered = order ? { ...restOptions, order } : restOptions;
       if (!windowFrom && !windowTo) {
-        return this.fetchFromProvider(provider, domain, restOptions);
+        return this.fetchFromProvider(provider, domain, ordered);
       }
 
       const bounded: ArchiveOptions = {
-        ...restOptions,
+        ...ordered,
         limit: undefined,
         ...(windowFrom ? { from: windowFrom } : {}),
         ...(windowTo ? { to: windowTo } : {}),
@@ -580,7 +592,7 @@ export class Archive implements ArchiveInterface {
       const response = await fetchWindowed(single);
       const capped =
         single.windowFrom || single.windowTo ? capPages(response, restOptions.limit) : response;
-      return order ? orderResponse(capped, order) : capped;
+      return single.order ? orderResponse(capped, single.order) : capped;
     }
 
     // For multiple providers, fetch in parallel with concurrency control
@@ -589,7 +601,7 @@ export class Archive implements ArchiveInterface {
       batchSize: merged.batchSize,
     });
 
-    return combineResults(responses, restOptions.limit, order);
+    return combineResults(responses, restOptions.limit, fanOutOrder(windowed));
   }
 
   /**

@@ -303,6 +303,26 @@ describe("wayback machine", () => {
     expect(oldest.pages[0].timestamp).toBe("2000-01-01T00:00:00Z");
   });
 
+  it("keeps an order set on the factory out of the unordered cache entry", async () => {
+    vi.mocked(fetchData)
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/about", "20000101000000", "200"],
+      ])
+      .mockResolvedValueOnce([
+        ["original", "timestamp", "statuscode"],
+        ["https://example.com/about", "20250101000000", "200"],
+      ]);
+
+    await createArchive(createWayback()).snapshots("https://example.com/about");
+    const ordered = await createArchive(createWayback({ order: "newest" })).snapshots(
+      "https://example.com/about",
+    );
+
+    expect(ordered.fromCache).not.toBe(true);
+    expect(ordered.pages[0].timestamp).toBe("2025-01-01T00:00:00Z");
+  });
+
   it("separates cache entries for CDX collapse and filter options", async () => {
     vi.mocked(fetchData)
       .mockResolvedValueOnce([
