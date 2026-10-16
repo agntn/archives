@@ -96,7 +96,7 @@
   },
   "devDependencies": {
     "@agntn/ox": "^0.1.0",
-    "@earendil-works/pi-coding-agent": "0.99.1",
+    "@earendil-works/pi-coding-agent": "1.2.0",
     "@earendil-works/pi-tui": "1.1.0",
     "@modelcontextprotocol/client": "2.2.0",
     "@oh-my-pi/omptype": "18.4.8",
@@ -111,7 +111,7 @@
     "webmcp-types": "0.1.6"
   },
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": ">=0.99.0",
+    "@earendil-works/pi-coding-agent": ">=1.2.0",
     "@earendil-works/pi-tui": "*",
     "@oh-my-pi/pi-coding-agent": ">=18.0.0 <19"
   },
