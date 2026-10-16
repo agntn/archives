@@ -1,4 +1,5 @@
 import { contentArchives } from "@agntn/archives/tool-operations";
+import { defineEventHandler, getQuery } from "nuxt/server";
 
 const TTL = 60 * 60 * 6;
 

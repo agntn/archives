@@ -115,8 +115,7 @@ describe("docs WebMCP tools", () => {
   it("links a browser request abort to archive work on the server", () => {
     const controller = new AbortController();
     const request = new Request("https://archives.example/api", { signal: controller.signal });
-    const event = { web: { request } };
-    const linked = archiveRequestAbort(event as never);
+    const linked = archiveRequestAbort({ req: request });
 
     controller.abort();
 

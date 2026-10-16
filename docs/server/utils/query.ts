@@ -1,4 +1,4 @@
-import type { H3Event } from "h3";
+import { createError, getRequestHeader, getRequestIP, isNuxtError, type RequestEvent } from "nuxt/server";
 import { hash } from "ohash";
 
 type Query = Record<string, unknown>;
@@ -8,24 +8,18 @@ export interface ArchiveRequestAbort {
   dispose(): void;
 }
 
-/** Combines a client disconnect with an optional deadline for the whole operation. */
-export function archiveRequestAbort(event: H3Event, timeout?: number): ArchiveRequestAbort {
+/** Combines a client disconnect (`event.req.signal`, which `nuxt dev` never aborts) with an optional deadline. */
+export function archiveRequestAbort(event: Pick<RequestEvent, "req">, timeout?: number): ArchiveRequestAbort {
   const controller = new AbortController();
-  const webSignal = event.web?.request?.signal;
+  const clientSignal = event.req.signal;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const abort = (reason?: unknown) => {
     if (!controller.signal.aborted) controller.abort(reason);
   };
-  const abortFromWeb = () => abort(webSignal?.reason);
-  const abortFromNode = () => abort(new Error("The client disconnected"));
+  const abortFromClient = () => abort(clientSignal.reason);
 
-  if (webSignal) {
-    if (webSignal.aborted) abortFromWeb();
-    else webSignal.addEventListener("abort", abortFromWeb, { once: true });
-  } else {
-    event.node.req.once("aborted", abortFromNode);
-    event.node.res.once("close", abortFromNode);
-  }
+  if (clientSignal.aborted) abortFromClient();
+  else clientSignal.addEventListener("abort", abortFromClient, { once: true });
   if (timeout !== undefined) {
     timer = setTimeout(
       () => abort(new DOMException("The archive operation timed out", "TimeoutError")),
@@ -37,11 +31,7 @@ export function archiveRequestAbort(event: H3Event, timeout?: number): ArchiveRe
     signal: controller.signal,
     dispose() {
       if (timer !== undefined) clearTimeout(timer);
-      webSignal?.removeEventListener("abort", abortFromWeb);
-      if (!webSignal) {
-        event.node.req.off("aborted", abortFromNode);
-        event.node.res.off("close", abortFromNode);
-      }
+      clientSignal.removeEventListener("abort", abortFromClient);
     },
   };
 }
@@ -76,7 +66,7 @@ export function readString(query: Query, key: string, max: number): string | und
     return undefined;
   }
   if (value.length > max) {
-    throw createError({ statusCode: 400, statusMessage: `${key} must be at most ${max} characters` });
+    throw createError({ status: 400, statusText: `${key} must be at most ${max} characters` });
   }
   return value;
 }
@@ -84,7 +74,7 @@ export function readString(query: Query, key: string, max: number): string | und
 export function requireString(query: Query, key: string, max: number): string {
   const value = readString(query, key, max);
   if (!value) {
-    throw createError({ statusCode: 400, statusMessage: `${key} is required` });
+    throw createError({ status: 400, statusText: `${key} is required` });
   }
   return value;
 }
@@ -96,7 +86,7 @@ export function readInt(query: Query, key: string, min: number, max: number): nu
   }
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
-    throw createError({ statusCode: 400, statusMessage: `${key} must be an integer between ${min} and ${max}` });
+    throw createError({ status: 400, statusText: `${key} must be an integer between ${min} and ${max}` });
   }
   return parsed;
 }
@@ -119,15 +109,15 @@ export function cacheKey(prefix: string, params: Readonly<Record<string, unknown
 
 /** Turns a library error into the 4xx the browser can show. */
 export function toHttpError(error: unknown): never {
-  if (error && typeof error === "object" && "statusCode" in error) {
+  if (isNuxtError(error)) {
     throw error;
   }
   const message = error instanceof Error ? error.message : String(error);
-  throw createError({ statusCode: 400, statusMessage: message.slice(0, 300) });
+  throw createError({ status: 400, statusText: message.slice(0, 300) });
 }
 
-export function markPublic(event: H3Event, seconds: number): void {
-  setResponseHeader(event, "Cache-Control", `public, max-age=${seconds}, stale-while-revalidate=${seconds * 4}`);
+export function markPublic(event: Pick<RequestEvent, "res">, seconds: number): void {
+  event.res.headers.set("Cache-Control", `public, max-age=${seconds}, stale-while-revalidate=${seconds * 4}`);
 }
 
 /** A tool answer as the docs API returns it. */
@@ -150,10 +140,13 @@ export function toolAnswer<TDetails>(
 ): ToolAnswer<TDetails> {
   const answer = { text: result.content[0]?.text ?? "", details: result.details, fetchedAt: new Date().toISOString() };
   if (result.isError || failed) {
-    throw createError({ statusCode: 502, statusMessage: "The archive query did not produce a usable answer", data: answer });
+    throw createError({ status: 502, statusText: "The archive query did not produce a usable answer", data: answer });
   }
   return answer;
 }
+
+/** What the rate limit reads from a request: its headers, its address and the worker's bindings. */
+type QueryEvent = Pick<RequestEvent, "req" | "context">;
 
 /** Uncached archive queries one client may start per minute; `ratelimits` in wrangler.jsonc carries the same number. */
 export const RATE_LIMIT = 30;
@@ -170,7 +163,7 @@ const localCounts = new Map<string, number>();
  * The address a request came from, as Cloudflare saw it. `X-Forwarded-For` is left out: its first
  * entry is whatever the caller sent, so it would let one client rotate its own key.
  */
-function clientAddress(event: H3Event): string {
+function clientAddress(event: QueryEvent): string {
   return getRequestHeader(event, "cf-connecting-ip") ?? getRequestIP(event) ?? "unknown";
 }
 
@@ -210,9 +203,10 @@ function rateLimitSubject(address: string): string {
  * Only a cache miss counts, so a demo that replays warmed answers never trips it, and
  * the archives behind the worker see at most {@link RATE_LIMIT} new questions from one client.
  */
-export async function admitQueries(event: H3Event, count = 1): Promise<boolean> {
+export async function admitQueries(event: QueryEvent, count = 1): Promise<boolean> {
   const key = hash(rateLimitSubject(clientAddress(event)));
-  const limiter = (event.context.cloudflare?.env as { ARCHIVE_LIMIT?: RateLimiter } | undefined)?.ARCHIVE_LIMIT;
+  const cloudflare = event.context["cloudflare"] as { env?: { ARCHIVE_LIMIT?: RateLimiter } } | undefined;
+  const limiter = cloudflare?.env?.ARCHIVE_LIMIT;
   if (limiter) {
     for (let spent = 0; spent < count; spent++) {
       if (!(await limiter.limit({ key })).success) return false;
@@ -230,12 +224,12 @@ export async function admitQueries(event: H3Event, count = 1): Promise<boolean> 
 }
 
 /** Refuses an archive query over its address's allowance for this minute with a 429. */
-export async function assertRateLimit(event: H3Event): Promise<void> {
+export async function assertRateLimit(event: Pick<RequestEvent, "req" | "res" | "context">): Promise<void> {
   if (!(await admitQueries(event))) {
-    setResponseHeader(event, "Retry-After", 60);
+    event.res.headers.set("Retry-After", "60");
     throw createError({
-      statusCode: 429,
-      statusMessage: `More than ${RATE_LIMIT} new archive queries in a minute from one address, or one /64 on IPv6; cached answers are not counted. Wait a moment.`,
+      status: 429,
+      statusText: `More than ${RATE_LIMIT} new archive queries in a minute from one address, or one /64 on IPv6; cached answers are not counted. Wait a moment.`,
     });
   }
 }
@@ -258,7 +252,7 @@ interface CachedEntry<T> {
  * the archives behind it are public services.
  */
 export async function cachedAnswer<T>(
-  event: H3Event,
+  event: RequestEvent,
   prefix: string,
   params: Readonly<Record<string, unknown>>,
   ttl: number,

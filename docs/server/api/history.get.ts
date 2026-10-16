@@ -1,5 +1,6 @@
 import { diffArchives, snapshotArchives } from "@agntn/archives/tool-operations";
 import type { ArchivedPage } from "@agntn/archives";
+import { defineEventHandler, getQuery } from "nuxt/server";
 
 const TTL = 60 * 60 * 6;
 const MAX_STEPS = 6;

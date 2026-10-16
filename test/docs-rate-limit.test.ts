@@ -9,24 +9,29 @@ import {
 
 type Env = Readonly<Record<string, unknown>>;
 
+/** A request as `nuxt/server` hands it to a handler, reduced to what the rate limit reads and writes. */
 interface FakeEvent {
-  readonly headers: Readonly<Record<string, string>>;
-  readonly context: Readonly<{ cloudflare?: Readonly<{ env: Env }>; clientAddress?: string }>;
+  readonly req: Request;
+  readonly url: URL;
+  readonly res: { readonly headers: Headers };
+  readonly context: Readonly<{ cloudflare?: Readonly<{ env: Env }> }>;
 }
 
-/** Headers the code under test set on the response, reset before each test. */
-const sentHeaders = new Map<string, unknown>();
-
 /**
- * A request as the worker receives it, cast the way the other docs tests pass an event.
+ * A request as the worker receives it, with no client address beyond its headers.
  *
  * @param {Readonly<Record<string, string>>} headers - Request headers, lowercase names.
  * @param {Env} [env] - Worker bindings; left out, the request runs without them.
- * @returns {never} The event, typed to fit any `H3Event` parameter.
+ * @returns {FakeEvent} The event, in the portable shape the docs server reads.
  */
-function fakeEvent(headers: Readonly<Record<string, string>>, env?: Env): never {
-  const event: FakeEvent = { headers, context: env ? { cloudflare: { env } } : {} };
-  return event as never;
+function fakeEvent(headers: Readonly<Record<string, string>>, env?: Env): FakeEvent {
+  const url = new URL("https://archives.agntn.dev/api/snapshots");
+  return {
+    req: new Request(url, { headers }),
+    url,
+    res: { headers: new Headers() },
+    context: env ? { cloudflare: { env } } : {},
+  };
 }
 
 /**
@@ -48,29 +53,6 @@ function memoryStorage() {
   };
 }
 
-/** Stubs the h3 auto-imports Nitro provides, reduced to what the rate limit reads. */
-function stubH3(): void {
-  vi.stubGlobal(
-    "getRequestHeader",
-    (event: Readonly<FakeEvent>, name: string) => event.headers[name.toLowerCase()],
-  );
-  vi.stubGlobal(
-    "getRequestIP",
-    (event: Readonly<FakeEvent>, options?: Readonly<{ xForwardedFor?: boolean }>) => {
-      const forwarded = options?.xForwardedFor
-        ? event.headers["x-forwarded-for"]?.split(",")[0]?.trim()
-        : undefined;
-      return forwarded ?? event.context.clientAddress;
-    },
-  );
-  vi.stubGlobal("setResponseHeader", (_event: unknown, name: string, value: unknown) => {
-    sentHeaders.set(name, value);
-  });
-  vi.stubGlobal("createError", (input: Readonly<{ statusCode: number; statusMessage: string }>) =>
-    Object.assign(new Error(input.statusMessage), input),
-  );
-}
-
 /* The key `assertRateLimit` hands the `ARCHIVE_LIMIT` binding for one client address. */
 async function keyFor(address: string): Promise<string | undefined> {
   const keys: string[] = [];
@@ -85,8 +67,6 @@ async function keyFor(address: string): Promise<string | undefined> {
 }
 
 beforeEach(() => {
-  sentHeaders.clear();
-  stubH3();
   vi.stubGlobal("useStorage", () => memoryStorage());
 });
 
@@ -126,8 +106,8 @@ describe("docs rate limit", () => {
       { ARCHIVE_LIMIT: { limit: async () => ({ success: false }) } },
     );
 
-    await expect(assertRateLimit(event)).rejects.toMatchObject({ statusCode: 429 });
-    expect(sentHeaders.get("Retry-After")).toBe(60);
+    await expect(assertRateLimit(event)).rejects.toMatchObject({ status: 429 });
+    expect(event.res.headers.get("Retry-After")).toBe("60");
   });
 
   it("ignores a rotated X-Forwarded-For without the binding", async () => {

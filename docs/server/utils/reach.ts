@@ -1,3 +1,5 @@
+import { createError } from "nuxt/server";
+
 interface Unreachable {
   /** Every spelling a request may pass as `provider`. */
   readonly names: readonly string[];
@@ -28,7 +30,7 @@ export function unreachableReason(provider: string | undefined): string | undefi
 /** Refuses an unreachable provider before the cache, the rate limit and a 20 s wait for a 522. */
 export function assertReachable(provider: string | undefined): void {
   const reason = unreachableReason(provider);
-  if (reason) throw createError({ statusCode: 502, statusMessage: reason });
+  if (reason) throw createError({ status: 502, statusText: reason });
 }
 
 /** True when a provider the worker can reach failed, so the answer gets the short TTL. */
