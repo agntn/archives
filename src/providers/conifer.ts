@@ -1,12 +1,13 @@
 import { fetchData } from "../utils/_fetch.ts";
 import type { ConiferOptions } from "../_providers.ts";
-import type { ArchiveOptions, ArchiveResponse, ArchivedPage } from "../types.ts";
+import type { ArchiveOptions, ArchiveResponse, ArchivedPage, CaptureOrder } from "../types.ts";
 import {
   createErrorResponse,
   createFetchOptions,
   createSuccessResponse,
   normalizeDomain,
   waybackTimestampToISO,
+  orderPages,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -27,6 +28,8 @@ interface ConiferRequest {
   collection: string;
   query: string;
   limit: number;
+  /** The search keeps its own order, so an ordered request is cut only after the sort. */
+  order?: CaptureOrder;
 }
 
 function resolveConiferRequest(domain: string, options: Readonly<ConiferOptions>): ConiferRequest {
@@ -37,7 +40,8 @@ function resolveConiferRequest(domain: string, options: Readonly<ConiferOptions>
   const query = normalizeDomain(domain, false).trim();
   if (!query) throw new Error("Conifer target must not be empty");
 
-  return { user, collection, query, limit: Math.max(0, Math.trunc(options.limit ?? 1000)) };
+  const limit = Math.max(0, Math.trunc(options.limit ?? 1000));
+  return { user, collection, query, limit, ...(options.order ? { order: options.order } : {}) };
 }
 
 function mapConiferResults(
@@ -47,7 +51,7 @@ function mapConiferResults(
 ): ArchivedPage[] {
   const pages: ArchivedPage[] = [];
   for (const result of results) {
-    if (pages.length >= request.limit) break;
+    if (!request.order && pages.length >= request.limit) break;
     if (!result.url || !result.timestamp) continue;
 
     const timestamp = waybackTimestampToISO(result.timestamp);
@@ -117,7 +121,10 @@ export class ConiferProvider extends BaseProvider<ConiferOptions> {
         responseType: "json",
       });
 
-      const pages = mapConiferResults(response.results ?? [], request, baseUrl);
+      const mapped = mapConiferResults(response.results ?? [], request, baseUrl);
+      const pages = request.order
+        ? orderPages(mapped, request.order).slice(0, request.limit)
+        : mapped;
       return createSuccessResponse(pages, "conifer", {
         user,
         collection,

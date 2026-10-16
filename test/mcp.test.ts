@@ -6,7 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { callTool, createMcpServer, toolListings } from "../src/mcp";
 import { serverInfo } from "../src/server-info";
 import { storage } from "../src/storage";
-import { MAX_CONTENT_OFFSET, MAX_DIFF_OFFSET, diffArchives } from "../src/tool-operations";
+import {
+  MAX_CONTENT_OFFSET,
+  MAX_DIFF_OFFSET,
+  diffArchives,
+  snapshotBatchArchives,
+} from "../src/tool-operations";
 import type {
   ArchiveContentResponse,
   ArchiveResponse,
@@ -385,6 +390,58 @@ describe("archives MCP server", () => {
     expect(rendered).toContain('1 snapshot(s) for "example.com"; window=2019..2019-06');
     expect(rendered).toContain("2019-03-01T12:00:00.000Z");
     expect(rendered).not.toContain("2024-01-02");
+  });
+
+  /** The stub answers oldest first like most CDX indexes, and the header names the order. */
+  it("hands the order to the archive and names it in the header", async () => {
+    const snapshots = vi
+      .fn()
+      .mockResolvedValue(
+        success([
+          page({ timestamp: "2019-03-01T12:00:00.000Z" }),
+          page({ timestamp: "2024-01-02T03:04:05.000Z" }),
+        ]),
+      );
+    providersMock.wayback.mockResolvedValue({ name: "wayback", slug: "wayback", snapshots });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "https://example.com/about", provider: "wayback", order: "newest" },
+    });
+
+    const rendered = text(response.content);
+    expect(snapshots).toHaveBeenCalledWith(
+      "https://example.com/about",
+      objectContaining({ order: "newest" }),
+    );
+    expect(rendered.split("\n")[0]).toBe(
+      '[provider=wayback] 2 snapshot(s) for "https://example.com/about"; newest first',
+    );
+    expect(rendered.indexOf("2024-01-02")).toBeLessThan(rendered.indexOf("2019-03-01"));
+  });
+
+  it("offers both orders and refuses any other", async () => {
+    const client = await connectTestClient();
+    const { tools } = await client.listTools();
+    const order = tools.find((tool) => tool.name === "archives_snapshots")?.inputSchema
+      .properties?.["order"] as { enum?: unknown } | undefined;
+
+    expect(order?.enum).toEqual(["newest", "oldest"]);
+    const rejected = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "https://example.com/about", order: "latest" },
+    });
+    expect(rejected.isError).toBe(true);
+    expect(text(rejected.content)).toContain("Invalid arguments at /order: must be one of ");
+  });
+
+  /** A host that skips the schema still meets the same refusal in the executor. */
+  it("refuses an unknown order without the schema in front of it", async () => {
+    await expect(
+      snapshotBatchArchives({ target: "https://example.com/about", order: "latest" }),
+    ).rejects.toThrow('Unknown order "latest". Available: newest, oldest.');
+    expect(providersMock.wayback).not.toHaveBeenCalled();
   });
 
   it("names providers that cannot answer instead of dropping them", async () => {
@@ -979,6 +1036,15 @@ describe("archives MCP server", () => {
       "archives_snapshots",
       { target: "example.com", provider: "wayback", from: "2020", to: "2010" },
       /^Window is inverted: from "2020" is later than to "2010"$/u,
+    ],
+    [
+      "archives_snapshots",
+      {
+        target: ["https://example.com/about", "example.org"],
+        provider: "wayback",
+        order: "newest",
+      },
+      /^order needs a page URL: "example\.org" lists every page under it, sorted by URL rather than by time\./u,
     ],
     [
       "archives_content",

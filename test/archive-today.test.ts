@@ -57,6 +57,23 @@ describe("archive.today", () => {
     );
   });
 
+  /** The timemap runs oldest first, so the newest end is a sort away, before the cap. */
+  it("sorts the timemap before the limit when the newest come first", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce(
+      [
+        `<http://archive.md/20140101030405/https://example.com/about>; rel="memento"; datetime="Wed, 01 Jan 2014 03:04:05 GMT"`,
+        `<http://archive.md/20200101030405/https://example.com/about>; rel="last memento"; datetime="Wed, 01 Jan 2020 03:04:05 GMT"`,
+      ].join(",\n"),
+    );
+
+    const result = await createArchiveToday().snapshots("https://example.com/about", {
+      limit: 1,
+      order: "newest",
+    });
+
+    expect(result.pages.map((page) => page.timestamp)).toEqual(["2020-01-01T03:04:05.000Z"]);
+  });
+
   it("preserves the original and snapshot URLs reported by the timemap", async () => {
     const originalUrl = "http://example.com/path//?next=//cdn.example/";
     const snapshotUrl = `http://archive.md/20140101030405/${originalUrl}`;

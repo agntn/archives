@@ -21,6 +21,7 @@ import {
   selectCapture,
   waybackTimestampToISO,
   withUserAgent,
+  orderPages,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -125,7 +126,8 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
 
     try {
       const options = await this.resolveOptions(reqOptions);
-      const pages = await this.fetchMementos(cleanDomain, options);
+      const mementos = await this.fetchMementos(cleanDomain, options);
+      const pages = options.order ? orderPages(mementos, options.order) : mementos;
 
       const limitedPages =
         typeof options.limit === "number" ? pages.slice(0, Math.max(0, options.limit)) : pages;

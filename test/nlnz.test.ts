@@ -122,6 +122,18 @@ describe("New Zealand Web Archive", () => {
     expect(result.pages).toEqual([]);
   });
 
+  /* sort=reverse answered newest first for https://www.rnz.co.nz/ on 2026-10-16. */
+  it("asks pywb for a page's newest captures first", async () => {
+    fetchMock.mockResolvedValueOnce("");
+
+    await createNlnz().snapshots("https://www.rnz.co.nz/news", { order: "newest" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/webarchive/cdx",
+      objectContaining({ params: objectContaining({ sort: "reverse" }) }),
+    );
+  });
+
   it("never sends limit=0, which pywb reads as no limit at all", async () => {
     const result = await createArchive(createNlnz({ limit: 0 })).snapshots("natlib.govt.nz");
 

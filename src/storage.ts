@@ -92,13 +92,17 @@ function getExpiresAt(ttl: ArchiveOptions["ttl"]): number | undefined {
   return Date.now() + Math.max(0, ttl);
 }
 
+/** Request options that change which captures a listing holds, in key order. */
+const CACHE_KEY_OPTIONS = ["limit", "from", "to", "order"] as const;
+
 /*
  * Option-derived parts of one listing cache key.
  *
  * The window bounds belong here: a windowed fetch is served with the provider's
  * limit lifted, so its stored response has a different shape than a naturally
  * capped one under the same provider and domain, and the bounds keep the two
- * entries apart.
+ * entries apart. The order does too: newest and oldest are different ends of
+ * the same index.
  */
 function getCacheKeyParts(
   provider: Readonly<CacheKeyProvider>,
@@ -106,9 +110,10 @@ function getCacheKeyParts(
 ): string[] {
   const parts: string[] = [];
 
-  if (options?.limit !== undefined) parts.push(`limit=${options.limit}`);
-  if (options?.from !== undefined) parts.push(`from=${encodeURIComponent(options.from)}`);
-  if (options?.to !== undefined) parts.push(`to=${encodeURIComponent(options.to)}`);
+  for (const key of CACHE_KEY_OPTIONS) {
+    const value = options?.[key];
+    if (value !== undefined) parts.push(`${key}=${encodeURIComponent(String(value))}`);
+  }
 
   const providerKey = provider.cacheKey?.(options);
   if (providerKey) parts.push(providerKey);

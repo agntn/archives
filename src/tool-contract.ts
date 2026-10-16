@@ -51,6 +51,11 @@ export const SNAPSHOT_TARGET_HINT = `Domain or URL to search for archived snapsh
 
 export const SNAPSHOT_FROM_HINT = `Earliest capture to list, as archive digits (YYYY through YYYYMMDDhhmmss) or an ISO 8601 date. Inclusive; a partial stamp starts the window at the beginning of the period it names.`;
 
+/** Ends of a page's history a listing can start from. */
+export const CAPTURE_ORDERS = ["newest", "oldest"] as const;
+
+export const SNAPSHOT_ORDER_HINT = `Which end of the page's history the limit keeps, newest or oldest, listed in that order. Needs a page URL with its scheme (https://example.com/ for a home page): a bare domain lists page by page, not by time. Omitted, a single provider answers in its own order and provider=all newest first.`;
+
 export const SNAPSHOT_TO_HINT = `Latest capture to list, in the same formats as "from". Inclusive; a partial stamp stretches the window to the end of the period it names, so from=2019 with to=2019 covers the whole year.`;
 
 export const DEFAULT_LIMIT = 10;

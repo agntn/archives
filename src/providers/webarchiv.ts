@@ -193,6 +193,7 @@ export class WebarchivProvider extends BaseProvider<WebarchivOptions> {
         url: exactTarget(url, "listing"),
         limit: String(options.limit ?? 1000),
         ...queryWindow(options),
+        ...(options.order === "newest" ? { reverse: "true" } : {}),
       };
       const { captures, queryParams } = await fetchCaptures(params, options);
       return createSuccessResponse(captures.map(page), "webarchiv", { queryParams });

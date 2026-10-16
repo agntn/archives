@@ -74,6 +74,23 @@ describe("Conifer", () => {
     );
   });
 
+  /** The search answers in its own order, so the limit may only cut once the results are sorted. */
+  it("sorts every search result before the limit when the newest come first", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce({
+      results: [
+        { timestamp: "20171011134320", url: "http://www.imamuseum.org/about" },
+        { timestamp: "20191011134320", url: "http://www.imamuseum.org/about" },
+      ],
+    });
+
+    const result = await createConifer({ user: "imamuseum", collection: "imamuseumorg" }).snapshots(
+      "http://www.imamuseum.org/about",
+      { limit: 1, order: "newest" },
+    );
+
+    expect(result.pages.map((page) => page.timestamp)).toEqual(["2019-10-11T13:43:20Z"]);
+  });
+
   it("forwards the caller's cancellation signal to the search request", async () => {
     vi.mocked(fetchData).mockResolvedValueOnce({ results: [] });
 

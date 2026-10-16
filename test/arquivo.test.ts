@@ -21,6 +21,17 @@ beforeEach(async () => {
 });
 
 describe("Arquivo.pt", () => {
+  it("asks the index for a page's newest captures first", async () => {
+    fetchMock.mockResolvedValueOnce("");
+
+    await createArquivo().snapshots("https://example.com/about", { order: "newest" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/wayback/cdx",
+      objectContaining({ params: objectContaining({ sort: "reverse" }) }),
+    );
+  });
+
   it("is available through the public registry and provider=all", async () => {
     const provider = await providers.arquivo();
     const all = await providers.all();

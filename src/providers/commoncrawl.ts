@@ -33,6 +33,8 @@ import {
   timestampUpperBound,
   toWaybackTimestamp,
   withHeaderSlack,
+  reverseSortQuery,
+  listingPattern,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -105,7 +107,7 @@ function listingQuery(
   options: Readonly<CommonCrawlOptions>,
 ): Record<string, string> {
   const params: Record<string, string> = {
-    url: normalizeDomain(domain),
+    url: listingPattern(domain, options.order),
     output: "json",
     fl: "url,timestamp,status,mime,length,offset,filename,digest",
     collapse: "digest",
@@ -115,7 +117,7 @@ function listingQuery(
   const to = resolveRequestedTimestamp(options.to, "to");
   if (from) params.from = from;
   if (to) params.to = to;
-  return params;
+  return { ...params, ...reverseSortQuery(options.order) };
 }
 
 function listingPage(

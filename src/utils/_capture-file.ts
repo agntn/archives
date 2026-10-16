@@ -5,6 +5,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { ToolInputError } from "@agntn/tools";
 import { CAPTURE_DIR_ENV } from "../tool-contract.ts";
+import { quote } from "./_utils.ts";
 
 /** Where one capture goes: the checked directory and the file inside it. */
 export interface CaptureFile {
@@ -70,19 +71,6 @@ async function captureRoot(): Promise<string> {
     if (errorCode(error) !== "ENOENT") throw error;
     throw new Error(`${CAPTURE_DIR_ENV} names ${quote(root)}, which does not exist`);
   }
-}
-
-/**
- * Quotes a value for an error, also escaping the C1, bidi and line separators JSON keeps.
- *
- * @param value - Path or directory to name
- * @returns {string} The value as a JSON string with those characters as escapes
- */
-function quote(value: string): string {
-  return JSON.stringify(value).replaceAll(
-    /[\u007F-\u009F\p{Cf}\p{Zl}\p{Zp}]/gu,
-    (char) => `\\u{${(char.codePointAt(0) ?? 0).toString(16)}}`,
-  );
 }
 
 function isInside(root: string, path: string): boolean {

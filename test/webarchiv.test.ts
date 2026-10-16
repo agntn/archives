@@ -87,6 +87,17 @@ describe("Webarchiv Österreich", () => {
     );
   });
 
+  it("asks the index for a page's newest captures first", async () => {
+    fetchMock.mockRejectedValueOnce({ response: new Response("not found", { status: 404 }) });
+
+    await createWebarchiv().snapshots("http://www.onb.ac.at/", { order: "newest" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/web/cdx",
+      objectContaining({ params: objectContaining({ reverse: "true" }) }),
+    );
+  });
+
   it("returns an empty success when the CDX endpoint has no capture", async () => {
     fetchMock.mockRejectedValueOnce({ response: new Response("not found", { status: 404 }) });
 

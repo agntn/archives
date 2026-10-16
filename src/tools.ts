@@ -6,6 +6,7 @@
 
 import { defineTool, sanitizeLine, Type, type ToolDefinition } from "@agntn/tools";
 import {
+  CAPTURE_ORDERS,
   CONTENT_FORMAT_HINT,
   CONTENT_FORMATS,
   CONTENT_PATH_HINT,
@@ -30,6 +31,7 @@ import {
   PROVIDER_HINT,
   PROVIDER_INPUTS,
   SNAPSHOT_FROM_HINT,
+  SNAPSHOT_ORDER_HINT,
   SNAPSHOT_TARGET_HINT,
   SNAPSHOT_TO_HINT,
 } from "./tool-contract.ts";
@@ -100,7 +102,7 @@ export const snapshotsTool = defineTool({
   name: "archives_snapshots",
   title: "Archive Snapshots",
   description:
-    "Find captures, timestamps, and snapshot URLs without reading archived bodies. Returns each snapshot's timestamp and archived copy, whose address ends with the original URL; an original: line follows when it does not. Omit provider to query Wayback Machine, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, the New Zealand Web Archive, Archive.today, Common Crawl, and WebCite; use provider=memento for the public MemGator service, which queries several archives. Providers that cannot answer the query are named in the answer instead of dropped. Combined results are merged newest first, while a single provider answers in its own order. Wayback, Webarchiv Österreich, Vefsafn, OSZK Webarchívum and the New Zealand Web Archive return an exact URL's oldest captures first, so ask for a larger limit when you need recent ones. Pass a list of targets to check several pages in one call; each gets its own block with its snapshots or its error.",
+    "Find captures, timestamps, and snapshot URLs without reading archived bodies. Returns each snapshot's timestamp and archived copy, whose address ends with the original URL; an original: line follows when it does not. Omit provider to query Wayback Machine, Arquivo.pt, Webarchiv Österreich, Vefsafn, OSZK Webarchívum, the New Zealand Web Archive, Archive.today, Common Crawl, and WebCite; use provider=memento for the public MemGator service, which queries several archives. Providers that cannot answer the query are named in the answer instead of dropped. Most archives list a page's oldest captures first, so pass order=newest with a page URL for its latest ones. Pass a list of targets to check several pages in one call; each gets its own block with its snapshots or its error.",
   snippet:
     "Find capture timestamps and snapshot URLs with archives_snapshots; use archives_content to read one body and archives_diff to compare two.",
   guidelines: [
@@ -133,6 +135,7 @@ export const snapshotsTool = defineTool({
           maximum: MAX_LIMIT,
         }),
       ),
+      order: Type.Optional(Type.Enum(CAPTURE_ORDERS, { description: SNAPSHOT_ORDER_HINT })),
       cache,
       ttl,
       concurrency: Type.Optional(

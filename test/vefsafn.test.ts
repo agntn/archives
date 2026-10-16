@@ -102,6 +102,23 @@ describe("Vefsafn", () => {
     );
   });
 
+  it("asks the index for a page's newest captures first", async () => {
+    fetchMock.mockResolvedValueOnce(ndjson(`${LBS_DECEMBER}\n${LBS_NOVEMBER}\n`));
+
+    const result = await createVefsafn().snapshots("http://www.landsbokasafn.is/", {
+      order: "newest",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/cdx",
+      objectContaining({ params: objectContaining({ reverse: "true" }) }),
+    );
+    expect(result.pages.map((page) => page.timestamp)).toEqual([
+      "2004-12-11T15:37:21Z",
+      "2004-11-02T10:31:50Z",
+    ]);
+  });
+
   it("stops reading at the limit and cancels a stream the index would not end", async () => {
     let served = 0;
     const cancel = vi.fn();

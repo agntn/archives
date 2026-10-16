@@ -125,6 +125,17 @@ describe("OSZK Webarchívum", () => {
     expect(result.pages).toEqual([]);
   });
 
+  it("asks pywb for a page's newest captures first", async () => {
+    fetchMock.mockResolvedValueOnce("");
+
+    await createOszk().snapshots("https://www.oszk.hu/hirek", { order: "newest" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/pywb/cdx",
+      objectContaining({ params: objectContaining({ sort: "reverse" }) }),
+    );
+  });
+
   it("never sends limit=0, which pywb reads as no limit at all", async () => {
     const result = await createArchive(createOszk({ limit: 0 })).snapshots("oszk.hu");
 

@@ -8,13 +8,16 @@ import type {
   ArchivedContent,
   ArchivedPage,
   ArchiveInterface,
+  CaptureOrder,
   ProviderReference,
   UnsupportedProviderRecord,
 } from "./types.ts";
 import { getStoredContent, getStoredResponse, storeContent, storeResponse } from "./storage.ts";
 import {
+  assertOrder,
   assertWindowOrder,
   mergeOptions,
+  orderPages,
   processInParallel,
   resolveRequestedTimestamp,
   timestampLowerBound,
@@ -168,13 +171,13 @@ function buildCombinedListingResponse(
  *
  * @param responses - Array of per-provider responses (possibly mixed success/failure).
  * @param limit - Optional cap on the number of pages in the merged result.
-
- *
+ * @param order - Which end of the merged history comes first; newest unless asked.
  * @returns {ArchiveResponse} The operation result.
  */
 export function combineResults(
   responses: readonly ArchiveResponse[],
   limit?: number,
+  order: CaptureOrder = "newest",
 ): ArchiveResponse {
   const state: ListingMergeState = {
     pages: [],
@@ -184,8 +187,8 @@ export function combineResults(
     anySuccess: false,
   };
   for (const response of responses) collectListingResponse(response, state);
-  state.pages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  return buildCombinedListingResponse(responses, state, limitPages(state.pages, limit));
+  const pages = orderPages(state.pages, order);
+  return buildCombinedListingResponse(responses, state, limitPages(pages, limit));
 }
 
 interface ContentMergeState {
@@ -325,6 +328,26 @@ function windowPages(response: ArchiveResponse, from: string, to: string): Archi
 function limitPages(pages: readonly ArchivedPage[], limit: number | undefined): ArchivedPage[] {
   if (typeof limit !== "number" || !Number.isFinite(limit)) return [...pages];
   return pages.length <= limit ? [...pages] : pages.slice(0, Math.max(0, limit));
+}
+
+/**
+ * The order a fan-out merges in: the one every provider names, else newest first.
+ * @param providers - Each provider's effective order
+ * @returns {CaptureOrder} The merge order
+ */
+function fanOutOrder(providers: readonly Readonly<{ order?: CaptureOrder }>[]): CaptureOrder {
+  const order = providers[0]?.order;
+  return order && providers.every((provider) => provider.order === order) ? order : "newest";
+}
+
+/**
+ * Sorts a single provider's answer too, since a cached one may predate the sort.
+ * @param response - The provider's answer
+ * @param order - Which end comes first
+ * @returns {ArchiveResponse} The answer with its pages in order
+ */
+function orderResponse(response: ArchiveResponse, order: CaptureOrder): ArchiveResponse {
+  return response.success ? { ...response, pages: orderPages(response.pages, order) } : response;
 }
 
 /* Caps the pages of one filtered response, the way the lifted provider limit would have. */
@@ -472,7 +495,7 @@ export class Archive implements ArchiveInterface {
    * the caller's after the newest-first merge, since a cap taken earlier turns
    * a tight limit into a false "nothing captured in this window". An inverted
    * window throws before the fan-out, where the parallel runner would swallow
-   * the error.
+   * the error, and so does an `order` on a domain, which no index sorts by time.
    *
    * @param domain - The domain to search for in archive services (e.g., "example.com")
    * @param listOptions - Request-specific options that override the default options
@@ -493,6 +516,12 @@ export class Archive implements ArchiveInterface {
    * const response = await archive.snapshots('example.com', {
    *   from: '2019',
    *   to: '2019-06'
+   * })
+   *
+   * // The three latest captures of one page, not its first three
+   * const response = await archive.snapshots('https://example.com/about', {
+   *   limit: 3,
+   *   order: 'newest'
    * })
    * ```
    */
@@ -517,7 +546,9 @@ export class Archive implements ArchiveInterface {
       const windowFrom = from || resolveRequestedTimestamp(provider.options?.from, "from");
       const windowTo = to || resolveRequestedTimestamp(provider.options?.to, "to");
       assertWindowOrder(windowFrom, windowTo);
-      return { provider, windowFrom, windowTo };
+      const order = restOptions.order ?? provider.options?.order;
+      assertOrder(domain, order);
+      return { provider, windowFrom, windowTo, order };
     });
 
     /*
@@ -535,13 +566,15 @@ export class Archive implements ArchiveInterface {
       provider,
       windowFrom,
       windowTo,
+      order,
     }: Readonly<(typeof windowed)[number]>): Promise<ArchiveResponse> => {
+      const ordered = order ? { ...restOptions, order } : restOptions;
       if (!windowFrom && !windowTo) {
-        return this.fetchFromProvider(provider, domain, restOptions);
+        return this.fetchFromProvider(provider, domain, ordered);
       }
 
       const bounded: ArchiveOptions = {
-        ...restOptions,
+        ...ordered,
         limit: undefined,
         ...(windowFrom ? { from: windowFrom } : {}),
         ...(windowTo ? { to: windowTo } : {}),
@@ -557,9 +590,9 @@ export class Archive implements ArchiveInterface {
     if (providerArray.length === 1) {
       const [single] = windowed;
       const response = await fetchWindowed(single);
-      return single.windowFrom || single.windowTo
-        ? capPages(response, restOptions.limit)
-        : response;
+      const capped =
+        single.windowFrom || single.windowTo ? capPages(response, restOptions.limit) : response;
+      return single.order ? orderResponse(capped, single.order) : capped;
     }
 
     // For multiple providers, fetch in parallel with concurrency control
@@ -568,7 +601,7 @@ export class Archive implements ArchiveInterface {
       batchSize: merged.batchSize,
     });
 
-    return combineResults(responses, restOptions.limit);
+    return combineResults(responses, restOptions.limit, fanOutOrder(windowed));
   }
 
   /**

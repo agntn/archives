@@ -1,3 +1,6 @@
+/** Which end of a page's capture history a listing starts from. */
+export type CaptureOrder = "newest" | "oldest";
+
 export interface ArchiveOptions {
   // Pagination option
   limit?: number; // Maximum number of results to return
@@ -12,6 +15,11 @@ export interface ArchiveOptions {
   from?: string;
   /** Latest capture to list; the window's other inclusive edge, same formats. */
   to?: string;
+  /**
+   * Which end of one page's history `limit` keeps, listed in that order. The target is a URL
+   * with its scheme: a bare domain lists by URL, not time, and `snapshots()` throws for one.
+   */
+  order?: CaptureOrder;
 
   // Caching options
   cache?: boolean; // Enable/disable caching

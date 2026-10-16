@@ -13,10 +13,11 @@ import {
   createFetchOptions,
   createSuccessResponse,
   createUnsupportedContentResponse,
-  normalizeDomain,
   resolveRequestedTimestamp,
   toWaybackTimestamp,
   waybackTimestampToISO,
+  reverseSortQuery,
+  listingPattern,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
@@ -142,8 +143,9 @@ export class NlnzProvider extends BaseProvider<NlnzOptions> {
       const fetchOptions = await createFetchOptions(
         BASE_URL,
         {
-          url: normalizeDomain(target),
+          url: listingPattern(target, options.order),
           ...queryWindow(options),
+          ...reverseSortQuery(options.order),
           output: "json",
           fl: CDX_FIELDS,
           limit: String(limit),
