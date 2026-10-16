@@ -28,6 +28,6 @@
     "@iconify-json/simple-icons": "1.2.94",
     "@iconify-json/vscode-icons": "1.2.76",
     "webmcp-types": "0.1.6",
-    "wrangler": "4.128.0"
+    "wrangler": "4.150.0"
   }
 }

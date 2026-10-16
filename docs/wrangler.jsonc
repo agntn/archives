@@ -35,6 +35,19 @@
     "enabled": true
   },
   "routes": [{ "pattern": "archives.agntn.dev", "custom_domain": true }],
+  "observability": {
+    "redact_query_string": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true
+    },
+    "issues": {
+      "enabled": true
+    }
+  },
   "previews": {
     "vars": {
       "NUXT_SITE_URL": "https://archives.agntn.dev"
@@ -58,6 +71,16 @@
         "namespace_id": "3303",
         "simple": { "limit": 30, "period": 60 }
       }
-    ]
+    ],
+    "observability": {
+      "redact_query_string": true,
+      "logs": {
+        "enabled": true,
+        "invocation_logs": true
+      },
+      "traces": {
+        "enabled": true
+      }
+    }
   }
 }
