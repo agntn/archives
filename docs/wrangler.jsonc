@@ -36,6 +36,7 @@
   },
   "routes": [{ "pattern": "archives.agntn.dev", "custom_domain": true }],
   "observability": {
+    "redact_query_string": true,
     "logs": {
       "enabled": true,
       "invocation_logs": true
@@ -72,6 +73,7 @@
       }
     ],
     "observability": {
+      "redact_query_string": true,
       "logs": {
         "enabled": true,
         "invocation_logs": true
