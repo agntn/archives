@@ -1,4 +1,5 @@
 import { snapshotArchives } from "@agntn/archives/tool-operations";
+import { defineEventHandler, getQuery } from "nuxt/server";
 import { archiveRequestAbort } from "../utils/query";
 
 const TTL = 60 * 30;

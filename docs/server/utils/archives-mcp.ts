@@ -1,4 +1,5 @@
 import { sanitizeLine, type ToolDefinition, type ToolResult } from "@agntn/tools";
+import type { RequestEvent } from "nuxt/server";
 import { archivesTools } from "../../../src/tools.ts";
 import { admitQueries, LIMITS, RATE_LIMIT } from "./query";
 import { unreachableReason } from "./reach";
@@ -17,6 +18,15 @@ function queryCost(name: string, args: Readonly<Record<string, unknown>>): numbe
   if (name === "archives_providers") return 0;
   const target = args["target"];
   return Array.isArray(target) ? target.length : 1;
+}
+
+/**
+ * The `/mcp` request from Nitro's async context: h3's own event, which the `nuxt/server` helpers on Nitro v2 read as is.
+ *
+ * @returns {Pick<RequestEvent, "req" | "context">} The event, typed as the rate limit reads it.
+ */
+function mcpRequest(): Pick<RequestEvent, "req" | "context"> {
+  return useEvent() as unknown as Pick<RequestEvent, "req" | "context">;
 }
 
 /**
@@ -49,7 +59,7 @@ async function siteRefusal(
       `Pass retries ${LIMITS.retries} or less, ${LOCAL_HINT}`,
     ];
   }
-  if (!(await admitQueries(useEvent(), queryCost(name, args)))) {
+  if (!(await admitQueries(mcpRequest(), queryCost(name, args)))) {
     return [
       `${name} failed: more than ${RATE_LIMIT} new archive queries in a minute from one address, or one /64 on IPv6`,
       `Wait a minute and call again, ${LOCAL_HINT}`,

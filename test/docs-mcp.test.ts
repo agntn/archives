@@ -34,16 +34,12 @@ beforeEach(() => {
     },
   };
   const event = {
-    headers: { "cf-connecting-ip": "203.0.113.7" },
+    req: new Request("https://archives.agntn.dev/mcp", {
+      headers: { "cf-connecting-ip": "203.0.113.7" },
+    }),
     context: { cloudflare: { env } },
   };
   vi.stubGlobal("useEvent", () => event);
-  vi.stubGlobal(
-    "getRequestHeader",
-    (request: Readonly<{ headers: Readonly<Record<string, string>> }>, name: string) =>
-      request.headers[name.toLowerCase()],
-  );
-  vi.stubGlobal("getRequestIP", () => undefined);
 });
 
 afterEach(async () => {

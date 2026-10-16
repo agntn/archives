@@ -1,4 +1,5 @@
 import { listArchiveProviders } from "@agntn/archives/tool-operations";
+import { defineEventHandler } from "nuxt/server";
 
 /** The provider table as `archives_providers` renders it; no key is configured on the docs worker. */
 export default defineEventHandler((event) => {

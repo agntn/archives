@@ -152,17 +152,17 @@ export default defineNuxtConfig({
     scheduledTasks: {
       "17 */6 * * *": ["warm:demo"],
     },
-    prerender: {
-      crawlLinks: true,
-      routes: ["/", "/sitemap.xml", "/robots.txt", "/llms.txt", "/llms-full.txt"],
-      ignore: ["/api"],
-    },
     cloudflare: {
       deployConfig: true,
       nodeCompat: true,
     },
   },
   compatibilityDate: "2026-09-03",
+  prerender: {
+    crawlLinks: true,
+    routes: ["/", "/sitemap.xml", "/robots.txt", "/llms.txt", "/llms-full.txt"],
+    ignore: ["/api"],
+  },
   /** In production the response cache lives in KV, so it survives isolates and the cron can warm it. */
   $production: {
     nitro: {

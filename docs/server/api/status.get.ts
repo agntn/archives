@@ -1,4 +1,5 @@
 import { listArchiveProviders, snapshotArchives } from "@agntn/archives/tool-operations";
+import { defineEventHandler, type RequestEvent } from "nuxt/server";
 
 const TTL = 60 * 10;
 const PROBE_TARGET = "example.com";
@@ -13,8 +14,9 @@ export interface ProviderProbe {
 }
 
 /** One timed listing per provider; unconfigured or unreachable ones are reported, not probed. */
-export default defineCachedEventHandler(
-  async (event) => {
+const probeProviders = defineCachedFunction(
+  /* The event only reaches Nitro, which hands a stale entry's refresh to its `waitUntil`. */
+  async (_event: RequestEvent) => {
     const statuses = listArchiveProviders().details.providers.filter((status) => status.name !== "all");
     const probes = await Promise.all(
       statuses.map(async (status): Promise<ProviderProbe> => {
@@ -49,8 +51,14 @@ export default defineCachedEventHandler(
         }
       }),
     );
-    markPublic(event, TTL);
     return { target: PROBE_TARGET, probes, fetchedAt: new Date().toISOString() };
   },
-  { maxAge: TTL, swr: true, getKey: () => "status" },
+  { name: "status", maxAge: TTL, swr: true, getKey: () => "status" },
 );
+
+/** The probes from Nitro's cache, so a status page full of visitors costs one round of listings per TTL. */
+export default defineEventHandler(async (event) => {
+  const status = await probeProviders(event);
+  markPublic(event, TTL);
+  return status;
+});
