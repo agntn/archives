@@ -13,8 +13,9 @@ import {
   createFetchOptions,
   createSuccessResponse,
   createUnsupportedContentResponse,
-  resolveRequestedTimestamp,
-  toWaybackTimestamp,
+  parsePywbCaptures,
+  type PywbCapture,
+  requestedWindow,
   waybackTimestampToISO,
   reverseSortQuery,
   listingPattern,
@@ -25,77 +26,12 @@ const BASE_URL = "https://ndhadeliver.natlib.govt.nz";
 const PREFIX = "/webarchive";
 /** No `length`: the index writes "0" there for nearly every record. */
 const CDX_FIELDS = "url,timestamp,status,mime,digest";
+const MALFORMED = "New Zealand Web Archive returned a malformed CDX record";
 
 const UNSUPPORTED_CONTENT_REASON =
   "The New Zealand Web Archive serves its replay behind Imperva's browser check, which answers a script with a JavaScript challenge page (HTTP 200) instead of the capture. Only the CDX index is open to clients, so this provider lists captures and cannot read them. For the bytes, ask Wayback or Common Crawl for the same URL.";
 
-interface NlnzCapture {
-  url: string;
-  timestamp: string;
-  status?: number;
-  mime?: string;
-  digest?: string;
-}
-
-function queryWindow(options: Readonly<NlnzOptions>): Record<string, string> {
-  const result: Record<string, string> = {};
-  const from = resolveRequestedTimestamp(options.from, "from");
-  const to = resolveRequestedTimestamp(options.to, "to");
-  if (from) result.from = from;
-  if (to) result.to = to;
-  return result;
-}
-
-/**
- * Reads one CDX field. pywb writes "-" for one it doesn't know, and that's no value.
- * @param value - The field as parsed from the row.
- * @returns {string} The field, or an empty string.
- */
-function field(value: unknown): string {
-  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
-  return text === "-" ? "" : text;
-}
-
-function optionalCaptureFields(record: Readonly<Record<string, unknown>>): Partial<NlnzCapture> {
-  const result: Partial<NlnzCapture> = {};
-  const status = Number.parseInt(field(record["status"]), 10);
-  if (Number.isFinite(status)) result.status = status;
-  const mime = field(record["mime"]);
-  if (mime) result.mime = mime;
-  const digest = field(record["digest"]);
-  if (digest) result.digest = digest;
-  return result;
-}
-
-function parseCapture(line: string): NlnzCapture | undefined {
-  let value: unknown;
-  try {
-    value = JSON.parse(line);
-  } catch {
-    throw new Error("New Zealand Web Archive returned a malformed CDX record");
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("New Zealand Web Archive returned a malformed CDX record");
-  }
-
-  const record = value as Readonly<Record<string, unknown>>;
-  const url = field(record["url"]);
-  const timestamp = toWaybackTimestamp(field(record["timestamp"]));
-  if (!url || !timestamp) return undefined;
-  return { url, timestamp, ...optionalCaptureFields(record) };
-}
-
-function parseCaptures(raw: unknown): NlnzCapture[] {
-  const text = typeof raw === "string" ? raw : "";
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => parseCapture(line))
-    .filter((capture): capture is NlnzCapture => capture !== undefined);
-}
-
-function page(capture: Readonly<NlnzCapture>): ArchivedPage {
+function page(capture: Readonly<PywbCapture>): ArchivedPage {
   const metadata: NlnzMetadata = {
     provider: "nlnz",
     timestamp: capture.timestamp,
@@ -144,7 +80,7 @@ export class NlnzProvider extends BaseProvider<NlnzOptions> {
         BASE_URL,
         {
           url: listingPattern(target, options.order),
-          ...queryWindow(options),
+          ...requestedWindow(options),
           ...reverseSortQuery(options.order),
           output: "json",
           fl: CDX_FIELDS,
@@ -158,7 +94,7 @@ export class NlnzProvider extends BaseProvider<NlnzOptions> {
         },
       );
       const raw: unknown = await fetchData(`${PREFIX}/cdx`, fetchOptions);
-      return createSuccessResponse(parseCaptures(raw).map(page), "nlnz", {
+      return createSuccessResponse(parsePywbCaptures(raw, MALFORMED).map(page), "nlnz", {
         queryParams: fetchOptions.params,
       });
     } catch (error) {

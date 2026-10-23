@@ -9,6 +9,7 @@ Run `pnpm install` and that's it: `docs/` sits in the same workspace, so one loc
 - Copy `src/providers/wayback.ts`, register the factory in `src/providers/index.ts` and put its option types in `src/_providers.ts`, not beside the implementation.
 - Answer through `createSuccessResponse`, `createErrorResponse` and `createUnsupportedResponse`, never a raw object. Convert timestamps to ISO 8601 and keep the native one in `_meta`.
 - `unsupported` means the archive's API has no such endpoint, and callers read the reason to decide whether to try elsewhere. A missing implementation is not that.
+- A pywb index (Vefsafn, Webarchiv, OSZK, NLNZ) reads its rows through `parsePywbCaptures` from `src/utils/_cdx.ts`, which already knows a `-` means pywb has no idea. The `from`/`to` window comes from `requestedWindow` in the same file. Four copies of that parser were plenty.
 - Read a capture raw or not at all: `id_` playback or a WARC byte range. An archive that only serves its own rendition returns `createUnsupportedContentResponse` with the reason.
 - A factory may cache its module-load promise, never a configured instance, and a failed import stays retryable.
 - `providers.all()` leaves out providers that need a key or a collection, and Memento, which already fans out across archives. Its JSDoc says why for each.

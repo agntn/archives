@@ -17,16 +17,20 @@ import {
   type FetchBodyPolicy,
   normalizeDomain,
   preferSameUrl,
+  pywbCapture,
+  type PywbCapture,
+  pywbRow,
   readPlaybackCapture,
+  requestedWindow,
   resolveRequestedTimestamp,
   selectCapture,
-  toWaybackTimestamp,
   waybackTimestampToISO,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
 
 const BASE_URL = "https://webarchiv.onb.ac.at";
 const CONTENT_CAPTURE_LIMIT = 5;
+const MALFORMED = "Webarchiv Österreich returned a malformed CDXJ record";
 const RAW_REPLAY_PATH = /^\/web\/\d{4,14}id_\/https?:\/\/\S+$/u;
 const REPLAY_POLICY = {
   assertURL(url: URL) {
@@ -36,15 +40,6 @@ const REPLAY_POLICY = {
   },
   returnRejectedRedirect: true,
 } satisfies FetchBodyPolicy;
-
-interface WebarchivCapture {
-  url: string;
-  timestamp: string;
-  status?: number;
-  mime?: string;
-  digest?: string;
-  length?: string;
-}
 
 function exactTarget(value: string, operation: string): string {
   const normalized = normalizeDomain(value, false).trim();
@@ -61,54 +56,14 @@ function exactTarget(value: string, operation: string): string {
   return `http://${target}`;
 }
 
-function queryWindow(options: Readonly<WebarchivOptions>): Record<string, string> {
-  const result: Record<string, string> = {};
-  const from = resolveRequestedTimestamp(options.from, "from");
-  const to = resolveRequestedTimestamp(options.to, "to");
-  if (from) result.from = from;
-  if (to) result.to = to;
-  return result;
-}
-
-function optionalCaptureFields(
-  record: Readonly<Record<string, unknown>>,
-): Partial<WebarchivCapture> {
-  const result: Partial<WebarchivCapture> = {};
-  const rawStatus = record["status"];
-  const status =
-    typeof rawStatus === "string" || typeof rawStatus === "number"
-      ? Number.parseInt(String(rawStatus), 10)
-      : Number.NaN;
-  if (Number.isFinite(status)) result.status = status;
-  if (typeof record["mime"] === "string") result.mime = record["mime"];
-  if (typeof record["digest"] === "string") result.digest = record["digest"];
-  if (typeof record["length"] === "string") result.length = record["length"];
-  return result;
-}
-
-function parseCapture(line: string): WebarchivCapture | undefined {
+function parseCapture(line: string): PywbCapture | undefined {
   const match = /^\S+\s+(\S+)\s+(.+)$/u.exec(line);
-  if (!match) throw new Error("Webarchiv Österreich returned a malformed CDXJ record");
-
-  let value: unknown;
-  try {
-    value = JSON.parse(match[2]);
-  } catch {
-    throw new Error("Webarchiv Österreich returned a malformed CDXJ record");
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("Webarchiv Österreich returned a malformed CDXJ record");
-  }
-
-  const record = value as Readonly<Record<string, unknown>>;
-  const url = record["url"];
-  const timestamp = toWaybackTimestamp(match[1]);
-  if (typeof url !== "string" || !timestamp) return undefined;
-  return { url, timestamp, ...optionalCaptureFields(record) };
+  if (!match) throw new Error(MALFORMED);
+  return pywbCapture(pywbRow(match[2], MALFORMED), match[1]);
 }
 
-function parseCaptures(raw: unknown): WebarchivCapture[] {
-  const captures: WebarchivCapture[] = [];
+function parseCaptures(raw: unknown): PywbCapture[] {
+  const captures: PywbCapture[] = [];
   for (const line of String(raw).split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -119,7 +74,7 @@ function parseCaptures(raw: unknown): WebarchivCapture[] {
 }
 
 function supplementalMetadata(
-  capture: Readonly<WebarchivCapture>,
+  capture: Readonly<PywbCapture>,
 ): Pick<WebarchivMetadata, "mime" | "digest" | "length"> {
   return {
     ...(capture.mime ? { mime: capture.mime } : {}),
@@ -128,7 +83,7 @@ function supplementalMetadata(
   };
 }
 
-function metadata(capture: Readonly<WebarchivCapture>): WebarchivMetadata {
+function metadata(capture: Readonly<PywbCapture>): WebarchivMetadata {
   return {
     provider: "webarchiv",
     timestamp: capture.timestamp,
@@ -137,7 +92,7 @@ function metadata(capture: Readonly<WebarchivCapture>): WebarchivMetadata {
   };
 }
 
-function page(capture: Readonly<WebarchivCapture>): ArchivedPage {
+function page(capture: Readonly<PywbCapture>): ArchivedPage {
   return {
     url: capture.url,
     timestamp: waybackTimestampToISO(capture.timestamp),
@@ -149,7 +104,7 @@ function page(capture: Readonly<WebarchivCapture>): ArchivedPage {
 async function fetchCaptures(
   params: Readonly<Record<string, string>>,
   options: Readonly<WebarchivOptions>,
-): Promise<{ captures: WebarchivCapture[]; queryParams: unknown }> {
+): Promise<{ captures: PywbCapture[]; queryParams: unknown }> {
   const fetchOptions = await createFetchOptions(BASE_URL, params, {
     retries: options.retries,
     signal: options.signal,
@@ -192,7 +147,7 @@ export class WebarchivProvider extends BaseProvider<WebarchivOptions> {
       const params = {
         url: exactTarget(url, "listing"),
         limit: String(options.limit ?? 1000),
-        ...queryWindow(options),
+        ...requestedWindow(options),
         ...(options.order === "newest" ? { reverse: "true" } : {}),
       };
       const { captures, queryParams } = await fetchCaptures(params, options);
@@ -252,7 +207,7 @@ export class WebarchivProvider extends BaseProvider<WebarchivOptions> {
     target: string,
     wanted: string,
     options: Readonly<WebarchivOptions>,
-  ): Promise<WebarchivCapture[]> {
+  ): Promise<PywbCapture[]> {
     const params: Record<string, string> = {
       url: target,
       limit: String(CONTENT_CAPTURE_LIMIT),

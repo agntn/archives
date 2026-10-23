@@ -15,11 +15,13 @@ import {
   createFetchOptions,
   createSuccessResponse,
   normalizeDomain,
+  parsePywbCaptures,
   preferSameUrl,
+  type PywbCapture,
   readPlaybackCapture,
+  requestedWindow,
   resolveRequestedTimestamp,
   selectCapture,
-  toWaybackTimestamp,
   waybackTimestampToISO,
   reverseSortQuery,
   listingPattern,
@@ -30,24 +32,7 @@ const BASE_URL = "https://webadmin.oszk.hu";
 const PREFIX = "/pywb";
 const CDX_FIELDS = "url,timestamp,status,mime,digest,length";
 const CONTENT_CAPTURE_LIMIT = 200;
-
-interface OszkCapture {
-  url: string;
-  timestamp: string;
-  status?: number;
-  mime?: string;
-  digest?: string;
-  length?: string;
-}
-
-function queryWindow(options: Readonly<OszkOptions>): Record<string, string> {
-  const result: Record<string, string> = {};
-  const from = resolveRequestedTimestamp(options.from, "from");
-  const to = resolveRequestedTimestamp(options.to, "to");
-  if (from) result.from = from;
-  if (to) result.to = to;
-  return result;
-}
+const MALFORMED = "OSZK Webarchívum returned a malformed CDX record";
 
 function contentQuery(
   target: string,
@@ -59,59 +44,8 @@ function contentQuery(
   return params;
 }
 
-/**
- * Reads one CDX field. pywb writes "-" for one it doesn't know, and that's no value.
- * @param value - The field as parsed from the row.
- * @returns {string} The field, or an empty string.
- */
-function field(value: unknown): string {
-  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
-  return text === "-" ? "" : text;
-}
-
-function optionalCaptureFields(record: Readonly<Record<string, unknown>>): Partial<OszkCapture> {
-  const result: Partial<OszkCapture> = {};
-  const status = Number.parseInt(field(record["status"]), 10);
-  if (Number.isFinite(status)) result.status = status;
-  const mime = field(record["mime"]);
-  if (mime) result.mime = mime;
-  const digest = field(record["digest"]);
-  if (digest) result.digest = digest;
-  const length = field(record["length"]);
-  if (length) result.length = length;
-  return result;
-}
-
-function parseCapture(line: string): OszkCapture | undefined {
-  let value: unknown;
-  try {
-    value = JSON.parse(line);
-  } catch {
-    throw new Error("OSZK Webarchívum returned a malformed CDX record");
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("OSZK Webarchívum returned a malformed CDX record");
-  }
-
-  const record = value as Readonly<Record<string, unknown>>;
-  const url = field(record["url"]);
-  const timestamp = toWaybackTimestamp(field(record["timestamp"]));
-  if (!url || !timestamp) return undefined;
-  return { url, timestamp, ...optionalCaptureFields(record) };
-}
-
-function parseCaptures(raw: unknown): OszkCapture[] {
-  const text = typeof raw === "string" ? raw : "";
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => parseCapture(line))
-    .filter((capture): capture is OszkCapture => capture !== undefined);
-}
-
 function supplementalMetadata(
-  capture: Readonly<OszkCapture>,
+  capture: Readonly<PywbCapture>,
 ): Pick<OszkMetadata, "mime" | "digest" | "length"> {
   return {
     ...(capture.mime ? { mime: capture.mime } : {}),
@@ -120,7 +54,7 @@ function supplementalMetadata(
   };
 }
 
-function page(capture: Readonly<OszkCapture>): ArchivedPage {
+function page(capture: Readonly<PywbCapture>): ArchivedPage {
   const metadata: OszkMetadata = {
     provider: "oszk",
     timestamp: capture.timestamp,
@@ -148,7 +82,7 @@ async function fetchCaptures(
   params: Readonly<Record<string, string>>,
   limit: number,
   options: Readonly<OszkOptions>,
-): Promise<{ captures: OszkCapture[]; queryParams: unknown }> {
+): Promise<{ captures: PywbCapture[]; queryParams: unknown }> {
   const fetchOptions = await createFetchOptions(
     BASE_URL,
     { ...params, output: "json", fl: CDX_FIELDS, limit: String(limit) },
@@ -160,7 +94,7 @@ async function fetchCaptures(
     },
   );
   const raw: unknown = await fetchData(`${PREFIX}/cdx`, fetchOptions);
-  return { captures: parseCaptures(raw), queryParams: fetchOptions.params };
+  return { captures: parsePywbCaptures(raw, MALFORMED), queryParams: fetchOptions.params };
 }
 
 /** OSZK Webarchívum, the Hungarian web archive run by the National Széchényi Library. */
@@ -195,7 +129,7 @@ export class OszkProvider extends BaseProvider<OszkOptions> {
       const { captures, queryParams } = await fetchCaptures(
         {
           url: listingPattern(target, options.order),
-          ...queryWindow(options),
+          ...requestedWindow(options),
           ...reverseSortQuery(options.order),
         },
         limit,
@@ -251,7 +185,7 @@ export class OszkProvider extends BaseProvider<OszkOptions> {
     target: string,
     wanted: string,
     options: Readonly<OszkOptions>,
-  ): Promise<OszkCapture[]> {
+  ): Promise<PywbCapture[]> {
     const firstBound = wanted ? { edge: "to" as const, timestamp: wanted } : undefined;
     const { captures } = await fetchCaptures(
       contentQuery(target, firstBound),

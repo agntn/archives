@@ -15,11 +15,13 @@ import {
   createFetchOptions,
   createSuccessResponse,
   normalizeDomain,
+  parsePywbCapture,
   preferSameUrl,
+  type PywbCapture,
   readPlaybackCapture,
+  requestedWindow,
   resolveRequestedTimestamp,
   selectCapture,
-  toWaybackTimestamp,
   waybackTimestampToISO,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
@@ -27,14 +29,7 @@ import { BaseProvider } from "./base-provider.ts";
 const BASE_URL = "https://vefsafn.is";
 const CONTENT_CAPTURE_LIMIT = 200;
 const MAX_LINE_LENGTH = 64 * 1024;
-
-interface VefsafnCapture {
-  url: string;
-  timestamp: string;
-  status?: number;
-  mime?: string;
-  digest?: string;
-}
+const MALFORMED = "Vefsafn returned a malformed CDX record";
 
 /**
  * Narrows a target to one exact URL: prefix queries on a large host answered nothing within 25 s.
@@ -57,67 +52,20 @@ function exactTarget(value: string, operation: string): string {
   return `http://${target}`;
 }
 
-function queryWindow(options: Readonly<VefsafnOptions>): Record<string, string> {
-  const result: Record<string, string> = {};
-  const from = resolveRequestedTimestamp(options.from, "from");
-  const to = resolveRequestedTimestamp(options.to, "to");
-  if (from) result.from = from;
-  if (to) result.to = to;
-  return result;
-}
-
-function field(value: unknown): string {
-  return typeof value === "string" || typeof value === "number" ? String(value) : "";
-}
-
-/**
- * Reads the optional fields. pywb writes "-" for one it doesn't know.
- * @param record - One parsed CDX row.
- * @returns {Partial<VefsafnCapture>} The fields the row carries.
- */
-function optionalCaptureFields(record: Readonly<Record<string, unknown>>): Partial<VefsafnCapture> {
-  const result: Partial<VefsafnCapture> = {};
-  const status = Number.parseInt(field(record["status"]), 10);
-  if (Number.isFinite(status)) result.status = status;
-  const mime = field(record["mime"]);
-  if (mime && mime !== "-") result.mime = mime;
-  const digest = field(record["digest"]);
-  if (digest && digest !== "-") result.digest = digest;
-  return result;
-}
-
-function parseCapture(line: string): VefsafnCapture | undefined {
-  let value: unknown;
-  try {
-    value = JSON.parse(line);
-  } catch {
-    throw new Error("Vefsafn returned a malformed CDX record");
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("Vefsafn returned a malformed CDX record");
-  }
-
-  const record = value as Readonly<Record<string, unknown>>;
-  const url = record["url"];
-  const timestamp = toWaybackTimestamp(field(record["timestamp"]));
-  if (typeof url !== "string" || !timestamp) return undefined;
-  return { url, timestamp, ...optionalCaptureFields(record) };
-}
-
 /**
  * Splits the stream into rows and parses them until `limit` captures are in hand.
  * @param read - Next chunk of the decoded CDX response.
  * @param limit - Rows to keep.
- * @returns {Promise<VefsafnCapture[]>} The captures read before the cap or the end of the stream.
+ * @returns {Promise<PywbCapture[]>} The captures read before the cap or the end of the stream.
  */
 async function collectCaptures(
   read: () => Promise<ReadableStreamReadResult<string>>,
   limit: number,
-): Promise<VefsafnCapture[]> {
-  const captures: VefsafnCapture[] = [];
+): Promise<PywbCapture[]> {
+  const captures: PywbCapture[] = [];
   const take = (line: string) => {
     const trimmed = line.trim();
-    const capture = trimmed ? parseCapture(trimmed) : undefined;
+    const capture = trimmed ? parsePywbCapture(trimmed, MALFORMED) : undefined;
     if (capture) captures.push(capture);
   };
 
@@ -131,7 +79,7 @@ async function collectCaptures(
     const lines = (pending + value).split("\n");
     pending = lines.pop() ?? "";
     if (pending.length > MAX_LINE_LENGTH) {
-      throw new Error("Vefsafn returned a malformed CDX record");
+      throw new Error(MALFORMED);
     }
     for (const line of lines) {
       if (captures.length >= limit) break;
@@ -145,9 +93,9 @@ async function collectCaptures(
  * The index ignores `limit` and streams every row, so the cap applies while reading.
  * @param stream - Body of the CDX response.
  * @param limit - Rows to keep.
- * @returns {Promise<VefsafnCapture[]>} At most `limit` captures.
+ * @returns {Promise<PywbCapture[]>} At most `limit` captures.
  */
-async function readCaptures(stream: unknown, limit: number): Promise<VefsafnCapture[]> {
+async function readCaptures(stream: unknown, limit: number): Promise<PywbCapture[]> {
   if (!(stream instanceof ReadableStream)) return [];
   const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
   try {
@@ -158,7 +106,7 @@ async function readCaptures(stream: unknown, limit: number): Promise<VefsafnCapt
 }
 
 function supplementalMetadata(
-  capture: Readonly<VefsafnCapture>,
+  capture: Readonly<PywbCapture>,
 ): Pick<VefsafnMetadata, "mime" | "digest"> {
   return {
     ...(capture.mime ? { mime: capture.mime } : {}),
@@ -166,7 +114,7 @@ function supplementalMetadata(
   };
 }
 
-function metadata(capture: Readonly<VefsafnCapture>): VefsafnMetadata {
+function metadata(capture: Readonly<PywbCapture>): VefsafnMetadata {
   return {
     provider: "vefsafn",
     timestamp: capture.timestamp,
@@ -175,7 +123,7 @@ function metadata(capture: Readonly<VefsafnCapture>): VefsafnMetadata {
   };
 }
 
-function page(capture: Readonly<VefsafnCapture>): ArchivedPage {
+function page(capture: Readonly<PywbCapture>): ArchivedPage {
   return {
     url: capture.url,
     timestamp: waybackTimestampToISO(capture.timestamp),
@@ -188,7 +136,7 @@ async function fetchCaptures(
   params: Readonly<Record<string, string>>,
   limit: number,
   options: Readonly<VefsafnOptions>,
-): Promise<{ captures: VefsafnCapture[]; queryParams: unknown }> {
+): Promise<{ captures: PywbCapture[]; queryParams: unknown }> {
   const fetchOptions = await createFetchOptions(
     BASE_URL,
     { ...params, output: "json", limit: String(limit) },
@@ -235,7 +183,7 @@ export class VefsafnProvider extends BaseProvider<VefsafnOptions> {
       const options = await this.resolveOptions(reqOptions);
       const params = {
         url: exactTarget(url, "listing"),
-        ...queryWindow(options),
+        ...requestedWindow(options),
         ...(options.order === "newest" ? { reverse: "true" } : {}),
       };
       const { captures, queryParams } = await fetchCaptures(params, options.limit ?? 1000, options);
@@ -291,7 +239,7 @@ export class VefsafnProvider extends BaseProvider<VefsafnOptions> {
     target: string,
     wanted: string,
     options: Readonly<VefsafnOptions>,
-  ): Promise<VefsafnCapture[]> {
+  ): Promise<PywbCapture[]> {
     const params: Record<string, string> = { url: target, reverse: "true" };
     if (wanted) params.to = wanted;
 

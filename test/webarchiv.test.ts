@@ -129,6 +129,29 @@ describe("Webarchiv Österreich", () => {
     expect(result.pages[0]?._meta).not.toHaveProperty("status");
   });
 
+  it("drops the - pywb writes for a field it doesn't know", async () => {
+    fetchMock.mockResolvedValueOnce(
+      cdx("20200101000000", undefined, { mime: "-", digest: "-", length: "-" }),
+    );
+
+    const result = await createArchive(createWebarchiv()).snapshots("onb.ac.at");
+
+    expect(result.success).toBe(true);
+    expect(result.pages[0]?._meta).toEqual({
+      provider: "webarchiv",
+      timestamp: "20200101000000",
+      status: 200,
+    });
+  });
+
+  it("skips a row whose URL pywb left as -", async () => {
+    fetchMock.mockResolvedValueOnce(`${cdx("20200101000000", "-")}\n${cdx("20210101000000")}`);
+
+    const result = await createArchive(createWebarchiv()).snapshots("onb.ac.at");
+
+    expect(result.pages.map((page) => page.url)).toEqual(["https://www.onb.ac.at/"]);
+  });
+
   it("reports a malformed CDXJ record as a provider error", async () => {
     fetchMock.mockResolvedValueOnce("not a CDXJ record");
 

@@ -18,6 +18,7 @@ import {
   normalizeDomain,
   preferSameUrl,
   readPlaybackCapture,
+  requestedWindow,
   resolveRequestedTimestamp,
   selectCapture,
   toWaybackTimestamp,
@@ -45,22 +46,13 @@ type ArquivoPlayback = Readonly<Omit<ArchivedContent, "_meta">> & {
   readonly _meta: Readonly<ArchivedContent["_meta"]>;
 };
 
-function queryWindow(options: Readonly<ArquivoOptions>): Record<string, string> {
-  const result: Record<string, string> = {};
-  const from = resolveRequestedTimestamp(options.from, "from");
-  const to = resolveRequestedTimestamp(options.to, "to");
-  if (from) result.from = from;
-  if (to) result.to = to;
-  return result;
-}
-
 function listingQuery(domain: string, options: Readonly<ArquivoOptions>): Record<string, string> {
   return {
     url: listingPattern(domain, options.order),
     output: "json",
     fields: CDX_FIELDS,
     limit: String(options.limit ?? 1000),
-    ...queryWindow(options),
+    ...requestedWindow(options),
     ...reverseSortQuery(options.order),
   };
 }
