@@ -2,6 +2,8 @@
 
 Cloudflare Workers Builds deploys this site to archives.agntn.dev. It runs `pnpm install` in `docs/`, which installs the whole workspace from the root lockfile, and takes Node.js from the root `.node-version`, never from `engines`; without that file it falls back to its own default, which was 24.
 
+Its build command is a bare `pnpm run build`. Production builds with whatever the scripts in `package.json` say. They skip `--extends docus`, even though the Docus docs show it. `nuxt.config.ts` already extends it, and on Nuxt 4.6 the flag loads the layer a second time: `robots.txt` greeted every crawler twice.
+
 Resources on the Cloudflare account, bound by id in `wrangler.jsonc`:
 
 - D1 `agntn-archives` as `DB`, KV as `CACHE`
