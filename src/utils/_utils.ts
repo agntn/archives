@@ -284,6 +284,17 @@ function pattern(target: string, order: CaptureOrder | undefined): string {
   return normalizeDomain(target, !(order && SCHEME.test(target.trim())));
 }
 
+/** A day of clock skew is ordinary; the years ahead some timemaps list are not. */
+const MAX_CAPTURE_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The latest stamp a real capture can carry right now; anything later is a clock error.
+ * @returns {number} Milliseconds since the epoch
+ */
+export function latestPossibleCapture(): number {
+  return Date.now() + MAX_CAPTURE_CLOCK_SKEW_MS;
+}
+
 /**
  * Sorts pages by capture time; captures of the same second keep the archive's order.
  * @param pages - Pages to sort

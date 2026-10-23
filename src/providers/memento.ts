@@ -13,6 +13,7 @@ import {
   createSuccessResponse,
   fetchBody,
   type FetchedBody,
+  latestPossibleCapture,
   preferSameUrl,
   requestedBody,
   resolveRequestedTimestamp,
@@ -26,8 +27,6 @@ import {
 import { BaseProvider } from "./base-provider.ts";
 
 const DEFAULT_BASE_URL = "https://memgator.cs.odu.edu";
-/** Keeps ordinary clock skew while dropping captures dated years in the future. */
-const MAX_CAPTURE_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
 
 interface JsonTimeMapMemento {
   readonly datetime: string;
@@ -440,10 +439,10 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
     const timeMap = this.parseTimeMap(response);
     const pages: ArchivedPage[] = [];
     const seen = new Set<string>();
-    const latestPossibleCapture = Date.now() + MAX_CAPTURE_CLOCK_SKEW_MS;
+    const latest = latestPossibleCapture();
 
     for (const memento of timeMap.mementos) {
-      const page = pageFromMemento(memento, timeMap.originalUri, latestPossibleCapture);
+      const page = pageFromMemento(memento, timeMap.originalUri, latest);
       if (!page) continue;
       const key = `${page.timestamp}\u0000${page.snapshot}`;
       if (seen.has(key)) continue;

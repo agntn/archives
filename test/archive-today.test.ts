@@ -74,6 +74,20 @@ describe("archive.today", () => {
     expect(result.pages.map((page) => page.timestamp)).toEqual(["2020-01-01T03:04:05.000Z"]);
   });
 
+  /** The live example.com timemap lists captures from 2029 to 2035, and they led every listing. */
+  it("drops captures dated past the clock", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce(
+      [
+        `<http://archive.md/20200101030405/https://example.com/>; rel="memento"; datetime="Wed, 01 Jan 2020 03:04:05 GMT"`,
+        `<http://archive.md/20991231145959/http://example.com/>; rel="last memento"; datetime="Thu, 31 Dec 2099 14:59:59 GMT"`,
+      ].join(",\n"),
+    );
+
+    const result = await createArchiveToday().snapshots("example.com", { order: "newest" });
+
+    expect(result.pages.map((page) => page._meta.hash)).toEqual(["20200101030405"]);
+  });
+
   it("preserves the original and snapshot URLs reported by the timemap", async () => {
     const originalUrl = "http://example.com/path//?next=//cdn.example/";
     const snapshotUrl = `http://archive.md/20140101030405/${originalUrl}`;
