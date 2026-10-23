@@ -14,6 +14,7 @@ import {
   createContentResponse,
   fetchBody,
   isNoCaptureError,
+  latestPossibleCapture,
   normalizeDomain,
   preferSameUrl,
   requestedBody,
@@ -230,6 +231,8 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
    * snapshot URL names the same instant, so its stamp is the fallback. Stamping
    * "now" instead would push the row above every real capture once a merged
    * response sorts newest-first; a row with no readable time at all is dropped.
+   * So is a row stamped past the clock: the example.com timemap lists captures
+   * from 2029 to 2035, and each one would read as the newest copy there is.
    *
    * The timemap labels its newest row `last memento` and a lone capture
    * `first last memento`, so the match takes any first/last qualifiers;
@@ -279,10 +282,11 @@ export class ArchiveTodayProvider extends BaseProvider<ArchiveTodayOptions> {
 
     let mementoMatch;
     let index = 0;
+    const latest = latestPossibleCapture();
 
     while ((mementoMatch = mementoRegex.exec(timemapResponse)) !== null) {
       const page = archiveTodayPage(mementoMatch, target, index);
-      if (page) {
+      if (page && Date.parse(page.timestamp) <= latest) {
         pages.push(page);
         index++;
       }

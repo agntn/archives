@@ -960,6 +960,25 @@ describe("archive-today content", () => {
     );
   });
 
+  it("reads the newest capture that could have happened, not one stamped years ahead", async () => {
+    fetchMock.mockResolvedValueOnce(
+      `${timemap},\n<http://archive.md/20991231145959/https://example.com/>; rel="last memento"; datetime="Thu, 31 Dec 2099 14:59:59 GMT"`,
+    );
+    rawMock.mockResolvedValueOnce(
+      rawResponse("<html><body>archived profile</body></html>", {
+        url: "http://archive.md/20210326214327/https://example.com/",
+        headers: { "memento-datetime": "Fri, 26 Mar 2021 21:43:27 GMT" },
+      }),
+    );
+
+    await createArchive(createArchiveToday()).content("example.com");
+
+    expect(rawMock).toHaveBeenCalledWith(
+      "/20210326214327/https://example.com/",
+      objectContaining({ baseURL: "http://archive.md" }),
+    );
+  });
+
   it("reports a never-captured URL as a missing capture, not a timemap failure", async () => {
     fetchMock.mockRejectedValueOnce(
       Object.assign(new Error("404 Not Found"), {
