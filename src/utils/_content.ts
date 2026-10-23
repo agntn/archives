@@ -10,6 +10,7 @@
  */
 
 import { sha256 } from "@agntn/hashes";
+import { decodeHTML } from "entities/decode";
 import { fetchResponse } from "./_fetch.ts";
 import type { ArchiveContentOptions, ArchivedContent } from "../types.ts";
 import { createFetchOptions, waybackTimestampToISO, withoutDefaultPort } from "./_utils.ts";
@@ -1005,8 +1006,9 @@ function markupChunk(lower: string, open: number): HtmlChunk | undefined {
 /**
  * Reduces an archived HTML document to the text a reader would see.
  *
- * Deliberately lossy and dependency-free: scripts, styles and markup carry none
- * of the answer a caller asked for, and they are most of the bytes.
+ * Deliberately lossy: scripts, styles and markup carry none of the answer a caller
+ * asked for, and they are most of the bytes. Character references go through the
+ * full HTML table, because a page from 1999 spells `ä` as `&auml;` and `’` as `&#146;`.
  *
  * One forward scan rather than a chain of `replace()` calls, because every
  * unterminated-construct pattern that job needs (`<!--…-->`, `<script>…</script>`,
@@ -1044,7 +1046,7 @@ export function htmlToText(html: string): string {
     cursor = chunk.cursor;
   }
 
-  return decodeEntities(parts.join(""))
+  return decodeHTML(parts.join(""))
     .split("\n")
     .map((line) => line.replaceAll(/[^\S\n]+/g, " ").trim())
     .join("\n")
@@ -1147,42 +1149,6 @@ function isNameByte(code: number): boolean {
 
 function endsLine(tag: Readonly<TagName>): boolean {
   return tag.closing ? BLOCK_TAGS.has(tag.name) : BREAK_TAGS.has(tag.name);
-}
-
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  apos: "'",
-  nbsp: " ",
-  hellip: "…",
-  mdash: "—",
-  ndash: "–",
-  laquo: "«",
-  raquo: "»",
-  ldquo: "“",
-  rdquo: "”",
-  lsquo: "‘",
-  rsquo: "’",
-};
-
-function decodeEntities(text: string): string {
-  return text.replaceAll(/&(#x?[\da-f]+|[a-z]+);/gi, (match, entity: string) => {
-    const lowered = entity.toLowerCase();
-    if (lowered.startsWith("#")) {
-      const codePoint = lowered.startsWith("#x")
-        ? Number.parseInt(lowered.slice(2), 16)
-        : Number.parseInt(lowered.slice(1), 10);
-      if (!Number.isInteger(codePoint) || codePoint < 1 || codePoint > 0x10_ff_ff) return match;
-      try {
-        return String.fromCodePoint(codePoint);
-      } catch {
-        return match;
-      }
-    }
-    return NAMED_ENTITIES[lowered] ?? match;
-  });
 }
 
 /**
