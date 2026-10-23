@@ -1650,6 +1650,18 @@ describe("content helpers", () => {
     expect(text).toBe("Title\nFirst line & more\nSecond");
   });
 
+  it("decodes every character reference an old page spells its accents with", () => {
+    expect(htmlToText("<p>Universit&auml;t Wien &copy; 2001, &Auml;rzte &euro;5</p>")).toBe(
+      "Universität Wien © 2001, Ärzte €5",
+    );
+    expect(htmlToText("<p>Reykjav&iacute;k &thorn;j&oacute;&eth; caf&eacute &AMP; co</p>")).toBe(
+      "Reykjavík þjóð café & co",
+    );
+    expect(htmlToText("<p>it&#146;s &#x93;quoted&#x94; &#150; &#0; &bogus;</p>")).toBe(
+      "it’s “quoted” – � &bogus;",
+    );
+  });
+
   it("drops an unterminated script block left behind by truncation", () => {
     expect(htmlToText("<p>Kept</p><script>var a = '<p>forged</p>'")).toBe("Kept");
   });
@@ -1679,7 +1691,7 @@ describe("content helpers", () => {
     // quadratically on each of these: 128 KiB of bare `<` cost 9.8 seconds.
     const budgetMs = 5000;
 
-    for (const unit of ["<", "<!--", "<script >"]) {
+    for (const unit of ["<", "<!--", "<script >", "&", "&#9"]) {
       const body = unit.repeat((2 * 1024 * 1024) / unit.length);
       const started = performance.now();
       htmlToText(body);
