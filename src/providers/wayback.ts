@@ -17,6 +17,7 @@ import {
   mapCdxRows,
   preferSameUrl,
   readPlaybackCapture,
+  requestedWindow,
   resolveRequestedTimestamp,
   selectCapture,
   unwrapSnapshotUrl,
@@ -33,15 +34,6 @@ interface CdxCapture {
 }
 
 const BASE_URL = "https://web.archive.org";
-
-function requestedWindow(options: Readonly<WaybackOptions>): Record<string, string> {
-  const result: Record<string, string> = {};
-  const from = resolveRequestedTimestamp(options.from, "from");
-  const to = resolveRequestedTimestamp(options.to, "to");
-  if (from) result.from = from;
-  if (to) result.to = to;
-  return result;
-}
 
 /**
  * A negative limit asks CDX for the last rows instead of the first, still oldest first.

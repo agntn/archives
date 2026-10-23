@@ -166,6 +166,15 @@ describe("OSZK Webarchívum", () => {
     expect(result.error).toBe("OSZK Webarchívum returned a malformed CDX record");
   });
 
+  it("reports a JSON row that isn't an object as a provider error", async () => {
+    fetchMock.mockResolvedValueOnce(`${OSZK_FEBRUARY}\n["http://www.oszk.hu/"]\n`);
+
+    const result = await createArchive(createOszk()).snapshots("oszk.hu");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("OSZK Webarchívum returned a malformed CDX record");
+  });
+
   it("reads the newest 2xx capture at or before the requested time through raw replay", async () => {
     fetchMock.mockResolvedValueOnce(`${OSZK_OCTOBER}\n${OSZK_REVISIT}`);
     rawMock.mockResolvedValueOnce(

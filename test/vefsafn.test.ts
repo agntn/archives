@@ -152,6 +152,14 @@ describe("Vefsafn", () => {
     ]);
   });
 
+  it("skips a row whose URL pywb left as -", async () => {
+    fetchMock.mockResolvedValueOnce(ndjson(`${row("19960101000000", "-")}\n${RUV_1996}\n`));
+
+    const result = await createArchive(createVefsafn()).snapshots("ruv.is");
+
+    expect(result.pages.map((page) => page.timestamp)).toEqual(["1996-12-23T02:27:06Z"]);
+  });
+
   it("reads a last row that has no trailing newline", async () => {
     fetchMock.mockResolvedValueOnce(ndjson(`${RUV_1996}\n${RUV_1997}`));
 
