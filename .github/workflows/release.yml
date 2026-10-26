@@ -83,9 +83,9 @@ jobs:
         with:
           persist-credentials: false
       # Installs docs/ too: test/docs-mcp.test.ts loads the /mcp helper and its toolkit from there.
-      - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+      - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
         with:
-          node-version: v26.12.0
+          node-version: 26.12.1
           run-install: |
             - cwd: .
               args: ['--frozen-lockfile']
@@ -109,9 +109,9 @@ jobs:
         with:
           persist-credentials: false
       # uppt installs through corepack, which Node 26 no longer ships, and the package needs Node 26.
-      - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+      - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
         with:
-          node-version: v26.12.0
+          node-version: 26.12.1
           run-install: |
             - cwd: .
               args: ['--frozen-lockfile', '--ignore-scripts']
