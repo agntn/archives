@@ -24,9 +24,9 @@
   },
   "packageManager": "pnpm@12.11.2",
   "devDependencies": {
-    "@iconify-json/lucide": "1.2.128",
-    "@iconify-json/simple-icons": "1.2.94",
-    "@iconify-json/vscode-icons": "1.2.76",
+    "@iconify-json/lucide": "1.2.147",
+    "@iconify-json/simple-icons": "1.2.100",
+    "@iconify-json/vscode-icons": "1.2.92",
     "webmcp-types": "0.1.6",
     "wrangler": "4.150.0"
   }
