@@ -132,14 +132,14 @@ importers:
         version: 4.6.5
     devDependencies:
       '@iconify-json/lucide':
-        specifier: 1.2.128
-        version: 1.2.128
+        specifier: 1.2.147
+        version: 1.2.147
       '@iconify-json/simple-icons':
-        specifier: 1.2.94
-        version: 1.2.94
+        specifier: 1.2.100
+        version: 1.2.100
       '@iconify-json/vscode-icons':
-        specifier: 1.2.76
-        version: 1.2.76
+        specifier: 1.2.92
+        version: 1.2.92
       webmcp-types:
         specifier: 0.1.6
         version: 0.1.6
@@ -1294,23 +1294,14 @@ packages:
   '@huggingface/transformers@4.2.0':
     resolution: {integrity: sha512-8BRCoBMH0XsWaEIamuR0LrJGAfftgHAfb2Vrffy0VKlSAE/MnUJ5/h/zTfEP3fDIft+nk7TqB8xXEyABGitBjQ==}
 
-  '@iconify-json/lucide@1.2.128':
-    resolution: {integrity: sha512-s8tZ6BIQfkwl6INcdHMri3bokShU/MwOVM8cyFUgE7QJ3EuwmIhXFsrqtA0WD8YrhoII1K+KA5EEIJ4x0JWIdw==}
-
-  '@iconify-json/lucide@1.2.144':
-    resolution: {integrity: sha512-b1+e91RGPd4lLck6nTXeoQFiu8z/G3pXNl/tbsqfleTSzDdI9hUzKYQSGiA6T86NmaI0FtrCDM9MjMhoCwtTMg==}
+  '@iconify-json/lucide@1.2.147':
+    resolution: {integrity: sha512-7Qqa/joSBeUxihWsQJx5nKcqMWtV3YrH90Jldxcx4J9ciTLavRUlpexQwRTcx9dcb7CJpISfjZTj42zD/30sqA==}
 
   '@iconify-json/simple-icons@1.2.100':
     resolution: {integrity: sha512-536pN2RCEQyy5bYwzayrs4e9egr8cmtVcbdSHLaQl/ULUsihzn1eZ0+Hhn50zgz9cbEotiynKsKQSEjFJ7qKmw==}
 
-  '@iconify-json/simple-icons@1.2.94':
-    resolution: {integrity: sha512-l8UWzVxKaqZd9ABsE/M/9p6NyGkQnmCnOoZyhQmjlXCtY5PuL2rcWxOFk2l9pk7ux3ERMPkTLE4jl6kQpTkwxA==}
-
-  '@iconify-json/vscode-icons@1.2.76':
-    resolution: {integrity: sha512-gSu20bZiegbMFLSPHHtmliUJoOPhovTT77RNkMfr6u9ns5uC2bVZ4K5T7wUlywRAzQk4qgG7t4AULaucSsta4w==}
-
-  '@iconify-json/vscode-icons@1.2.89':
-    resolution: {integrity: sha512-MnSIh0h8Wf4w/nooxQXo3LxOsK0D+YsW9DGd8Ypf1+jtyGLqVW+W7l71+Xxf74CficCf+L22C3gNiWpSvTXZ/w==}
+  '@iconify-json/vscode-icons@1.2.92':
+    resolution: {integrity: sha512-P+64v3wS8SieFDvxSIThGK7NLf+Nbp6wLZuF8MRPv0aml+JipFIawDeYAKGJnh/7qHt3544Xq2cFNT0nwsXu5g==}
 
   '@iconify/collections@1.0.732':
     resolution: {integrity: sha512-q0epTjWdN6L9MyQi5Ww4lCch0oh1/D3Xni7xsScA9iKAtfdM0ENHElE1o5eo2XqXOKfK+b+5Aob3VP/5NG+7kw==}
@@ -10604,11 +10595,7 @@ snapshots:
       sharp: 0.34.5
     optional: true
 
-  '@iconify-json/lucide@1.2.128':
-    dependencies:
-      '@iconify/types': 2.0.0
-
-  '@iconify-json/lucide@1.2.144':
+  '@iconify-json/lucide@1.2.147':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -10616,15 +10603,7 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify-json/simple-icons@1.2.94':
-    dependencies:
-      '@iconify/types': 2.0.0
-
-  '@iconify-json/vscode-icons@1.2.76':
-    dependencies:
-      '@iconify/types': 2.0.0
-
-  '@iconify-json/vscode-icons@1.2.89':
+  '@iconify-json/vscode-icons@1.2.92':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -15536,9 +15515,9 @@ snapshots:
       '@ai-sdk/mcp': 2.0.76(zod@4.6.5)
       '@ai-sdk/vue': 4.0.141(vue@3.5.44(typescript@7.0.2))(zod@4.6.5)
       '@comark/vue': 0.7.0(shiki@4.5.0)(vue@3.5.44(typescript@7.0.2))
-      '@iconify-json/lucide': 1.2.144
+      '@iconify-json/lucide': 1.2.147
       '@iconify-json/simple-icons': 1.2.100
-      '@iconify-json/vscode-icons': 1.2.89
+      '@iconify-json/vscode-icons': 1.2.92
       '@nuxt/content': 3.16.2(@nuxt/schema@4.6.1)(@oxc-project/types@0.151.0)(@types/node@26.2.0)(better-sqlite3@13.0.3)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(magic-string@1.4.3)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(rollup@4.63.1)(supports-color@10.2.2)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)
       '@nuxt/image': 2.1.0(@nuxt/schema@4.6.1)(@types/node@26.2.0)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.4.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.63.1)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))(unstorage@1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2)))
       '@nuxt/kit': 4.6.1(@nuxt/schema@4.6.1)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.4.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.63.1)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))
