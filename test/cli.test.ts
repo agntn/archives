@@ -13,7 +13,9 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { describe, expect, it } from "vite-plus/test";
+import { Client, type VersionNegotiationMode } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { describe, expect, it, onTestFinished } from "vite-plus/test";
 import { serverInfo } from "../src/server-info.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -291,6 +293,56 @@ describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))("archives mcp config", 
     expect(configRoots(true, ["mcp", "--"])).toEqual(["home"]);
   });
 });
+
+describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))(
+  "archives mcp across protocol eras",
+  () => {
+    const tools = ["archives_snapshots", "archives_content", "archives_diff", "archives_providers"];
+    const origins = [
+      ...(stripsTypes ? [{ from: "source", extra: {} }] : []),
+      { from: "bundle", extra: { ARCHIVES_DIST: "1" } },
+    ];
+
+    /* Connects a client that negotiates by `mode` to `archives mcp`, run under an empty home. */
+    async function connect(
+      mode: Readonly<VersionNegotiationMode>,
+      extra: Readonly<Record<string, string>> = {},
+    ): Promise<Client> {
+      const home = mkdtempSync(join(tmpdir(), "archives-eras-"));
+      onTestFinished(() => {
+        rmSync(home, { recursive: true, force: true });
+      });
+      const client = new Client(
+        { name: "archives-test", version: "1.0.0" },
+        { versionNegotiation: { mode } },
+      );
+      onTestFinished(() => client.close());
+      await client.connect(
+        new StdioClientTransport({
+          command: process.execPath,
+          args: [join(root, "dist/cli.mjs"), "mcp"],
+          env: { ...env, HOME: home, ...extra },
+          stderr: "ignore",
+        }),
+      );
+      return client;
+    }
+
+    it.each(origins)("lets a client pinned to 2026 listen, from the $from", async ({ extra }) => {
+      const client = await connect({ pin: "2026-07-28" }, extra);
+      expect(client.getNegotiatedProtocolVersion()).toBe("2026-07-28");
+      const subscription = await client.listen({ toolsListChanged: true });
+      expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual(tools);
+      await subscription.close();
+    });
+
+    it("still opens a 2025 client with initialize", async () => {
+      const client = await connect("legacy");
+      expect(client.getNegotiatedProtocolVersion()).toMatch(/^2025-/u);
+      expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual(tools);
+    });
+  },
+);
 
 describe.skipIf(!existsSync(join(root, "dist/mcp.mjs")))("a host embedding the bundle", () => {
   it("runs the config of the root it pinned, not of its cwd", () => {

@@ -66,7 +66,7 @@ function servesStdio(args: readonly string[]): boolean {
 const argv = process.argv.slice(2);
 if (servesStdio(argv)) {
   const serve = await loadServer();
-  await serve();
+  serve();
 } else {
   if (argv[0] === "mcp") (await import("./config.ts")).setConfigCwd(homedir());
   await runCli(
