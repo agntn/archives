@@ -5,7 +5,7 @@ type Section = Readonly<Record<string, unknown>> | undefined;
 /**
  * Lists the keys of `section` that hold a value, the way c12 skips `undefined` while merging.
  *
- * @param section - One layer's `storage` or `performance`
+ * @param section - One layer's `performance`
  * @returns {[string, unknown][]} The keys that are set, with their values
  */
 function setEntries(section: Section): [string, unknown][] {
@@ -13,17 +13,13 @@ function setEntries(section: Section): [string, unknown][] {
 }
 
 /**
- * Merges one section of every layer, the first layer winning.
+ * Merges the `performance` section of every layer, the first layer winning.
  *
  * @param layers - Overrides, then caller defaults, then library defaults
- * @param key - The section to merge
  * @returns {Record<string, unknown>} The merged section
  */
-function mergeSection(
-  layers: readonly (ConfigLayer | undefined)[],
-  key: "storage" | "performance",
-): Record<string, unknown> {
-  return Object.fromEntries(layers.toReversed().flatMap((layer) => setEntries(layer?.[key])));
+function mergePerformance(layers: readonly (ConfigLayer | undefined)[]): Record<string, unknown> {
+  return Object.fromEntries(layers.toReversed().flatMap((layer) => setEntries(layer?.performance)));
 }
 
 /**
@@ -38,8 +34,5 @@ export async function discoverConfig(
   defaults: ArchivesConfig,
 ): Promise<ArchivesConfig> {
   const layers = [options.overrides, options.defaults, defaults];
-  return {
-    storage: mergeSection(layers, "storage"),
-    performance: mergeSection(layers, "performance"),
-  };
+  return { performance: mergePerformance(layers) };
 }

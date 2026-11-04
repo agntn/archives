@@ -1,9 +1,8 @@
 import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { fetchData } from "../src/utils/_fetch";
-import { createArchive, resetConfig, storage } from "../src";
+import { createArchive, resetConfig } from "../src";
 import createWayback from "../src/providers/wayback";
-import type { WaybackOptions } from "../src/_providers";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/utils/_fetch")>()),
@@ -13,7 +12,6 @@ vi.mock("../src/utils/_fetch", async (importOriginal) => ({
 
 describe("wayback machine", () => {
   beforeEach(async () => {
-    await storage.clear();
     resetConfig();
     vi.resetAllMocks();
   });
@@ -208,29 +206,6 @@ describe("wayback machine", () => {
   });
 
   /** The third query repeats the first window, so it must replay that answer rather than the other window's entry or a fresh fetch. */
-  it("separates cache entries by window", async () => {
-    vi.mocked(fetchData)
-      .mockResolvedValueOnce([
-        ["original", "timestamp", "statuscode"],
-        ["https://example.com/2019", "20190301000000", "200"],
-      ])
-      .mockResolvedValueOnce([
-        ["original", "timestamp", "statuscode"],
-        ["https://example.com/2020", "20200301000000", "200"],
-      ]);
-
-    const archive = createArchive(createWayback());
-    const first = await archive.snapshots("example.com", { from: "2019", to: "2019" });
-    const second = await archive.snapshots("example.com", { from: "2020", to: "2020" });
-    const replayed = await archive.snapshots("example.com", { from: "2019", to: "2019" });
-
-    expect(first.pages[0].url).toBe("https://example.com/2019");
-    expect(second.pages[0].url).toBe("https://example.com/2020");
-    expect(replayed.fromCache).toBe(true);
-    expect(replayed.pages[0].url).toBe("https://example.com/2019");
-    expect(fetchData).toHaveBeenCalledTimes(2);
-  });
-
   /** A plain limit keeps CDX's first rows, so old captures crowd out the latest ones. */
   it("asks CDX for the last rows of a page when the newest come first", async () => {
     vi.mocked(fetchData).mockResolvedValueOnce([
@@ -290,78 +265,6 @@ describe("wayback machine", () => {
       "/cdx/search/cdx",
       objectContaining({ params: objectContaining({ limit: "2" }) }),
     );
-  });
-
-  it("separates cache entries by order", async () => {
-    vi.mocked(fetchData)
-      .mockResolvedValueOnce([
-        ["original", "timestamp", "statuscode"],
-        ["https://example.com/about", "20250101000000", "200"],
-      ])
-      .mockResolvedValueOnce([
-        ["original", "timestamp", "statuscode"],
-        ["https://example.com/about", "20000101000000", "200"],
-      ]);
-
-    const archive = createArchive(createWayback());
-    const newest = await archive.snapshots("https://example.com/about", { order: "newest" });
-    const oldest = await archive.snapshots("https://example.com/about", { order: "oldest" });
-
-    expect(newest.pages[0].timestamp).toBe("2025-01-01T00:00:00Z");
-    expect(oldest.fromCache).not.toBe(true);
-    expect(oldest.pages[0].timestamp).toBe("2000-01-01T00:00:00Z");
-  });
-
-  it("keeps an order set on the factory out of the unordered cache entry", async () => {
-    vi.mocked(fetchData)
-      .mockResolvedValueOnce([
-        ["original", "timestamp", "statuscode"],
-        ["https://example.com/about", "20000101000000", "200"],
-      ])
-      .mockResolvedValueOnce([
-        ["original", "timestamp", "statuscode"],
-        ["https://example.com/about", "20250101000000", "200"],
-      ]);
-
-    await createArchive(createWayback()).snapshots("https://example.com/about");
-    const ordered = await createArchive(createWayback({ order: "newest" })).snapshots(
-      "https://example.com/about",
-    );
-
-    expect(ordered.fromCache).not.toBe(true);
-    expect(ordered.pages[0].timestamp).toBe("2025-01-01T00:00:00Z");
-  });
-
-  it("separates cache entries for CDX collapse and filter options", async () => {
-    vi.mocked(fetchData)
-      .mockResolvedValueOnce([
-        ["original", "timestamp", "statuscode"],
-        ["https://example.com/digest", "20220101000000", "200"],
-      ])
-      .mockResolvedValueOnce([
-        ["original", "timestamp", "statuscode"],
-        ["https://example.com/year", "20220101000000", "200"],
-      ])
-      .mockResolvedValueOnce([
-        ["original", "timestamp", "statuscode"],
-        ["https://example.com/not-found", "20220101000000", "200"],
-      ]);
-
-    const archive = createArchive(createWayback({ collapse: "digest", filter: "statuscode:200" }));
-    const byYear: WaybackOptions = { collapse: "timestamp:4" };
-    const notFound: WaybackOptions = { filter: "statuscode:404" };
-
-    const first = await archive.snapshots("example.com");
-    const second = await archive.snapshots("example.com", byYear);
-    const third = await archive.snapshots("example.com", notFound);
-    const cachedFirst = await archive.snapshots("example.com");
-
-    expect(first.pages[0].url).toBe("https://example.com/digest");
-    expect(second.pages[0].url).toBe("https://example.com/year");
-    expect(third.pages[0].url).toBe("https://example.com/not-found");
-    expect(cachedFirst.fromCache).toBe(true);
-    expect(cachedFirst.pages[0].url).toBe("https://example.com/digest");
-    expect(fetchData).toHaveBeenCalledTimes(3);
   });
 
   it("returns an error response when fetching fails", async () => {

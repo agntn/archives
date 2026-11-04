@@ -304,26 +304,6 @@ export class MementoProvider extends BaseProvider<MementoOptions> {
   readonly slug = "memento";
 
   /**
-   * Separates aggregators and caps while redacting invalid URLs before cache lookup.
-   *
-   * @param options - Options.
-   * @returns {string} The resulting string.
-   */
-  override cacheKey(options?: Readonly<MementoOptions>): string {
-    const rawBaseURL = options?.baseUrl ?? this.options.baseUrl ?? DEFAULT_BASE_URL;
-    let baseURL = rawBaseURL;
-    try {
-      baseURL = this.baseURL({ baseUrl: rawBaseURL });
-    } catch {
-      baseURL = "invalid";
-    }
-    const limit = options?.limit === undefined ? this.options.limit : undefined;
-    const parts = [`baseUrl=${encodeURIComponent(baseURL)}`];
-    if (limit !== undefined) parts.push(`limit=${limit}`);
-    return parts.join(":");
-  }
-
-  /**
    * Fetches the aggregated JSON TimeMap for one exact original URL.
    *
    * @param domain - Domain.

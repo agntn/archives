@@ -2,7 +2,6 @@ import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
-  ArchiveOptions,
   ArchiveResponse,
   ArchivedContent,
   ArchivedPage,
@@ -180,12 +179,6 @@ async function fetchCdxRecords(
 export class ArquivoProvider extends BaseProvider<ArquivoOptions> {
   readonly name = "Arquivo.pt";
   readonly slug = "arquivo";
-
-  override cacheKey(options?: Readonly<ArchiveOptions>): string {
-    const requestedLimit =
-      options && Object.hasOwn(options, "limit") ? options.limit : this.options.limit;
-    return `arquivoLimit=${requestedLimit ?? 1000}`;
-  }
 
   async snapshots(
     domain: string,

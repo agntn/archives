@@ -1,6 +1,6 @@
 import { fetchData } from "../utils/_fetch.ts";
 import type { ConiferOptions } from "../_providers.ts";
-import type { ArchiveOptions, ArchiveResponse, ArchivedPage, CaptureOrder } from "../types.ts";
+import type { ArchiveResponse, ArchivedPage, CaptureOrder } from "../types.ts";
 import {
   createErrorResponse,
   createFetchOptions,
@@ -81,21 +81,6 @@ export class ConiferProvider extends BaseProvider<ConiferOptions> {
 
   constructor(options: Readonly<ConiferOptions>) {
     super(options);
-  }
-
-  override cacheKey(options?: Readonly<ArchiveOptions>): string {
-    const requestOptions = options as Partial<ConiferOptions> | undefined;
-    const user = String(requestOptions?.user ?? this.options.user).trim();
-    const collection = String(requestOptions?.collection ?? this.options.collection).trim();
-    const limit = requestOptions?.limit === undefined ? this.options.limit : undefined;
-    const parts = [
-      `user=${encodeURIComponent(user)}`,
-      `collection=${encodeURIComponent(collection)}`,
-    ];
-
-    if (limit !== undefined) parts.push(`limit=${limit}`);
-
-    return parts.join(":");
   }
 
   async snapshots(

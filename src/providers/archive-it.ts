@@ -1,10 +1,5 @@
 import { fetchData } from "../utils/_fetch.ts";
-import type {
-  ArchiveContentOptions,
-  ArchiveContentResponse,
-  ArchiveOptions,
-  ArchiveResponse,
-} from "../types.ts";
+import type { ArchiveContentOptions, ArchiveContentResponse, ArchiveResponse } from "../types.ts";
 import type { ArchiveItOptions } from "../_providers.ts";
 import {
   createContentErrorResponse,
@@ -37,34 +32,6 @@ const BASE_URL = "https://wayback.archive-it.org";
  */
 const CONTENT_CAPTURE_LIMIT = 200;
 
-interface ArchiveItCacheOptions {
-  collection: string;
-  collapse?: string;
-  filter?: string;
-  limit?: number;
-}
-
-function effectiveCacheOptions(
-  request: Readonly<Partial<ArchiveItOptions>> | undefined,
-  defaults: Readonly<Partial<ArchiveItOptions>>,
-): ArchiveItCacheOptions {
-  return {
-    collection: String(request?.collection ?? defaults.collection).trim(),
-    collapse: request?.collapse ?? defaults.collapse,
-    filter: request?.filter ?? defaults.filter,
-    limit: request?.limit === undefined ? defaults.limit : undefined,
-  };
-}
-
-function archiveItCacheKey(options: Readonly<ArchiveItCacheOptions>): string {
-  const parts = [`collection=${encodeURIComponent(options.collection)}`];
-  if (options.collapse !== undefined)
-    parts.push(`collapse=${encodeURIComponent(options.collapse)}`);
-  if (options.filter !== undefined) parts.push(`filter=${encodeURIComponent(options.filter)}`);
-  if (options.limit !== undefined) parts.push(`limit=${options.limit}`);
-  return parts.join(":");
-}
-
 /**
  * Archive-It collection archive provider.
  */
@@ -74,18 +41,6 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
 
   constructor(options: Readonly<ArchiveItOptions>) {
     super(options);
-  }
-
-  /**
-   * Cache key extension for the collection and filters that change the CDX result set.
-
-   *
-   * @param options - Options.
-   * @returns {string} The resulting string.
-   */
-  override cacheKey(options?: Readonly<ArchiveOptions>): string {
-    const requestOptions = options as Partial<ArchiveItOptions> | undefined;
-    return archiveItCacheKey(effectiveCacheOptions(requestOptions, this.options));
   }
 
   /**

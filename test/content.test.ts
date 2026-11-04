@@ -13,8 +13,8 @@ import {
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { fetchData, fetchResponse } from "../src/utils/_fetch";
 import { rawResponse } from "./_responses";
-import { createArchive, resetConfig, storage, UnsupportedOperationError } from "../src";
-import type { ArchiveContentOptions, ArchiveContentResponse, ArchiveProvider } from "../src/types";
+import { createArchive, resetConfig, UnsupportedOperationError } from "../src";
+import type { ArchiveContentResponse, ArchiveProvider } from "../src/types";
 import createWayback from "../src/providers/wayback";
 import createCommonCrawl from "../src/providers/commoncrawl";
 import createArchiveToday from "../src/providers/archive-today";
@@ -68,7 +68,6 @@ function contentFailure(slug: string, message: string): ArchiveContentResponse {
 beforeEach(async () => {
   // Bodies are cached by provider and URL, so one test would otherwise answer
   // the next test's identical read.
-  await storage.clear();
   resetConfig();
   vi.resetAllMocks();
 });
@@ -173,13 +172,10 @@ describe("wayback content", () => {
     );
     const { contentArchives } = await import("../src/tool-operations");
 
-    const library = await createArchive(createWayback()).content("example.com/old", {
-      cache: false,
-    });
+    const library = await createArchive(createWayback()).content("example.com/old");
     const tool = await contentArchives({
       target: "example.com/old",
       provider: "wayback",
-      cache: false,
     });
 
     expect(library.content?._meta).toMatchObject({
@@ -241,7 +237,6 @@ describe("wayback content", () => {
     const tool = await contentArchives({
       target: "example.com",
       provider: "wayback",
-      cache: false,
     });
 
     const location = (tool.details.response.content?._meta.location as string | undefined) ?? "";
@@ -515,20 +510,6 @@ describe("wayback content", () => {
     expect(response.content?._meta.selection).toBeUndefined();
   });
 
-  it("marks a later capture served from the cache too", async () => {
-    fetchMock
-      .mockResolvedValueOnce(cdxRows([]))
-      .mockResolvedValueOnce(cdxRows([["https://example.com/", "20210505000000", "200"]]));
-    rawMock.mockResolvedValueOnce(rawResponse("later", { url: "" }));
-    const archive = createArchive(createWayback());
-
-    await archive.content("example.com", { timestamp: "2019" });
-    const cached = await archive.content("example.com", { timestamp: "2019" });
-
-    expect(cached.fromCache).toBe(true);
-    expect(cached.content?._meta.selection).toBe("after");
-  });
-
   it("reads an ISO instant that names its offset as the UTC one", async () => {
     fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20190302040000", "200"]]));
     rawMock.mockResolvedValueOnce(rawResponse("utc", { url: "" }));
@@ -750,7 +731,6 @@ describe("wayback content", () => {
       target: "https://example.com/",
       provider: "wayback",
       maxChars: 4,
-      cache: false,
     });
     const second = await contentArchives({
       target: "https://example.com/",
@@ -758,7 +738,6 @@ describe("wayback content", () => {
       maxChars: 4,
       offset: 4,
       timestamp: "2020-02-02T00:00:00Z",
-      cache: false,
     });
 
     const line = `\nsha256: ${sha256Hex(body)}\n`;
@@ -779,89 +758,11 @@ describe("wayback content", () => {
     const tool = await contentArchives({
       target: "https://example.com/",
       provider: "wayback",
-      cache: false,
     });
 
     expect(tool.content[0]?.text).toContain(
       `\nsha256: ${sha256Hex(body.slice(0, 2_000_000))} (of the bytes read, not the whole body)\n`,
     );
-  });
-
-  it("serves a repeated read from the cache without touching the archive", async () => {
-    fetchMock.mockResolvedValueOnce(cdxRows([["https://example.com/", "20200101000000", "200"]]));
-    rawMock.mockResolvedValueOnce(rawResponse("cached body", { url: "" }));
-    const archive = createArchive(createWayback());
-
-    const first = await archive.content("example.com");
-    const second = await archive.content("example.com");
-
-    expect(first.fromCache).toBeUndefined();
-    expect(second.fromCache).toBe(true);
-    expect(second.content?.content).toBe("cached body");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(rawMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps a read for a different capture out of the cached one's entry", async () => {
-    fetchMock.mockResolvedValue(cdxRows([["https://example.com/", "20200101000000", "200"]]));
-    rawMock
-      .mockResolvedValueOnce(rawResponse("newest", { url: "" }))
-      .mockResolvedValueOnce(rawResponse("older", { url: "" }));
-    const archive = createArchive(createWayback());
-
-    await archive.content("example.com");
-    const second = await archive.content("example.com", { timestamp: "2019" });
-
-    expect(second.fromCache).toBeUndefined();
-    expect(second.content?.content).toBe("older");
-  });
-});
-
-describe("content cache", () => {
-  it("keeps query URLs and capture options in separate cache entries", async () => {
-    const read = vi.fn(
-      async (
-        url: string,
-        options?: Readonly<ArchiveContentOptions>,
-      ): Promise<ArchiveContentResponse> => ({
-        success: true,
-        content: {
-          url,
-          timestamp: options?.timestamp ?? "2020-01-01",
-          snapshot: `https://archive.test/${encodeURIComponent(url)}`,
-          content: `${url}:${options?.maxBytes}`,
-          bytes: options?.maxBytes ?? 0,
-          truncated: false,
-          _meta: { provider: "stub" },
-        },
-        _meta: { source: "stub", provider: "stub" },
-      }),
-    );
-    const archive = createArchive(stubProvider("stub", read));
-    const firstUrl = "https://example.test/app.js?id=aaa";
-    const secondUrl = "https://example.test/app.js?id=bbb";
-
-    const firstOptions = { timestamp: "2023-01-01", maxBytes: 64 } as const;
-    await archive.content(firstUrl, firstOptions);
-    const second = await archive.content(secondUrl, firstOptions);
-    const third = await archive.content(secondUrl, {
-      timestamp: "2024-01-01",
-      maxBytes: 128,
-    });
-    const repeated = await archive.content(secondUrl, firstOptions);
-
-    expect(second.fromCache).toBeUndefined();
-    expect(second.content?.url).toBe(secondUrl);
-    expect(third.fromCache).toBeUndefined();
-    expect(third.content).toMatchObject({
-      url: secondUrl,
-      timestamp: "2024-01-01",
-      content: `${secondUrl}:128`,
-    });
-    expect(repeated.fromCache).toBe(true);
-    expect(repeated.content?.content).toBe(`${secondUrl}:64`);
-    expect(read).toHaveBeenCalledTimes(3);
-    expect(await storage.getKeys()).toHaveLength(3);
   });
 });
 
@@ -1601,11 +1502,10 @@ describe("failed reads", () => {
     fetchMock.mockRejectedValue(failure);
     const { contentArchives } = await import("../src/tool-operations");
 
-    const raw = await createArchive(createWayback()).content("example.com", { cache: false });
+    const raw = await createArchive(createWayback()).content("example.com");
     const tool = await contentArchives({
       target: "example.com",
       provider: "wayback",
-      cache: false,
     });
 
     // Control: the provider response really does carry the secret, so the
@@ -1751,25 +1651,12 @@ describe("capture bytes", () => {
     servePng();
     const archive = createArchive(createWayback());
 
-    const plain = await archive.content("https://example.com/a.png", { cache: false });
+    const plain = await archive.content("https://example.com/a.png");
     const withBody = await archive.content("https://example.com/a.png", { body: true });
 
     expect(plain.content?.body).toBeUndefined();
     expect(withBody.content?.body).toEqual(png);
     expect(withBody.content?.sha256).toBe(sha256Hex(png));
-  });
-
-  it("reads bytes from the archive every time instead of the cache", async () => {
-    servePng();
-    const archive = createArchive(createWayback());
-
-    await archive.content("https://example.com/a.png");
-    const withBody = await archive.content("https://example.com/a.png", { body: true });
-    const again = await archive.content("https://example.com/a.png", { body: true });
-
-    expect(withBody.fromCache).toBeUndefined();
-    expect(again.content?.body).toEqual(png);
-    expect(rawMock).toHaveBeenCalledTimes(3);
   });
 
   it("returns a Common Crawl body with its transfer and content encodings undone", async () => {

@@ -358,19 +358,6 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
   protected override readonly defaultTimeout = 60_000;
 
   /**
-   * Cache key extension that separates storage entries by collection.
-
-   *
-   * @param options - Options.
-   * @returns {string | undefined} The operation result.
-   */
-  override cacheKey(options?: Readonly<ArchiveOptions>): string | undefined {
-    const collection =
-      (options as Partial<CommonCrawlOptions> | undefined)?.collection ?? this.options.collection;
-    return collection === undefined ? undefined : `collection=${encodeURIComponent(collection)}`;
-  }
-
-  /**
    * Fetch archived snapshots from Common Crawl.
 
    *

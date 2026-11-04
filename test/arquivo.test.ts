@@ -2,7 +2,7 @@ import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { fetchData, fetchResponse } from "../src/utils/_fetch";
 import { rawResponse } from "./_responses";
-import { ArquivoProvider, createArchive, providers, resetConfig, storage } from "../src";
+import { ArquivoProvider, createArchive, providers, resetConfig } from "../src";
 import createArquivo from "../src/providers/arquivo";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
@@ -15,7 +15,6 @@ const fetchMock = vi.mocked(fetchData);
 const rawMock = vi.mocked(fetchResponse);
 
 beforeEach(async () => {
-  await storage.clear();
   resetConfig();
   vi.resetAllMocks();
 });
@@ -110,26 +109,6 @@ describe("Arquivo.pt", () => {
 
     expect(result.success).toBe(true);
     expect(result.pages).toEqual([]);
-  });
-
-  it("separates cached listings created with different provider limits", async () => {
-    fetchMock
-      .mockResolvedValueOnce(
-        JSON.stringify({ url: "https://example.com/1", timestamp: "20200101000000" }),
-      )
-      .mockResolvedValueOnce(
-        [
-          JSON.stringify({ url: "https://example.com/1", timestamp: "20200101000000" }),
-          JSON.stringify({ url: "https://example.com/2", timestamp: "20200102000000" }),
-        ].join("\n"),
-      );
-
-    const narrow = await createArchive(createArquivo({ limit: 1 })).snapshots("example.com");
-    const wide = await createArchive(createArquivo({ limit: 2 })).snapshots("example.com");
-
-    expect(narrow.pages).toHaveLength(1);
-    expect(wide.pages).toHaveLength(2);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("reports a malformed CDX record as a provider error", async () => {

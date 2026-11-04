@@ -1,8 +1,7 @@
 import { objectContaining } from "./_matchers";
-import { createHash } from "node:crypto";
 import { fetchData } from "../src/utils/_fetch";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
-import { createArchive, resetConfig, storage } from "../src";
+import { createArchive, resetConfig } from "../src";
 import createPermacc from "../src/providers/permacc";
 import type { PermaccOptions } from "../src/_providers";
 
@@ -44,7 +43,6 @@ function permaResponse({
 
 describe("Perma.cc Platform", () => {
   beforeEach(async () => {
-    await storage.clear();
     resetConfig();
     vi.resetAllMocks();
     vi.mocked(fetchData).mockResolvedValue(permaResponse());
@@ -214,55 +212,7 @@ describe("Perma.cc Platform", () => {
     expect(JSON.stringify(result)).not.toContain("test-secret-key");
   });
 
-  it("separates cached responses by API key without storing raw keys", async () => {
-    vi.mocked(fetchData)
-      .mockResolvedValueOnce(permaResponse({ guid: "FIRST" }))
-      .mockResolvedValueOnce(permaResponse({ guid: "SECOND" }));
-    const permacc = createPermacc({ apiKey: "first-secret-key" });
-    const archive = createArchive(permacc);
-
-    const first = await archive.snapshots("example.com");
-    const second = await archive.snapshots("example.com", { apiKey: "second-secret-key" });
-    const cachedFirst = await archive.snapshots("example.com");
-
-    expect(first.pages[0].snapshot).toBe("https://perma.cc/FIRST");
-    expect(second.pages[0].snapshot).toBe("https://perma.cc/SECOND");
-    expect(cachedFirst.pages[0].snapshot).toBe("https://perma.cc/FIRST");
-    expect(cachedFirst.fromCache).toBe(true);
-    expect(fetchData).toHaveBeenCalledTimes(2);
-
-    const cacheKeys = (await storage.getKeys()).join("\n");
-    expect(cacheKeys).not.toContain("first-secret-key");
-    expect(cacheKeys).not.toContain("second-secret-key");
-  });
-
-  it("keys the cache partition by the SHA-256 of the API key", () => {
-    for (const apiKey of ["test-secret-key", "klucz-zażółć-🔑"]) {
-      const fingerprint = createHash("sha256").update(apiKey).digest("base64url");
-
-      expect(createPermacc({ apiKey }).cacheKey()).toBe(`apiKey=${fingerprint},limit=100`);
-    }
-  });
-
-  it("isolates cache entries between provider instances", async () => {
-    vi.mocked(fetchData)
-      .mockResolvedValueOnce(permaResponse({ guid: "FIRST" }))
-      .mockResolvedValueOnce(permaResponse({ guid: "SECOND" }));
-    const firstArchive = createArchive(createPermacc({ apiKey: "first-secret-key" }));
-    const secondArchive = createArchive(createPermacc({ apiKey: "second-secret-key" }));
-
-    const first = await firstArchive.snapshots("example.com");
-    const second = await secondArchive.snapshots("example.com");
-    const cachedFirst = await firstArchive.snapshots("example.com");
-
-    expect(first.pages[0].snapshot).toBe("https://perma.cc/FIRST");
-    expect(second.pages[0].snapshot).toBe("https://perma.cc/SECOND");
-    expect(cachedFirst.pages[0].snapshot).toBe("https://perma.cc/FIRST");
-    expect(cachedFirst.fromCache).toBe(true);
-    expect(fetchData).toHaveBeenCalledTimes(2);
-  });
-
-  it("separates cached responses by provider-level limits", async () => {
+  it("sends each provider-level limit to the API", async () => {
     vi.mocked(fetchData)
       .mockResolvedValueOnce(permaResponse({ guid: "FIRST" }))
       .mockResolvedValueOnce(permaResponse({ guid: "SECOND" }));
@@ -277,22 +227,5 @@ describe("Perma.cc Platform", () => {
     expect(fetchData).toHaveBeenCalledTimes(2);
     expect(vi.mocked(fetchData).mock.calls[0][1]?.params).toEqual(objectContaining({ limit: 5 }));
     expect(vi.mocked(fetchData).mock.calls[1][1]?.params).toEqual(objectContaining({ limit: 10 }));
-  });
-
-  it("does not let URL text collide with an account cache partition", async () => {
-    const configuredProvider = createPermacc({ apiKey: "test-secret-key" });
-    const partition = configuredProvider.cacheKey();
-    if (!partition) throw new Error("Expected a Perma.cc cache partition");
-
-    const target = "https://example.com/private";
-    const configured = await createArchive(configuredProvider).snapshots(target);
-    const unauthenticated = await createArchive(createPermacc()).snapshots(
-      `${target}:${partition}`,
-    );
-
-    expect(configured.success).toBe(true);
-    expect(unauthenticated.success).toBe(false);
-    expect(unauthenticated.error).toBe("API key is required for Perma.cc");
-    expect(fetchData).toHaveBeenCalledTimes(1);
   });
 });

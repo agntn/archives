@@ -59,7 +59,6 @@ import {
   MAX_TARGET_LENGTH,
   MAX_TIMEOUT,
   MAX_TIMESTAMP_LENGTH,
-  MAX_TTL,
   PERMACC_API_KEY_ENVS,
   PROVIDER_ALIASES,
   PROVIDERS,
@@ -91,7 +90,6 @@ export {
   MAX_TARGET_LENGTH,
   MAX_TIMEOUT,
   MAX_TIMESTAMP_LENGTH,
-  MAX_TTL,
   PERMACC_API_KEY_ENVS,
   PROVIDER_ALIASES,
   PROVIDER_HINT,
@@ -150,8 +148,6 @@ export interface SnapshotParams {
   provider?: string;
   limit?: number;
   order?: string;
-  cache?: boolean;
-  ttl?: number;
   concurrency?: number;
   batchSize?: number;
   timeout?: number;
@@ -202,8 +198,6 @@ export interface ContentParams {
   format?: string;
   maxChars?: number;
   offset?: number;
-  cache?: boolean;
-  ttl?: number;
   timeout?: number;
   retries?: number;
   collection?: string;
@@ -257,8 +251,6 @@ export interface DiffParams {
   context?: number;
   maxChars?: number;
   offset?: number;
-  cache?: boolean;
-  ttl?: number;
   timeout?: number;
   retries?: number;
   collection?: string;
@@ -939,7 +931,6 @@ const NUMERIC_BOUNDS = {
   limit: { minimum: 1, maximum: MAX_LIMIT },
   maxChars: { minimum: 1, maximum: MAX_CONTENT_CHARS },
   offset: { minimum: 0, maximum: MAX_CONTENT_OFFSET },
-  ttl: { minimum: 0, maximum: MAX_TTL },
   concurrency: { minimum: 1, maximum: 10 },
   batchSize: { minimum: 1, maximum: 100 },
   timeout: { minimum: 1, maximum: MAX_TIMEOUT },
@@ -1032,8 +1023,6 @@ function normalizeDiffDigest(value: string | undefined): string | undefined {
 }
 
 const SNAPSHOT_OPTION_KEYS = [
-  "cache",
-  "ttl",
   "concurrency",
   "batchSize",
   "timeout",
@@ -1112,8 +1101,6 @@ export function normalizeFormat(format: string | undefined): ContentFormat {
 }
 
 const CONTENT_OPTION_KEYS = [
-  "cache",
-  "ttl",
   "user",
   "retries",
   "collection",
@@ -1414,12 +1401,9 @@ function buildSnapshotHeader(
   const errorNote = error ? `; error=${truncateSingleLine(error, 80)}` : "";
   const windowNote = snapshotWindowNote(options);
   const orderNote = snapshotOrderNote(provider, response, options);
-  // The tool is annotated open-world, so a replay from the 7-day cache has to say
-  // so rather than pass for a fresh read of the archive.
-  const cacheNote = response.fromCache ? "; cached" : "";
   // The target is caller-supplied and lands one line above the records, so a
   // newline in it forges a snapshot row exactly like a provider field would.
-  return `[provider=${provider}] ${response.pages.length} snapshot(s) for "${sanitizeField(target)}"${orderNote}${windowNote}${unsupportedNote}${failedNote}${errorNote}${cacheNote}`;
+  return `[provider=${provider}] ${response.pages.length} snapshot(s) for "${sanitizeField(target)}"${orderNote}${windowNote}${unsupportedNote}${failedNote}${errorNote}`;
 }
 
 function sanitizeResponse<TResponse extends { _meta?: ArchiveResponse["_meta"] }>(
@@ -1684,9 +1668,8 @@ function buildContentHeader(
   continuation: Readonly<ContentContinuation> | undefined,
 ): string {
   const capture = response.content;
-  const cacheNote = response.fromCache ? "; cached" : "";
   if (!capture) {
-    return `[provider=${provider}] no capture read for "${sanitizeField(target)}"${cacheNote}`;
+    return `[provider=${provider}] no capture read for "${sanitizeField(target)}"`;
   }
 
   const truncatedNote = capture.truncated ? "; body truncated at the byte cap" : "";
@@ -1696,7 +1679,7 @@ function buildContentHeader(
     : "";
   const continuationLine = continuation ? [formatContinuation(continuation)] : [];
   return [
-    `[provider=${provider}] read 1 capture for "${sanitizeField(target)}"${cacheNote}`,
+    `[provider=${provider}] read 1 capture for "${sanitizeField(target)}"`,
     `url: ${sanitizeField(capture.url)}`,
     `captured: ${sanitizeField(capture.timestamp)}${laterCaptureNote(capture._meta.selection)}`,
     `snapshot: ${sanitizeField(capture.snapshot)}`,

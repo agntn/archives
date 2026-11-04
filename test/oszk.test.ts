@@ -2,7 +2,7 @@ import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { fetchData, fetchResponse } from "../src/utils/_fetch";
 import { rawResponse } from "./_responses";
-import { OszkProvider, createArchive, providers, resetConfig, storage } from "../src";
+import { OszkProvider, createArchive, providers, resetConfig } from "../src";
 import createOszk from "../src/providers/oszk";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
@@ -23,7 +23,6 @@ const OSZK_OCTOBER = `{"url": "http://www.oszk.hu/", "timestamp": "2019102214570
 const OSZK_REVISIT = `{"url": "http://www.oszk.hu/", "timestamp": "20190218140048", "status": "0", "mime": "warc/revisit", "digest": "BA54CFE46A76DBCAE726BD32CFB7E54C", "length": "646"}`;
 
 beforeEach(async () => {
-  await storage.clear();
   resetConfig();
   vi.resetAllMocks();
 });
@@ -142,19 +141,6 @@ describe("OSZK Webarchívum", () => {
     expect(result.success).toBe(true);
     expect(result.pages).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("separates cached listings created with different provider limits", async () => {
-    fetchMock
-      .mockResolvedValueOnce(OSZK_REDIRECT)
-      .mockResolvedValueOnce(`${OSZK_REDIRECT}\n${OSZK_FEBRUARY}`);
-
-    const narrow = await createArchive(createOszk({ limit: 1 })).snapshots("oszk.hu");
-    const wide = await createArchive(createOszk({ limit: 2 })).snapshots("oszk.hu");
-
-    expect(narrow.pages).toHaveLength(1);
-    expect(wide.pages).toHaveLength(2);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("reports an HTML page in place of the index as a provider error", async () => {

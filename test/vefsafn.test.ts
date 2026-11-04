@@ -2,7 +2,7 @@ import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { fetchData, fetchResponse } from "../src/utils/_fetch";
 import { rawResponse } from "./_responses";
-import { VefsafnProvider, createArchive, providers, resetConfig, storage } from "../src";
+import { VefsafnProvider, createArchive, providers, resetConfig } from "../src";
 import createVefsafn from "../src/providers/vefsafn";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
@@ -44,7 +44,6 @@ function ndjson(text: string, chunkSize = 37): ReadableStream<Uint8Array> {
 }
 
 beforeEach(async () => {
-  await storage.clear();
   resetConfig();
   vi.resetAllMocks();
 });
@@ -212,18 +211,6 @@ describe("Vefsafn", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("Vefsafn returned a malformed CDX record");
     expect(cancel).toHaveBeenCalled();
-  });
-
-  it("separates cached listings created with different provider limits", async () => {
-    fetchMock
-      .mockResolvedValueOnce(ndjson(`${RUV_1996}\n`))
-      .mockResolvedValueOnce(ndjson(`${RUV_1996}\n${RUV_1997}\n`));
-
-    await createArchive(createVefsafn({ limit: 1 })).snapshots("ruv.is");
-    const wider = await createArchive(createVefsafn({ limit: 2 })).snapshots("ruv.is");
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(wider.pages).toHaveLength(2);
   });
 
   it("rejects a wildcard listing without making a request", async () => {

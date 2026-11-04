@@ -97,8 +97,7 @@
     "c12": "catalog:deps",
     "diff": "catalog:deps",
     "entities": "catalog:deps",
-    "ufo": "catalog:deps",
-    "unstorage": "catalog:deps"
+    "ufo": "catalog:deps"
   },
   "devDependencies": {
     "@agntn/ox": "catalog:dev",

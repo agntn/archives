@@ -1,7 +1,7 @@
 import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { fetchData } from "../src/utils/_fetch";
-import { createArchive, resetConfig, storage } from "../src";
+import { createArchive, resetConfig } from "../src";
 import createArchiveIt from "../src/providers/archive-it";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
@@ -12,25 +12,8 @@ vi.mock("../src/utils/_fetch", async (importOriginal) => ({
 
 describe("Archive-It", () => {
   beforeEach(async () => {
-    await storage.clear();
     resetConfig();
     vi.resetAllMocks();
-  });
-
-  it("normalizes collection whitespace in cache keys", () => {
-    expect(createArchiveIt({ collection: " 4399 " }).cacheKey()).toBe("collection=4399");
-  });
-
-  it("includes the provider init limit in its cache key", () => {
-    expect(createArchiveIt({ collection: 4399, limit: 25 }).cacheKey()).toBe(
-      "collection=4399:limit=25",
-    );
-  });
-
-  it("does not duplicate a request limit in its provider cache key", () => {
-    expect(createArchiveIt({ collection: 4399, limit: 25 }).cacheKey({ limit: 10 })).toBe(
-      "collection=4399",
-    );
   });
 
   /**

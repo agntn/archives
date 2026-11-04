@@ -9,7 +9,6 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import archivesExtension from "../extensions/pi/archives";
-import { storage } from "../src/storage";
 import {
   CONTENT_FORMAT_HINT,
   CONTENT_FORMATS,
@@ -182,7 +181,6 @@ describe("Pi extension", () => {
   beforeEach(async () => {
     // Responses are cached per provider and domain, so one test would otherwise
     // answer the next test's identical query.
-    await storage.clear();
     archivesMock.snapshots.mockReset();
     archivesMock.archiveIt.mockReset();
     archivesMock.conifer.mockReset();
@@ -238,14 +236,7 @@ describe("Pi extension", () => {
     expect(properties["offset"]).toMatchObject({ maximum: MAX_DIFF_OFFSET });
     expect(properties["digest"]).toMatchObject({ maxLength: 64, pattern: "^(?:[a-f0-9]{64})?$" });
     expect(properties).not.toHaveProperty("timestamp");
-    expectRangeDescriptions(properties, [
-      "context",
-      "maxChars",
-      "offset",
-      "ttl",
-      "timeout",
-      "retries",
-    ]);
+    expectRangeDescriptions(properties, ["context", "maxChars", "offset", "timeout", "retries"]);
   });
 
   it("declares the content schema the shared executors enforce", async () => {
@@ -265,7 +256,7 @@ describe("Pi extension", () => {
       minimum: 0,
       maximum: MAX_CONTENT_OFFSET,
     });
-    expectRangeDescriptions(properties, ["maxChars", "offset", "ttl", "timeout", "retries"]);
+    expectRangeDescriptions(properties, ["maxChars", "offset", "timeout", "retries"]);
 
     expect(properties["format"]?.["enum"]).toEqual([...CONTENT_FORMATS]);
   });
@@ -325,7 +316,7 @@ describe("Pi extension", () => {
 
     const result = await tool.execute(
       "test",
-      { target: "https://example.com/old", provider: "wayback", cache: false },
+      { target: "https://example.com/old", provider: "wayback" },
       undefined,
       undefined,
       {} as ExtensionContext,
@@ -349,7 +340,6 @@ describe("Pi extension", () => {
         provider: "wayback",
         before: "2019",
         after: "2021",
-        cache: false,
       },
       undefined,
       undefined,
@@ -412,7 +402,7 @@ describe("Pi extension", () => {
 
     const execution = tool.execute(
       "test",
-      { target: "example.com", provider: "wayback", cache: false },
+      { target: "example.com", provider: "wayback" },
       controller.signal,
       undefined,
       {} as ExtensionContext,
@@ -434,7 +424,7 @@ describe("Pi extension", () => {
     });
     // OMP still receives the failed result itself, so its details must not carry the signal.
     const failed = await snapshotArchives(
-      { target: "example.com", provider: "wayback", cache: false },
+      { target: "example.com", provider: "wayback" },
       controller.signal,
     );
     expect(failed.isError).toBe(true);
@@ -452,7 +442,7 @@ describe("Pi extension", () => {
 
     const mixed = await tool.execute(
       "test",
-      { target: ["example.com", "down.example"], provider: "wayback", cache: false },
+      { target: ["example.com", "down.example"], provider: "wayback" },
       undefined,
       undefined,
       {} as ExtensionContext,
@@ -466,7 +456,7 @@ describe("Pi extension", () => {
 
     const failed = await tool.execute(
       "test",
-      { target: ["down.example", "down.example"], provider: "wayback", cache: false },
+      { target: ["down.example", "down.example"], provider: "wayback" },
       undefined,
       undefined,
       {} as ExtensionContext,
@@ -487,7 +477,6 @@ describe("Pi extension", () => {
     expect(properties["limit"]?.["description"]).toContain(`Defaults to ${DEFAULT_LIMIT}`);
     expectRangeDescriptions(properties, [
       "limit",
-      "ttl",
       "concurrency",
       "batchSize",
       "timeout",

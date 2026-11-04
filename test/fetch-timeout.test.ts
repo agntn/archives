@@ -69,7 +69,6 @@ describe("request timeouts with cancellation", () => {
       const controller = new AbortController();
       const archive = createArchive(await providers[provider]());
       const result = await archive.snapshots("https://example.com/", {
-        cache: false,
         retries: 0,
         timeout: 20,
         signal: controller.signal,
@@ -254,7 +253,6 @@ describe("request timeouts with cancellation", () => {
         // A full timestamp is replayed without the index, so only a year keeps
         // the index timeout in the path.
         timestamp: "2020",
-        cache: false,
         retries: 0,
         timeout: 20,
       },
@@ -275,7 +273,6 @@ describe("request timeouts with cancellation", () => {
           arguments: {
             target: "https://example.com/",
             provider: "wayback",
-            cache: false,
             retries: 2,
             timeout: 1000,
           },
@@ -299,7 +296,6 @@ describe("request timeouts with cancellation", () => {
         target: "https://example.com/",
         provider: "wayback",
         timestamp: "20200101000000",
-        cache: false,
         retries: 0,
         timeout: 1000,
       },
@@ -330,7 +326,7 @@ describe("connection failures", () => {
   it("keeps the undici cause in the library error", async () => {
     refuseConnections();
     const archive = createArchive(await providers.archiveToday());
-    const { error } = await archive.snapshots("github.com", { cache: false, retries: 0 });
+    const { error } = await archive.snapshots("github.com", { retries: 0 });
     expect(error).toContain(reason);
   });
 
@@ -339,7 +335,7 @@ describe("connection failures", () => {
     const client = await connectClient();
     const response = await client.callTool({
       name: "archives_snapshots",
-      arguments: { target: "github.com", provider: "archiveToday", cache: false },
+      arguments: { target: "github.com", provider: "archiveToday" },
     });
     const [first] = response.content as Array<{ text: string }>;
     expect(first?.text).toContain(reason);
@@ -547,7 +543,7 @@ describe("listing through the native client", () => {
       ),
     );
     const archive = createArchive(await providers.wayback());
-    const result = await archive.snapshots("example.com", { cache: false, retries: 0 });
+    const result = await archive.snapshots("example.com", { retries: 0 });
     expect(result.success).toBe(false);
     expect(result.error).toContain("did not answer with JSON");
   });

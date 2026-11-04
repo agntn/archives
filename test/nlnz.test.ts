@@ -1,7 +1,7 @@
 import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { fetchData, fetchResponse } from "../src/utils/_fetch";
-import { NlnzProvider, createArchive, providers, resetConfig, storage } from "../src";
+import { NlnzProvider, createArchive, providers, resetConfig } from "../src";
 import createNlnz from "../src/providers/nlnz";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
@@ -21,7 +21,6 @@ const NLNZ_JULY = `{"url": "http://natlib.govt.nz/", "timestamp": "2015073007010
 const IMPERVA_CHALLENGE = `<html style="height:100%"><head><META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW"><meta name="format-detection" content="telephone=no">`;
 
 beforeEach(async () => {
-  await storage.clear();
   resetConfig();
   vi.resetAllMocks();
 });
@@ -140,19 +139,6 @@ describe("New Zealand Web Archive", () => {
     expect(result.success).toBe(true);
     expect(result.pages).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("separates cached listings created with different provider limits", async () => {
-    fetchMock
-      .mockResolvedValueOnce(NLNZ_JANUARY)
-      .mockResolvedValueOnce(`${NLNZ_JANUARY}\n${NLNZ_JULY}`);
-
-    const narrow = await createArchive(createNlnz({ limit: 1 })).snapshots("natlib.govt.nz");
-    const wide = await createArchive(createNlnz({ limit: 2 })).snapshots("natlib.govt.nz");
-
-    expect(narrow.pages).toHaveLength(1);
-    expect(wide.pages).toHaveLength(2);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("reports a challenge page in place of the index as a provider error", async () => {

@@ -12,7 +12,6 @@ import type {
   ProviderReference,
   UnsupportedProviderRecord,
 } from "./types.ts";
-import { getStoredContent, getStoredResponse, storeContent, storeResponse } from "./storage.ts";
 import {
   assertOrder,
   assertWindowOrder,
@@ -341,7 +340,7 @@ function fanOutOrder(providers: readonly Readonly<{ order?: CaptureOrder }>[]): 
 }
 
 /**
- * Sorts a single provider's answer too, since a cached one may predate the sort.
+ * Sorts a single provider's answer too, so one provider lists in the same order as a fan-out.
  * @param response - The provider's answer
  * @param order - Which end comes first
  * @returns {ArchiveResponse} The answer with its pages in order
@@ -441,7 +440,7 @@ export class Archive implements ArchiveInterface {
   }
 
   /**
-   * Fetch from a single provider, honoring cache and error-normalization.
+   * Fetch from a single provider, turning a throw into a failed response.
 
    *
    * @param provider - Provider.
@@ -454,21 +453,8 @@ export class Archive implements ArchiveInterface {
     domain: string,
     requestOptions: Readonly<ArchiveOptions>,
   ): Promise<ArchiveResponse> {
-    // Try cache first
-    if (requestOptions.cache !== false) {
-      const cached = await getStoredResponse(provider, domain, requestOptions);
-      if (cached) return cached;
-    }
-
     try {
-      const response = await provider.snapshots(domain, requestOptions);
-
-      // Cache successful responses
-      if (response.success && requestOptions.cache !== false) {
-        await storeResponse(provider, domain, response, requestOptions);
-      }
-
-      return response;
+      return await provider.snapshots(domain, requestOptions);
     } catch (error) {
       // Return error response if provider fails
       return {
@@ -486,7 +472,7 @@ export class Archive implements ArchiveInterface {
 
   /**
    * Fetch archived snapshots for a domain.
-   * Returns a full response object with pages, metadata, and cache status.
+   * Returns a full response object with pages, metadata, and status.
    *
    * A `from`/`to` window is validated once here, normalized to digits, and
    * completed per provider, because init-level bounds count too and a provider
@@ -508,8 +494,7 @@ export class Archive implements ArchiveInterface {
    *
    * // With request-specific options
    * const response = await archive.snapshots('example.com', {
-   *   limit: 5,
-   *   cache: false // Skip cache for this request
+   *   limit: 5
    * })
    *
    * // Only the captures from the first half of 2019
@@ -555,8 +540,7 @@ export class Archive implements ArchiveInterface {
      * One provider's windowed listing. The fetch runs with every limit lifted,
      * as an explicit undefined so the provider's own cascade cannot restore an
      * init-level value, and with the validated digits in the request options,
-     * so a pushdown index never sees a raw init-level date and the cache key
-     * separates this fetch from a naturally capped one. The provider's own cap
+     * so a pushdown index never sees a raw init-level date. The provider's own cap
      * comes back after the filter, but only while the request names no limit of
      * its own: a request limit outranks the init level, and in a fan-out it is
      * applied after the newest-first merge rather than here, where it would cut
@@ -636,7 +620,7 @@ export class Archive implements ArchiveInterface {
   }
 
   /**
-   * Read one capture's body from one provider, through the cache unless it wants bytes.
+   * Read one capture's body from one provider, turning a throw into a failed response.
 
    *
    * @param provider - Provider.
@@ -662,20 +646,8 @@ export class Archive implements ArchiveInterface {
       };
     }
 
-    const useCache = requestOptions.cache !== false && !requestOptions.body;
-    if (useCache) {
-      const cached = await getStoredContent(provider, url, requestOptions);
-      if (cached) return cached;
-    }
-
     try {
-      const response = await provider.content(url, requestOptions);
-
-      if (response.success && useCache) {
-        await storeContent(provider, url, response, requestOptions);
-      }
-
-      return response;
+      return await provider.content(url, requestOptions);
     } catch (error) {
       return {
         success: false,
@@ -837,7 +809,7 @@ export class Archive implements ArchiveInterface {
  * Backwards-compatible functional factory; prefer `new Archive(providers, options)`.
  *
  * @param providers - Single provider, array of providers, or Promise(s) resolving to provider(s)
- * @param options - Default options applied to all queries (limit, cache, ttl, concurrency, etc.)
+ * @param options - Default options applied to all queries (limit, concurrency, timeout, etc.)
  * @returns {ArchiveInterface} Archive client with methods for fetching and managing archive data
  *
  * @example
@@ -854,8 +826,6 @@ export class Archive implements ArchiveInterface {
  * // With options
  * const archive = createArchive(providers.all(), {
  *   limit: 10,
- *   cache: true,
- *   ttl: 3600000, // 1 hour cache TTL
  *   concurrency: 3
  * })
  * ```

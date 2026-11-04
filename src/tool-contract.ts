@@ -80,7 +80,6 @@ export const MAX_TIMESTAMP_LENGTH = 32;
 export const DEFAULT_CONTENT_TIMEOUT = 30_000;
 export const MAX_TARGET_LENGTH = 2048;
 export const MAX_PARAMETER_LENGTH = 256;
-export const MAX_TTL = 30 * 24 * 60 * 60 * 1000;
 export const MAX_RETRIES = 10;
 export const MAX_TIMEOUT = 5 * 60 * 1000;
 export const PERMACC_API_KEY_ENVS = ["PERMA_CC_API_KEY", "PERMACC_API_KEY"] as const;

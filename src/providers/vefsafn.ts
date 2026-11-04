@@ -2,7 +2,6 @@ import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
-  ArchiveOptions,
   ArchiveResponse,
   ArchivedPage,
   VefsafnMetadata,
@@ -168,12 +167,6 @@ async function fetchCaptures(
 export class VefsafnProvider extends BaseProvider<VefsafnOptions> {
   readonly name = "Vefsafn";
   readonly slug = "vefsafn";
-
-  override cacheKey(options?: Readonly<ArchiveOptions>): string {
-    const requestedLimit =
-      options && Object.hasOwn(options, "limit") ? options.limit : this.options.limit;
-    return `vefsafnLimit=${requestedLimit ?? 1000}`;
-  }
 
   async snapshots(
     url: string,

@@ -23,10 +23,6 @@ export abstract class BaseProvider<
 > implements ArchiveProvider {
   abstract readonly name: string;
   abstract readonly slug?: string;
-  cacheKey(_options?: Readonly<ArchiveOptions>): string | undefined {
-    return undefined;
-  }
-
   readonly options: Partial<TOptions>;
 
   constructor(options: Partial<TOptions> = {}) {

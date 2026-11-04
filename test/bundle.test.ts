@@ -44,14 +44,14 @@ describe.skipIf(!existsSync(entry))("a Vite app bundling the package", () => {
   it("leaves the diff engine out when it never compares captures", async () => {
     const packages = await bundledPackages(["createArchive", "providers"]);
 
-    expect(packages).toContain("unstorage");
+    expect(packages).toContain("ufo");
     expect(packages).not.toContain("diff");
   });
 
-  it("compares captures without pulling in the archive and its storage", async () => {
+  it("compares captures without pulling in the archive", async () => {
     const packages = await bundledPackages(["diffArchivedContent"]);
 
     expect(packages).toContain("diff");
-    expect(packages).not.toContain("unstorage");
+    expect(packages).not.toContain("ufo");
   });
 });

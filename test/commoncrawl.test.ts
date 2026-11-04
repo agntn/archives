@@ -1,7 +1,7 @@
 import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { fetchData } from "../src/utils/_fetch";
-import { createArchive, resetConfig, storage } from "../src";
+import { createArchive, resetConfig } from "../src";
 import type { CommonCrawlOptions } from "../src/_providers";
 import createCommonCrawl from "../src/providers/commoncrawl";
 
@@ -13,7 +13,6 @@ vi.mock("../src/utils/_fetch", async (importOriginal) => ({
 
 describe("Common Crawl", () => {
   beforeEach(async () => {
-    await storage.clear();
     resetConfig();
     vi.resetAllMocks();
   });
@@ -258,38 +257,6 @@ describe("Common Crawl", () => {
     expect(result._meta?.source).toBe("commoncrawl");
     expect(result._meta?.collection).toBe("CC-MAIN-2023-50");
     expect(fetchData).toHaveBeenCalledTimes(1);
-  });
-
-  it("separates cache entries for different collection options", async () => {
-    const record = (collection: string) =>
-      JSON.stringify({
-        url: `https://example.com/${collection}`,
-        timestamp: "20220101000000",
-        mime: "text/html",
-        status: "200",
-        digest: collection,
-        length: "12345",
-        offset: "123",
-        filename: `warc/${collection}/AAAABBBCCCDD`,
-      }) + "\n";
-
-    vi.mocked(fetchData)
-      .mockResolvedValueOnce(record("CC-MAIN-2023-50"))
-      .mockResolvedValueOnce(record("CC-MAIN-2024-10"));
-
-    const archive = createArchive(createCommonCrawl());
-    const collectionA: CommonCrawlOptions = { collection: "CC-MAIN-2023-50" };
-    const collectionB: CommonCrawlOptions = { collection: "CC-MAIN-2024-10" };
-
-    const first = await archive.snapshots("example.com", collectionA);
-    const second = await archive.snapshots("example.com", collectionB);
-    const cachedFirst = await archive.snapshots("example.com", collectionA);
-
-    expect(first.pages[0]._meta.collection).toBe("CC-MAIN-2023-50");
-    expect(second.pages[0]._meta.collection).toBe("CC-MAIN-2024-10");
-    expect(cachedFirst.fromCache).toBe(true);
-    expect(cachedFirst.pages[0]._meta.collection).toBe("CC-MAIN-2023-50");
-    expect(fetchData).toHaveBeenCalledTimes(2);
   });
 
   describe("picking a crawl by date", () => {
