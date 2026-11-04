@@ -1,7 +1,7 @@
 /**
- * The archive tools, declared once for MCP, Pi and OMP. Executors load on the first call. `Type`
- * comes from `@agntn/tools`, never a bare `typebox`: OMP rewrites that import to its own facade,
- * and validation then accepts any value.
+ * The archive tools, declared once for MCP, Pi, OMP and the AI SDK. Executors load on the first
+ * call. `Type` comes from `@agntn/tools`, never a bare `typebox`: OMP rewrites that import to its
+ * own facade, and validation then accepts any value.
  */
 
 import { defineTool, sanitizeLine, Type, type ToolDefinition } from "@agntn/tools";

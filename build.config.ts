@@ -7,6 +7,7 @@ export default defineBuildConfig({
       type: "bundle",
       input: [
         "./src/index.ts",
+        "./src/ai.ts",
         "./src/cli.ts",
         "./src/mcp.ts",
         "./src/tool-operations.ts",

@@ -24,7 +24,7 @@ Docs and a live timeline explorer: [archives.agntn.dev](https://archives.agntn.d
 - 🙅 **"Unsupported" is an answer.** A provider without the endpoint says so and tells you why. No fake empty list.
 - 🧯 **Survives a bad archive day.** One provider times out, the rest still answer. The failure lands in `_meta.errors`.
 - 🌳 **Tree-shakable.** Every provider sits behind a dynamic import. Ask for Wayback, get Wayback.
-- 🤖 **A CLI, MCP, Pi and OMP.** Four tools, and every surface answers the same.
+- 🤖 **CLI, MCP, Pi, OMP and the AI SDK.** Same answers. The past gets around.
 
 ## 📦 Install
 
@@ -203,6 +203,29 @@ claude mcp add --transport http archives https://archives.agntn.dev/mcp
 Same answers, a few house rules. No `path`, no Archive.today, 30 new queries a minute. The worker is borrowed, after all.
 
 The docs site also has the [Evidence Room](https://archives.agntn.dev/evidence), the same idea over WebMCP in the browser. [WebMCP guide](https://archives.agntn.dev/guide/webmcp).
+
+### AI SDK
+
+Give your model four archive tools in one line.
+
+```bash
+pnpm add @agntn/archives ai @ai-sdk/anthropic
+```
+
+```ts
+import { anthropic } from "@ai-sdk/anthropic";
+import { archivesAiTools } from "@agntn/archives/ai";
+import { generateText, isStepCount } from "ai";
+
+const { text } = await generateText({
+  model: anthropic("claude-sonnet-5-5"),
+  tools: archivesAiTools,
+  stopWhen: isStepCount(5),
+  prompt: "What did example.com look like back in 2005?",
+});
+```
+
+No wrappers needed. Your model gets the same text as an MCP client. Errors, cancelling and the disk are in the [Agents guide](https://archives.agntn.dev/guide/agents#ai-sdk).
 
 ## 🚫 What this does not do
 

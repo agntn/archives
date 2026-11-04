@@ -56,6 +56,11 @@
       "import": "./dist/index.mjs",
       "default": "./dist/index.mjs"
     },
+    "./ai": {
+      "types": "./dist/ai.d.mts",
+      "import": "./dist/ai.mjs",
+      "default": "./dist/ai.mjs"
+    },
     "./mcp": {
       "types": "./dist/mcp.d.mts",
       "import": "./dist/mcp.mjs",
@@ -104,6 +109,7 @@
     "@oh-my-pi/pi-coding-agent": "catalog:dev",
     "@types/node": "catalog:dev",
     "@vitest/coverage-v8": "catalog:",
+    "ai": "catalog:dev",
     "obuild": "catalog:dev",
     "typebox": "catalog:dev",
     "typescript": "catalog:dev",
@@ -114,7 +120,8 @@
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": ">=0.99.0",
     "@earendil-works/pi-tui": "*",
-    "@oh-my-pi/pi-coding-agent": ">=18.0.0 <19"
+    "@oh-my-pi/pi-coding-agent": ">=18.0.0 <19",
+    "ai": ">=7.0.0 <8"
   },
   "peerDependenciesMeta": {
     "@earendil-works/pi-coding-agent": {
@@ -124,6 +131,9 @@
       "optional": true
     },
     "@oh-my-pi/pi-coding-agent": {
+      "optional": true
+    },
+    "ai": {
       "optional": true
     }
   },
