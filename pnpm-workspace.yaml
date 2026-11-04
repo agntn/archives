@@ -6,6 +6,47 @@ catalog:
   vitest: 5.0.1
   vite-plus: 1.0.0
   "@vitest/coverage-v8": 5.0.1
+
+# docs/ bundles the library from ../src, so a name both of them use gets one version here.
+catalogs:
+  deps:
+    "@agntn/compressions": 0.1.1
+    "@agntn/hashes": 0.5.0
+    "@agntn/tools": 0.2.4
+    "@modelcontextprotocol/sdk": 1.32.1
+    "@modelcontextprotocol/server": 2.2.0
+    "@nuxtjs/mcp-toolkit": 0.24.2
+    "@vueuse/core": 15.0.0
+    agents: 0.28.1
+    better-sqlite3: 13.0.3
+    c12: 4.0.0-beta.5
+    diff: 9.0.0
+    docus: 5.15.0
+    entities: 8.1.0
+    nuxt: 4.6.1
+    ohash: 2.0.11
+    ufo: 1.6.4
+    unstorage: 1.17.5
+    zod: 4.6.5
+  dev:
+    "@agntn/ox": ^0.1.0
+    "@earendil-works/pi-coding-agent": 0.99.2
+    "@earendil-works/pi-tui": 1.1.0
+    "@iconify-json/lucide": 1.2.149
+    "@iconify-json/simple-icons": 1.2.101
+    "@iconify-json/vscode-icons": 1.2.94
+    "@modelcontextprotocol/client": 2.2.0
+    "@oh-my-pi/omptype": 18.4.8
+    "@oh-my-pi/pi-coding-agent": 18.4.8
+    "@types/node": 26.2.0
+    obuild: 0.4.43
+    typebox: 1.3.15
+    typescript: 7.0.2
+    webmcp-types: 0.1.6
+    wrangler: 4.150.0
+
+cleanupUnusedCatalogs: true
+
 overrides:
   vite@*: "catalog:"
   vitest@*: "catalog:"

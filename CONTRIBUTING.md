@@ -4,6 +4,10 @@
 
 Run `pnpm install` and that's it: `docs/` sits in the same workspace, so one lockfile covers both and the docs no longer need a second round. `pnpm test` runs lint, the type checks and the suite with coverage.
 
+Looking for a version in `package.json`? You'll find `catalog:deps` or `catalog:dev` instead. Versions live in `pnpm-workspace.yaml`: `deps`, `dev` and the default `catalog:`, which keeps the Vite+ toolchain the overrides point at. Shared packages get one line instead of two, and `cleanupUnusedCatalogs: true` drops unused lines on the next install.
+
+Add one with `pnpm add <name> --save-catalog-name=deps --save-exact`, or use `-D` and `dev` for a tool. Run it inside `docs/` for a site dependency.
+
 ## Adding a provider
 
 - Copy `src/providers/wayback.ts`, register the factory in `src/providers/index.ts` and put its option types in `src/_providers.ts`, not beside the implementation.
