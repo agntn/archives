@@ -10,24 +10,24 @@
     "deploy": "pnpm build && wrangler deploy"
   },
   "dependencies": {
-    "@agntn/tools": "0.2.4",
-    "@modelcontextprotocol/sdk": "1.32.1",
-    "@nuxtjs/mcp-toolkit": "0.24.2",
-    "@vueuse/core": "15.0.0",
-    "agents": "0.28.1",
-    "better-sqlite3": "13.0.3",
-    "docus": "5.15.0",
-    "nuxt": "4.6.1",
-    "ohash": "2.0.11",
-    "ufo": "1.6.4",
-    "zod": "4.6.5"
+    "@agntn/tools": "catalog:deps",
+    "@modelcontextprotocol/sdk": "catalog:deps",
+    "@nuxtjs/mcp-toolkit": "catalog:deps",
+    "@vueuse/core": "catalog:deps",
+    "agents": "catalog:deps",
+    "better-sqlite3": "catalog:deps",
+    "docus": "catalog:deps",
+    "nuxt": "catalog:deps",
+    "ohash": "catalog:deps",
+    "ufo": "catalog:deps",
+    "zod": "catalog:deps"
   },
   "packageManager": "pnpm@12.11.2",
   "devDependencies": {
-    "@iconify-json/lucide": "1.2.149",
-    "@iconify-json/simple-icons": "1.2.101",
-    "@iconify-json/vscode-icons": "1.2.94",
-    "webmcp-types": "0.1.6",
-    "wrangler": "4.150.0"
+    "@iconify-json/lucide": "catalog:dev",
+    "@iconify-json/simple-icons": "catalog:dev",
+    "@iconify-json/vscode-icons": "catalog:dev",
+    "webmcp-types": "catalog:dev",
+    "wrangler": "catalog:dev"
   }
 }
