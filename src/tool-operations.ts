@@ -1,5 +1,5 @@
 /**
- * Tool executors shared by the MCP server and the Pi and OMP extensions.
+ * Tool executors shared by the MCP server, the Pi and OMP extensions and the AI SDK tools.
  *
  * Each executor returns the text a caller reads plus the structured details the
  * agent harnesses attach to the call. An MCP client sees only the text, so every

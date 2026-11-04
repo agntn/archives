@@ -362,10 +362,10 @@ onMounted(() => {
               :text="JSON.stringify(state.details, null, 2)"
               label="Details"
               source="details"
-              description="What Pi and OMP render beside the text. An MCP client never sees it."
+              description="Pi, OMP and AI SDK apps get these details beside the text. An MCP client doesn't."
             />
             <template #footer>
-              <span>MCP · Pi · OMP answer from the same executor</span>
+              <span>MCP · Pi · OMP · AI SDK answer from the same executor</span>
               <span class="console-meta">answered by the docs worker</span>
             </template>
           </ExplorerPanel>

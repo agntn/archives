@@ -78,7 +78,7 @@ const headline = computed(() => props.sample?.text.split("\n")[0] ?? "");
     />
 
     <footer class="console-footer console-footer-plain">
-      <span aria-label="Supported hosts: MCP, Pi and OMP">MCP · Pi · OMP</span>
+      <span aria-label="Supported hosts: MCP, Pi, OMP and AI SDK">MCP · Pi · OMP · AI SDK</span>
       <span class="console-meta">archives mcp · stdio</span>
     </footer>
   </section>

@@ -86,9 +86,9 @@ const { targets, target, index, paused, current, content, diff, step } = useLand
         'Archived bodies are fenced as untrusted data, never as instructions',
       ]"
     >
-      The MCP server, the Pi extension and the OMP extension call the same executors, so they
-      answer identically. Slices, continuation arguments and digests let an agent page through a
-      long body without reading it twice.
+      MCP, Pi, OMP and the AI SDK tools call the same executors. Same answers. Slices,
+      continuation arguments and digests let your agent page through a long archived body without
+      reading it twice.
       <template #visual>
         <LandingToolCall :target="target" :sample="current" />
       </template>

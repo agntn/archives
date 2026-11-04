@@ -101,6 +101,9 @@ catalogs:
     '@types/node':
       specifier: 26.2.0
       version: 26.2.0
+    ai:
+      specifier: 7.0.141
+      version: 7.0.141
     obuild:
       specifier: 0.4.43
       version: 0.4.43
@@ -177,6 +180,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 5.0.1(@vitest/browser@5.0.1)(vitest@5.0.1)
+      ai:
+        specifier: catalog:dev
+        version: 7.0.141(zod@4.6.5)
       obuild:
         specifier: catalog:dev
         version: 0.4.43(@volar/typescript@2.4.28(typescript@7.0.2))(@vue/language-core@3.3.11)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magicast@0.5.5)(typescript@7.0.2)

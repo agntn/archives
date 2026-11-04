@@ -21,6 +21,6 @@ Add one with `pnpm add <name> --save-catalog-name=deps --save-exact`, or use `-D
 
 ## Tools
 
-- What a tool does lives in `src/tool-operations.ts`, and its definition in `src/tools.ts`. MCP, Pi and OMP register those definitions, so a fix never goes into one surface only.
+- Tool behavior lives in `src/tool-operations.ts`, and definitions live in `src/tools.ts`. MCP, Pi, OMP and `@agntn/archives/ai` use those definitions. Fix the source, not one surface. The past has enough copies already.
 - An MCP client sees only `content[].text`, so anything the next call needs is there, and `details` never carries a second, longer copy of the body.
 - Archived bodies and provider fields are untrusted: bound every read and render them as text.
