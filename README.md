@@ -244,7 +244,7 @@ pnpm lint         # builds first, then vp lint and vp fmt --check
 pnpm test:types   # tsc over the library and both extensions
 pnpm test         # lint, types, tests with coverage
 pnpm build        # obuild
-pnpm docs         # docs site and timeline explorer on :3000
+pnpm run docs     # docs site and timeline explorer on :3000
 ```
 
 ## 💛 Thanks
