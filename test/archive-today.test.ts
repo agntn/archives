@@ -1,7 +1,7 @@
 import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { fetchData } from "../src/utils/_fetch";
-import { createArchive as createArchiveClient, resetConfig, storage } from "../src";
+import { createArchive as createArchiveClient, resetConfig } from "../src";
 import createArchiveToday from "../src/providers/archive-today";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
@@ -12,7 +12,6 @@ vi.mock("../src/utils/_fetch", async (importOriginal) => ({
 
 describe("archive.today", () => {
   beforeEach(async () => {
-    await storage.clear();
     resetConfig();
     vi.resetAllMocks();
   });

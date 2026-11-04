@@ -1,15 +1,11 @@
 import { objectContaining } from "./_matchers";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
-import { Archive, createArchive, UnsupportedOperationError, storage, resetConfig } from "../src";
+import { Archive, createArchive, UnsupportedOperationError, resetConfig } from "../src";
 import createWayback from "../src/providers/wayback";
 import createWebCite from "../src/providers/webcite";
 import type { ArchiveProvider, ArchivedPage } from "../src/types";
 
-// The storage layer is module-level shared state. Without explicit cleanup
-// success responses cached in earlier tests would leak into later tests that
-// reuse the same provider slug+domain pair.
-beforeEach(async () => {
-  await storage.clear();
+beforeEach(() => {
   resetConfig();
 });
 
@@ -125,7 +121,7 @@ describe("createArchive", () => {
   });
 
   it("keeps snapshots callable when passed as a callback", async () => {
-    const archive = createArchive(successProvider("callback", []), { cache: false });
+    const archive = createArchive(successProvider("callback", []));
     /* oxlint-disable-next-line typescript/unbound-method -- extraction is the behavior under test; Archive binds this method. */
     const snapshots = archive.snapshots;
 
@@ -288,27 +284,6 @@ describe("Archive.snapshots / window", () => {
     });
 
     expect(response.pages.map((page) => page.timestamp)).toEqual(["2019-12-01T00:00:00Z"]);
-  });
-
-  /**
-   * The natural entry may have been capped by the provider's own limit, so a
-   * windowed request must not replay it: the window travels in the cache key
-   * and earns its own fetch, made with the limit lifted.
-   */
-  it("keeps windowed fetches out of the naturally capped cache entry", async () => {
-    const provider = successProvider("cachey", [
-      pageAt("cachey", "2019-03-01T00:00:00Z"),
-      pageAt("cachey", "2020-03-01T00:00:00Z"),
-    ]);
-    const archive = createArchive(provider);
-
-    const natural = await archive.snapshots("example.com");
-    const windowed = await archive.snapshots("example.com", { from: "2019", to: "2019" });
-
-    expect(provider.snapshots).toHaveBeenCalledTimes(2);
-    expect(natural.pages).toHaveLength(2);
-    expect(windowed.fromCache).toBeUndefined();
-    expect(windowed.pages.map((page) => page.timestamp)).toEqual(["2019-03-01T00:00:00Z"]);
   });
 
   it("rejects an init-level bound no archive could act on", async () => {
@@ -484,7 +459,7 @@ describe("combineResults / deduplication", () => {
       { ...samplePage("second"), timestamp: "2023-01-02T00:00:00Z" },
       { ...samplePage("older"), timestamp: "2023-01-01T00:00:00Z" },
     ]);
-    const archive = createArchive([first, second], { cache: false });
+    const archive = createArchive([first, second]);
 
     const response = await archive.snapshots("example.com", { limit: 2 });
 
@@ -509,7 +484,7 @@ describe("combineResults / deduplication", () => {
         pages: [samplePage("second")],
       }),
     };
-    const archive = createArchive([first, second], { cache: false });
+    const archive = createArchive([first, second]);
 
     const response = await archive.snapshots("example.com");
 
@@ -531,9 +506,7 @@ describe("combineResults / deduplication", () => {
         _meta: { provider: "commoncrawl", digest: "digest-a" },
       },
     ]);
-    const archive = createArchive([commonCrawl, successProvider("other", [])], {
-      cache: false,
-    });
+    const archive = createArchive([commonCrawl, successProvider("other", [])]);
 
     const response = await archive.snapshots("example.com");
 

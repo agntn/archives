@@ -4,7 +4,6 @@ import * as archives from "../src";
 import { getConfig, resolveConfig, resetConfig, setConfig, setConfigCwd } from "../src/config";
 import { discoverConfig } from "../src/config-discovery.browser";
 import { loadConfig } from "c12";
-import memoryDriver from "unstorage/drivers/memory";
 import type { ArchivesConfig } from "../src/config";
 
 // Mock loadConfig to avoid file system dependency in tests
@@ -17,12 +16,6 @@ describe("Config", () => {
 
   // Default mock response for loadConfig
   const defaultMockConfig: ArchivesConfig = {
-    storage: {
-      driver: memoryDriver(),
-      cache: true,
-      ttl: 604800000, // 7 days
-      prefix: "test-prefix",
-    },
     performance: {
       concurrency: 5,
       batchSize: 30,
@@ -86,18 +79,10 @@ describe("Config", () => {
     ["getConfig", getConfig],
   ])("should isolate explicit %s options from the default cache", async (_name, load) => {
     const firstConfig: ArchivesConfig = {
-      ...defaultMockConfig,
-      storage: {
-        ...defaultMockConfig.storage,
-        prefix: "first-prefix",
-      },
+      performance: { ...defaultMockConfig.performance, retries: 6 },
     };
     const secondConfig: ArchivesConfig = {
-      ...defaultMockConfig,
-      storage: {
-        ...defaultMockConfig.storage,
-        prefix: "second-prefix",
-      },
+      performance: { ...defaultMockConfig.performance, retries: 7 },
     };
     mockedLoadConfig
       .mockResolvedValueOnce({ config: firstConfig })
@@ -109,10 +94,10 @@ describe("Config", () => {
     const defaultConfig = await load();
     const cachedDefaultConfig = await load();
 
-    expect(first.storage.prefix).toBe("first-prefix");
-    expect(second.storage.prefix).toBe("second-prefix");
-    expect(defaultConfig.storage.prefix).toBe("test-prefix");
-    expect(cachedDefaultConfig.storage.prefix).toBe("test-prefix");
+    expect(first.performance.retries).toBe(6);
+    expect(second.performance.retries).toBe(7);
+    expect(defaultConfig.performance.retries).toBe(3);
+    expect(cachedDefaultConfig.performance.retries).toBe(3);
     expect(mockedLoadConfig).toHaveBeenCalledTimes(3);
   });
 
@@ -134,7 +119,7 @@ describe("Config", () => {
     const customOptions = {
       cwd: "/custom/path",
       defaults: {
-        storage: { prefix: "custom-prefix" },
+        performance: { retries: 2 },
       },
       overrides: {
         performance: { concurrency: 10 },
@@ -184,7 +169,6 @@ describe("Config", () => {
     // Arrange
     mockedLoadConfig.mockResolvedValue({
       config: {
-        // Missing storage
         performance: {
           concurrency: 5,
         },
@@ -195,8 +179,12 @@ describe("Config", () => {
     const config = await getConfig();
 
     // Assert
-    expect(config.storage).toBeDefined();
-    expect(config.storage.prefix).toBe("archives"); // Default prefix
+    expect(config.performance).toEqual({
+      concurrency: 5,
+      batchSize: 20,
+      timeout: 10000,
+      retries: 1,
+    });
   });
 
   describe("setConfig", () => {
@@ -212,19 +200,6 @@ describe("Config", () => {
         timeout: 2000,
         retries: 1,
       });
-      expect(config.storage.prefix).toBe("archives");
-      expect(config.storage.cache).toBe(true);
-    });
-
-    it("keeps a driver and fills the rest from the defaults", () => {
-      const driver = memoryDriver();
-
-      const config = setConfig({ storage: { driver, cache: false } });
-
-      expect(config.storage.driver).toBe(driver);
-      expect(config.storage.cache).toBe(false);
-      expect(config.storage.ttl).toBe(604800000);
-      expect(config.performance.retries).toBe(1);
     });
 
     it("gives way to discovery after resetConfig or setConfigCwd", async () => {
@@ -284,23 +259,18 @@ describe("Config", () => {
 
   describe("discovery for browsers and Workers", () => {
     it("merges the layers it was given and never reaches for c12", async () => {
-      const driver = memoryDriver();
-
       const config = await discoverConfig(
         {
           cwd: "/nowhere",
           overrides: { performance: { timeout: 2000, retries: undefined } },
-          defaults: { storage: { driver, prefix: "page" }, performance: { retries: 4 } },
+          defaults: { performance: { retries: 4 } },
         },
         defaultMockConfig,
       );
 
       expect(mockedLoadConfig).not.toHaveBeenCalled();
-      expect(config.storage).toEqual({ ...defaultMockConfig.storage, driver, prefix: "page" });
-      expect(config.performance).toEqual({
-        ...defaultMockConfig.performance,
-        timeout: 2000,
-        retries: 4,
+      expect(config).toEqual({
+        performance: { ...defaultMockConfig.performance, timeout: 2000, retries: 4 },
       });
     });
   });

@@ -2,7 +2,6 @@ import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
-  ArchiveOptions,
   ArchiveResponse,
   ArchivedPage,
   WebarchivMetadata,
@@ -131,12 +130,6 @@ async function fetchCaptures(
 export class WebarchivProvider extends BaseProvider<WebarchivOptions> {
   readonly name = "Webarchiv Österreich";
   readonly slug = "webarchiv";
-
-  override cacheKey(options?: Readonly<ArchiveOptions>): string {
-    const requestedLimit =
-      options && Object.hasOwn(options, "limit") ? options.limit : this.options.limit;
-    return `webarchivLimit=${requestedLimit ?? 1000}`;
-  }
 
   async snapshots(
     url: string,

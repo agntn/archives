@@ -88,7 +88,6 @@ export default defineConfig({
                 "URL",
               ],
             },
-            { from: "package", name: "Driver", package: "unstorage" },
             {
               from: "package",
               name: ["ExtensionAPI", "ExtensionContext", "ToolDefinition"],

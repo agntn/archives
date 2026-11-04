@@ -7,7 +7,6 @@ import {
   MementoProvider,
   providers,
   resetConfig,
-  storage,
   type ArchiveContentResponse,
 } from "../src";
 import createMemento from "../src/providers/memento";
@@ -32,7 +31,6 @@ function expectProxiedCapture(response: ArchiveContentResponse): void {
 }
 
 beforeEach(async () => {
-  await storage.clear();
   resetConfig();
   vi.resetAllMocks();
 });
@@ -79,7 +77,6 @@ describe("Memento aggregator", () => {
     const controller = new AbortController();
     const response = await createArchive(createMemento()).snapshots("https://example.com/", {
       signal: controller.signal,
-      cache: false,
     });
 
     expect(response.success).toBe(true);
@@ -129,7 +126,6 @@ describe("Memento aggregator", () => {
 
     const response = await createArchive(createMemento()).snapshots("example.com", {
       limit: 1,
-      cache: false,
     });
 
     expect(response.pages).toHaveLength(1);
@@ -154,13 +150,12 @@ describe("Memento aggregator", () => {
     const response = await createMemento().snapshots("http://www.example.com/about", {
       limit: 1,
       order: "newest",
-      cache: false,
     });
 
     expect(response.pages.map((page) => page.snapshot)).toEqual(["https://archive.example/2019"]);
   });
 
-  it("keeps constructor limits in separate cache partitions", async () => {
+  it("applies a constructor limit to the TimeMap", async () => {
     fetchMock
       .mockResolvedValueOnce({
         original_uri: "https://example.com/",
@@ -188,16 +183,12 @@ describe("Memento aggregator", () => {
 
     expect(limited.pages).toHaveLength(1);
     expect(complete.pages).toHaveLength(2);
-    expect(complete.fromCache).toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("returns an empty success when MemGator reports no mementos as 404", async () => {
     fetchMock.mockRejectedValueOnce({ status: 404, data: "404 page not found" });
 
-    const response = await createArchive(createMemento()).snapshots("never-captured.example", {
-      cache: false,
-    });
+    const response = await createArchive(createMemento()).snapshots("never-captured.example");
 
     expect(response.success).toBe(true);
     expect(response.pages).toEqual([]);
@@ -226,7 +217,6 @@ describe("Memento aggregator", () => {
   it("does not copy target credentials into an error response", async () => {
     const response = await createArchive(createMemento()).snapshots(
       "https://user:secret@example.com/",
-      { cache: false },
     );
 
     expect(response.success).toBe(false);
@@ -237,9 +227,7 @@ describe("Memento aggregator", () => {
   it("returns a provider error for a malformed JSON TimeMap", async () => {
     fetchMock.mockResolvedValueOnce({ original_uri: "https://example.com/" });
 
-    const response = await createArchive(createMemento()).snapshots("example.com", {
-      cache: false,
-    });
+    const response = await createArchive(createMemento()).snapshots("example.com");
 
     expect(response.success).toBe(false);
     expect(response.error).toContain("valid mementos.list");
@@ -277,7 +265,6 @@ describe("Memento aggregator", () => {
 
     const response = await createArchive(createMemento()).content("https://example.com/", {
       timestamp: "20200402195411",
-      cache: false,
     });
 
     expectProxiedCapture(response);
@@ -322,9 +309,7 @@ describe("Memento aggregator", () => {
         }),
       );
 
-    const response = await createArchive(createMemento()).content("https://example.com/", {
-      cache: false,
-    });
+    const response = await createArchive(createMemento()).content("https://example.com/");
 
     expect(response.success).toBe(true);
     expect(response.content?.content).toBe("proxied capture");
@@ -360,9 +345,7 @@ describe("Memento aggregator", () => {
         }),
       );
 
-    const response = await createArchive(createMemento()).content("https://example.com/", {
-      cache: false,
-    });
+    const response = await createArchive(createMemento()).content("https://example.com/");
 
     expect(response.success).toBe(true);
     expect(response.content?.content).toBe("redirected capture");
@@ -395,7 +378,6 @@ describe("Memento aggregator", () => {
 
     const response = await createArchive(createMemento()).content(
       "https://arquivo.pt/wayback/20200402133000/https://example.com/",
-      { cache: false },
     );
 
     expect(response.success).toBe(true);
@@ -432,9 +414,7 @@ describe("Memento aggregator", () => {
       }),
     );
 
-    const response = await createArchive(createMemento()).content("https://example.com/", {
-      cache: false,
-    });
+    const response = await createArchive(createMemento()).content("https://example.com/");
 
     expect(response.success).toBe(true);
     expect(response.content).toMatchObject({

@@ -35,12 +35,6 @@ describe("BaseProvider", () => {
     });
   });
 
-  it("defaults to no provider-specific cache key", () => {
-    const provider = new MethodProvider();
-
-    expect(provider.cacheKey()).toBeUndefined();
-  });
-
   it("isolates provider state from caller-owned options", () => {
     const options = { limit: 1 };
     const provider = new MethodProvider(options);

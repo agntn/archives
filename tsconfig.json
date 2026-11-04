@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    // Under NodeNext the unstorage driver types import a directory and `Driver` becomes an error type.
     "moduleResolution": "Bundler",
+    "types": ["node"],
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,

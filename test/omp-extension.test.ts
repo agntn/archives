@@ -161,7 +161,7 @@ describe("archives OMP extension", () => {
       }),
     ).toBe(true);
     expect(properties).not.toHaveProperty("timestamp");
-    for (const name of ["context", "maxChars", "offset", "ttl", "timeout", "retries"]) {
+    for (const name of ["context", "maxChars", "offset", "timeout", "retries"]) {
       expect(properties[name]?.["description"]).toContain(rangeDescription(properties[name]));
     }
   });
@@ -170,7 +170,7 @@ describe("archives OMP extension", () => {
     const tool = requireTool((await registerExtension()).tools, "archives_content");
     const properties = schemaProperties(tool);
 
-    for (const parameterName of ["maxChars", "offset", "ttl", "timeout", "retries"]) {
+    for (const parameterName of ["maxChars", "offset", "timeout", "retries"]) {
       const parameter = properties[parameterName];
       expect(parameter?.["description"]).toContain(rangeDescription(parameter));
     }
@@ -198,7 +198,6 @@ describe("archives OMP extension", () => {
     expect(accepts(tool, { target: "example.com", concurrency: 1.5 })).toBe(false);
     expect(accepts(tool, { target: "example.com", batchSize: 1.5 })).toBe(false);
     expect(accepts(tool, { target: "example.com", retries: 0.5 })).toBe(false);
-    expect(accepts(tool, { target: "example.com", ttl: 0.5 })).toBe(false);
     expect(accepts(tool, { target: "example.com", timeout: 1.5 })).toBe(false);
   });
 
@@ -208,14 +207,7 @@ describe("archives OMP extension", () => {
 
     // The parameters are declared before the executors can be loaded, so the
     // restated bound has to match what src/tool-operations actually enforces.
-    for (const parameterName of [
-      "limit",
-      "ttl",
-      "concurrency",
-      "batchSize",
-      "timeout",
-      "retries",
-    ]) {
+    for (const parameterName of ["limit", "concurrency", "batchSize", "timeout", "retries"]) {
       const parameter = properties[parameterName];
       expect(parameter?.["description"]).toContain(rangeDescription(parameter));
     }
@@ -250,7 +242,7 @@ describe("archives OMP extension", () => {
 
     const result = await tool.execute(
       "test",
-      { target: ["example.com", "example.org"], provider: "wayback", cache: false, concurrency: 1 },
+      { target: ["example.com", "example.org"], provider: "wayback", concurrency: 1 },
       undefined,
       undefined,
       unusedContext,
@@ -276,7 +268,6 @@ describe("archives OMP extension", () => {
         provider: "wayback",
         from: "2019-03-01",
         to: "2019-06",
-        cache: false,
       },
       undefined,
       undefined,
@@ -297,7 +288,7 @@ describe("archives OMP extension", () => {
 
     const result = await tool.execute(
       "test",
-      { target: "example.com", provider: "archiveIt", collection: " 4399 ", cache: false },
+      { target: "example.com", provider: "archiveIt", collection: " 4399 " },
       undefined,
       undefined,
       unusedContext,
@@ -339,7 +330,6 @@ describe("archives OMP extension", () => {
         provider: "conifer",
         user: " user ",
         collection: " collection ",
-        cache: false,
       },
       undefined,
       undefined,

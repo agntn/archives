@@ -1,22 +1,7 @@
-import type { Driver } from "unstorage";
-import memoryDriver from "unstorage/drivers/memory";
-
 /**
  * Configuration options for Archives
  */
 export interface ArchivesConfig {
-  // Storage configuration
-  storage: {
-    // Storage driver to use (default: memoryDriver)
-    driver?: Driver;
-    // Enable caching of responses (default: true)
-    cache?: boolean;
-    // TTL in milliseconds (default: 7 days)
-    ttl?: number;
-    // Prefix for storage keys (default: 'archives')
-    prefix?: string;
-  };
-
   // Performance options
   performance: {
     // Max concurrent requests (default: 3)
@@ -39,12 +24,6 @@ export interface ArchivesConfig {
 // Default configuration
 const getDefaultConfig = () =>
   ({
-    storage: {
-      driver: memoryDriver(),
-      cache: true,
-      ttl: 7 * 24 * 60 * 60 * 1000, // 7 days
-      prefix: "archives",
-    },
     performance: {
       concurrency: 3,
       batchSize: 20,
@@ -54,7 +33,6 @@ const getDefaultConfig = () =>
   }) as ArchivesConfig;
 
 export type ConfigLayer = Readonly<{
-  storage?: Readonly<ArchivesConfig["storage"]>;
   performance?: Readonly<ArchivesConfig["performance"]>;
   $env?: Readonly<Record<string, ConfigLayer>>;
   $development?: ConfigLayer;
@@ -150,13 +128,11 @@ export function setConfigCwd(cwd: string): void {
 /**
  * Uses `config` instead of config files until `resetConfig()` or `setConfigCwd()`.
  *
- * @param config - Storage and performance settings over the defaults, without `$env` layers
+ * @param config - Performance settings over the defaults, without `$env` layers
  * @returns {ArchivesConfig} The config every later `getConfig()` returns
  */
-export function setConfig(
-  config: Pick<ConfigLayer, "storage" | "performance"> = {},
-): ArchivesConfig {
-  const settings = { storage: { ...config.storage }, performance: { ...config.performance } };
+export function setConfig(config: Pick<ConfigLayer, "performance"> = {}): ArchivesConfig {
+  const settings = { performance: { ...config.performance } };
   const resolved = postProcessConfig(settings, getDefaultConfig());
   replaceCachedConfig(resolved);
   return resolved;
@@ -195,16 +171,8 @@ export async function resolveConfig(options: ResolveConfigOptions = {}): Promise
  * Apply additional configuration processing and validation
  */
 function postProcessConfig(config: ArchivesConfig, defaults: ArchivesConfig): ArchivesConfig {
-  const storage = {
-    ...defaults.storage,
-    ...config.storage,
-    driver: config.storage?.driver ?? defaults.storage.driver ?? memoryDriver(),
-    prefix: config.storage?.prefix || defaults.storage.prefix,
-  };
-
   return {
     ...config,
-    storage,
     performance: { ...defaults.performance, ...config.performance },
   };
 }

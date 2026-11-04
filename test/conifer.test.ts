@@ -1,7 +1,7 @@
 import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { fetchData } from "../src/utils/_fetch";
-import { createArchive, resetConfig, storage } from "../src";
+import { createArchive, resetConfig } from "../src";
 import createConifer from "../src/providers/conifer";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
@@ -12,15 +12,8 @@ vi.mock("../src/utils/_fetch", async (importOriginal) => ({
 
 describe("Conifer", () => {
   beforeEach(async () => {
-    await storage.clear();
     resetConfig();
     vi.resetAllMocks();
-  });
-
-  it("includes the collection identity in its cache key", () => {
-    expect(createConifer({ user: " imamuseum ", collection: " imamuseumorg " }).cacheKey()).toBe(
-      "user=imamuseum:collection=imamuseumorg",
-    );
   });
 
   it("lists matching pages from a public collection", async () => {

@@ -150,7 +150,7 @@ response._meta?.unsupportedProviders; // [{ provider: "webcite", reason: "..." }
 
 On a bad day three archives timed out here and it still came back with 1145 pages. `snapshots()` and `content()` don't throw. Check `success`. `getPages()` and `getContent()` throw instead.
 
-Want a few providers, not all? `createArchive(Promise.all([providers.wayback(), providers.arquivo()]))`. Cache, config files and every option: [Configuration](https://archives.agntn.dev/guide/configuration).
+Want a few providers, not all? `createArchive(Promise.all([providers.wayback(), providers.arquivo()]))`. Config files and every option: [Configuration](https://archives.agntn.dev/guide/configuration).
 
 ## 🗺️ Providers
 

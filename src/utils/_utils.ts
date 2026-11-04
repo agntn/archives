@@ -654,8 +654,6 @@ export async function mergeOptions<T extends ArchiveOptions>(
     batchSize: config.performance.batchSize,
     timeout: config.performance.timeout,
     retries: config.performance.retries,
-    cache: config.storage.cache,
-    ttl: config.storage.ttl,
   };
 
   // Create merged options with all properties preserved

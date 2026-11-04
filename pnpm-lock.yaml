@@ -64,9 +64,6 @@ catalogs:
     ufo:
       specifier: 1.6.4
       version: 1.6.4
-    unstorage:
-      specifier: 1.17.5
-      version: 1.17.5
     zod:
       specifier: 4.6.5
       version: 4.6.5
@@ -152,9 +149,6 @@ importers:
       ufo:
         specifier: catalog:deps
         version: 1.6.4
-      unstorage:
-        specifier: catalog:deps
-        version: 1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
     devDependencies:
       '@agntn/ox':
         specifier: catalog:dev

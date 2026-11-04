@@ -78,7 +78,7 @@ describe("replay query encoding", () => {
         const requested = stubReplay(original);
         const result = await client.callTool({
           name: "archives_content",
-          arguments: { ...args, provider: "wayback", format, cache: false, retries: 0 },
+          arguments: { ...args, provider: "wayback", format, retries: 0 },
         });
         expect(result.isError).not.toBe(true);
         expect(JSON.stringify(result)).toContain("REPLAYED");

@@ -5,7 +5,6 @@ import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { callTool, createMcpServer, toolListings } from "../src/mcp";
 import { serverInfo } from "../src/server-info";
-import { storage } from "../src/storage";
 import {
   MAX_CONTENT_OFFSET,
   MAX_DIFF_OFFSET,
@@ -130,7 +129,6 @@ function stubProvider(
 beforeEach(async () => {
   // The archive caches provider responses by domain, so one test's snapshots
   // would otherwise answer the next test's identical query.
-  await storage.clear();
   vi.stubEnv("PERMA_CC_API_KEY", undefined);
   vi.stubEnv("PERMACC_API_KEY", undefined);
 });
@@ -226,9 +224,9 @@ describe("archives MCP server", () => {
     const response = await client.listTools();
 
     for (const [toolName, parameterNames] of [
-      ["archives_snapshots", ["limit", "ttl", "concurrency", "batchSize", "timeout", "retries"]],
-      ["archives_content", ["maxChars", "offset", "ttl", "timeout", "retries"]],
-      ["archives_diff", ["context", "maxChars", "offset", "ttl", "timeout", "retries"]],
+      ["archives_snapshots", ["limit", "concurrency", "batchSize", "timeout", "retries"]],
+      ["archives_content", ["maxChars", "offset", "timeout", "retries"]],
+      ["archives_diff", ["context", "maxChars", "offset", "timeout", "retries"]],
     ] as const) {
       const tool = response.tools.find((candidate) => candidate.name === toolName);
       if (!tool) throw new Error(`Tool not registered: ${toolName}`);
@@ -283,7 +281,7 @@ describe("archives MCP server", () => {
     expect((await client.listTools()).tools).toEqual(toolListings);
     const calls: Array<[string, Record<string, unknown>]> = [
       ["archives_providers", {}],
-      ["archives_snapshots", { target: "example.com", provider: "wayback", cache: false }],
+      ["archives_snapshots", { target: "example.com", provider: "wayback" }],
       ["archives_snapshots", { target: "example.com", provider: "wayback", limit: 0 }],
       ["archives_content", { target: "example.com", lmit: 5 }],
       ["archives_diff", { target: "example.com", before: "2020", after: "2021", "x\u202Ey": 1 }],
@@ -722,7 +720,7 @@ describe("archives MCP server", () => {
     const targets = ["a.example", "b.example", "c.example", "d.example", "e.example"];
     const response = await client.callTool({
       name: "archives_snapshots",
-      arguments: { target: targets, provider: "wayback", concurrency: 2, cache: false },
+      arguments: { target: targets, provider: "wayback", concurrency: 2 },
     });
 
     expect(response.isError).toBeUndefined();
@@ -747,7 +745,7 @@ describe("archives MCP server", () => {
     const targets = ["a.example", "b.example", "c.example", "d.example"];
     const response = await client.callTool({
       name: "archives_snapshots",
-      arguments: { target: targets, concurrency: 3, cache: false },
+      arguments: { target: targets, concurrency: 3 },
     });
 
     expect(response.isError).toBeUndefined();
@@ -808,21 +806,6 @@ describe("archives MCP server", () => {
     const lines = text(response.content).split("\n");
     expect(lines.filter((line) => /^\d+\. /.test(line))).toHaveLength(1);
     expect(lines.filter((line) => line.startsWith("   original: "))).toHaveLength(1);
-  });
-
-  it("says so when the answer is replayed from cache", async () => {
-    stubProvider(providersMock.wayback, success([page()]));
-    const client = await connectTestClient();
-    const call = {
-      name: "archives_snapshots",
-      arguments: { target: "cached.example", provider: "wayback" },
-    };
-
-    await client.callTool(call);
-    const second = await client.callTool(call);
-
-    // The tool is annotated open-world; a silent 7-day replay would misrepresent it.
-    expect(text(second.content)).toContain("; cached");
   });
 
   it("dispatches an explicit Arquivo.pt query", async () => {
@@ -1318,7 +1301,6 @@ describe("archives MCP server", () => {
         before: "2020",
         after: "2021",
         maxChars: 20,
-        cache: false,
       },
     });
     const digest = /digest: sha256:([a-f\d]{64})/.exec(text(first.content))?.[1];
@@ -1335,7 +1317,6 @@ describe("archives MCP server", () => {
         maxChars: 20,
         offset: 20,
         digest,
-        cache: false,
       },
     });
 
@@ -1370,8 +1351,6 @@ describe("archives MCP server", () => {
       context: 1,
       maxChars: 14_000,
       offset: 0,
-      cache: false,
-      ttl: 86_400_000,
       timeout: 45_000,
       retries: 0,
       collection: "CC-MAIN-latest",
@@ -1433,7 +1412,6 @@ describe("archives MCP server", () => {
         before: "2020",
         after: "2021",
         maxChars: 200_000,
-        cache: false,
       },
     });
     const digest = /digest: sha256:([a-f\d]{64})/.exec(text(first.content))?.[1];
@@ -1449,7 +1427,6 @@ describe("archives MCP server", () => {
         offset: MAX_CONTENT_OFFSET,
         maxChars: 200_000,
         digest,
-        cache: false,
       },
     });
 
@@ -1688,7 +1665,6 @@ describe("archives MCP server", () => {
         format: "raw",
         maxChars: 200_000,
         offset: 200_000,
-        cache: false,
       },
     });
 
@@ -1850,7 +1826,7 @@ describe("archives MCP server", () => {
     // Reads are cached by URL, so both calls have to opt out to reach the provider.
     await client.callTool({
       name: "archives_content",
-      arguments: { target: "https://example.com/", provider: "wayback", cache: false },
+      arguments: { target: "https://example.com/", provider: "wayback" },
     });
     await client.callTool({
       name: "archives_content",
@@ -1858,7 +1834,6 @@ describe("archives MCP server", () => {
         target: "https://example.com/",
         provider: "wayback",
         timeout: 2000,
-        cache: false,
       },
     });
 

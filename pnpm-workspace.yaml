@@ -26,7 +26,6 @@ catalogs:
     nuxt: 4.6.4
     ohash: 2.0.11
     ufo: 1.6.4
-    unstorage: 1.17.5
     zod: 4.6.5
   dev:
     "@agntn/ox": ^0.1.0

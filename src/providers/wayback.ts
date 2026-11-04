@@ -2,7 +2,6 @@ import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
-  ArchiveOptions,
   ArchiveResponse,
   ArchivedPage,
 } from "../types.ts";
@@ -66,24 +65,6 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
 
   /** CDX lookups took 11 to 57 s in September 2026, past the ten second default. */
   protected override readonly defaultTimeout = 60_000;
-
-  /**
-   * Cache key extension for options that change the CDX result set.
-
-   *
-   * @param options - Options.
-   * @returns {string} The resulting string.
-   */
-  override cacheKey(options?: Readonly<ArchiveOptions>): string {
-    const waybackOptions = options as Partial<WaybackOptions> | undefined;
-    const collapse = waybackOptions?.collapse ?? this.options.collapse ?? "timestamp:4";
-    const filter = waybackOptions?.filter ?? this.options.filter;
-    const parts = [`collapse=${encodeURIComponent(collapse)}`];
-
-    if (filter !== undefined) parts.push(`filter=${encodeURIComponent(filter)}`);
-
-    return parts.join(":");
-  }
 
   /**
    * Fetch archived snapshots from the Internet Archive Wayback Machine.

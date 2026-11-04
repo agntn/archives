@@ -27,7 +27,6 @@ import {
   MAX_TARGET_LENGTH,
   MAX_TIMEOUT,
   MAX_TIMESTAMP_LENGTH,
-  MAX_TTL,
   PROVIDER_HINT,
   PROVIDER_INPUTS,
   SNAPSHOT_FROM_HINT,
@@ -53,16 +52,6 @@ export function loadOperations(): Promise<ToolOperations> {
   return operations;
 }
 
-const cache = Type.Optional(
-  Type.Boolean({ description: "Enable or disable archives response caching." }),
-);
-const ttl = Type.Optional(
-  Type.Integer({
-    description: `Cache TTL in milliseconds; accepted range: 0-${MAX_TTL}.`,
-    minimum: 0,
-    maximum: MAX_TTL,
-  }),
-);
 const retries = Type.Optional(
   Type.Integer({
     description: `Retry attempts for failed requests; accepted range: 0-${MAX_RETRIES}.`,
@@ -136,8 +125,6 @@ export const snapshotsTool = defineTool({
         }),
       ),
       order: Type.Optional(Type.Enum(CAPTURE_ORDERS, { description: SNAPSHOT_ORDER_HINT })),
-      cache,
-      ttl,
       concurrency: Type.Optional(
         Type.Integer({
           description: "Maximum parallel provider requests; accepted range: 1-10.",
@@ -250,8 +237,6 @@ export const contentTool = defineTool({
       path: Type.Optional(
         Type.String({ description: CONTENT_PATH_HINT, minLength: 1, maxLength: MAX_PATH_LENGTH }),
       ),
-      cache,
-      ttl,
       timeout: contentTimeout,
       retries,
       collection,
@@ -322,8 +307,6 @@ export const diffTool = defineTool({
           maximum: MAX_DIFF_OFFSET,
         }),
       ),
-      cache,
-      ttl,
       timeout: contentTimeout,
       retries,
       collection,

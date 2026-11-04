@@ -4,7 +4,6 @@ import { MockLanguageModelV4 } from "ai/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { archivesAiTools } from "../src/ai";
 import { callTool } from "../src/mcp";
-import { storage } from "../src/storage";
 import { archivesTools } from "../src/tools";
 import type { ArchiveContentResponse, ArchiveResponse } from "../src/types";
 
@@ -116,7 +115,6 @@ function unfenced(text: string): string {
 
 /* A cached listing would answer the next test before its stub got a say. */
 beforeEach(async () => {
-  await storage.clear();
   vi.stubEnv("PERMA_CC_API_KEY", undefined);
   vi.stubEnv("PERMACC_API_KEY", undefined);
 });
@@ -133,7 +131,7 @@ describe("@agntn/archives/ai", () => {
 
   it("hands the model the MCP text and the app the response behind it", async () => {
     stubWayback(listing);
-    const input = { target: "example.com", provider: "wayback", cache: false };
+    const input = { target: "example.com", provider: "wayback" };
 
     const toolResult = await callThroughModel("archives_snapshots", input);
 
@@ -159,7 +157,7 @@ describe("@agntn/archives/ai", () => {
       snapshots: vi.fn(),
       content: vi.fn().mockResolvedValue(capture),
     });
-    const input = { target: "https://example.com/", provider: "wayback", cache: false };
+    const input = { target: "https://example.com/", provider: "wayback" };
 
     const toolResult = await callThroughModel("archives_content", input);
 
@@ -214,7 +212,7 @@ describe("@agntn/archives/ai", () => {
     const controller = new AbortController();
 
     await archivesAiTools.archives_snapshots.execute?.(
-      { target: "example.com", provider: "wayback", cache: false },
+      { target: "example.com", provider: "wayback" },
       { toolCallId: "call-0", messages: [], abortSignal: controller.signal, context: {} },
     );
 

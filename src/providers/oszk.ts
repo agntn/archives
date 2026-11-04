@@ -2,7 +2,6 @@ import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
-  ArchiveOptions,
   ArchiveResponse,
   ArchivedPage,
   OszkMetadata,
@@ -101,12 +100,6 @@ async function fetchCaptures(
 export class OszkProvider extends BaseProvider<OszkOptions> {
   readonly name = "OSZK Webarchívum";
   readonly slug = "oszk";
-
-  override cacheKey(options?: Readonly<ArchiveOptions>): string {
-    const requestedLimit =
-      options && Object.hasOwn(options, "limit") ? options.limit : this.options.limit;
-    return `oszkLimit=${requestedLimit ?? 1000}`;
-  }
 
   /**
    * Lists captures under a domain or URL. pywb reads limit=0 as "everything", so it never goes out.

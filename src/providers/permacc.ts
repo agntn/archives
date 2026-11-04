@@ -1,11 +1,9 @@
-import { sha256 } from "@agntn/hashes";
 import { fetchData } from "../utils/_fetch.ts";
 import { hasProtocol } from "ufo";
 import type { PermaccOptions } from "../_providers.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
-  ArchiveOptions,
   ArchiveResponse,
   ArchivedPage,
 } from "../types.ts";
@@ -188,25 +186,6 @@ function permaccResponseMetadata(
 export class PermaccProvider extends BaseProvider<PermaccOptions> {
   readonly name = "Perma.cc";
   readonly slug = "permacc";
-
-  /**
-   * Partition responses by account and effective limit without storing the raw API key.
-
-   *
-   * @param options - Options.
-   * @returns {string | undefined} The operation result.
-   */
-  override cacheKey(options?: Readonly<ArchiveOptions>): string | undefined {
-    const apiKey = options?.apiKey ?? this.options.apiKey;
-    if (!apiKey) return undefined;
-
-    const fingerprint = sha256(new TextEncoder().encode(apiKey)).toBase64({
-      alphabet: "base64url",
-      omitPadding: true,
-    });
-    const limit = options?.limit ?? this.options.limit ?? 100;
-    return `apiKey=${fingerprint},limit=${limit}`;
-  }
 
   /**
    * Fetch archives matching one exact URL from the authenticated Perma.cc account.

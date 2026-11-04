@@ -21,10 +21,6 @@ export interface ArchiveOptions {
    */
   order?: CaptureOrder;
 
-  // Caching options
-  cache?: boolean; // Enable/disable caching
-  ttl?: number; // Cache TTL in milliseconds
-
   // Performance options
   concurrency?: number; // Maximum number of concurrent requests (default: 3)
   batchSize?: number; // Number of items to process in a single batch (default: 20)
@@ -170,7 +166,7 @@ export interface ArchiveContentOptions extends ArchiveOptions {
   timestamp?: string;
   // Hard cap on the bytes read from the archived body (default 2 MiB).
   maxBytes?: number;
-  /** Also return the bytes read as `body`. Such a read skips the cache. */
+  /** Also return the bytes read as `body`. */
   body?: boolean;
 }
 
@@ -200,7 +196,6 @@ export interface ArchiveContentResponse {
   unsupportedReason?: string;
 
   _meta?: ResponseMetadata;
-  fromCache?: boolean;
 }
 
 /** Rendering applied before two archived bodies are compared. */
@@ -270,9 +265,6 @@ export interface ArchiveResponse {
 
   // Provider-specific metadata
   _meta?: ResponseMetadata;
-
-  // Cache info
-  fromCache?: boolean;
 }
 
 export interface ArchiveProvider {
@@ -284,7 +276,6 @@ export interface ArchiveProvider {
    * index has no way to apply its own init-level bounds.
    */
   readonly options?: ArchiveOptions;
-  cacheKey?: (options?: ArchiveOptions) => string | undefined;
   snapshots: (domain: string, options?: ArchiveOptions) => Promise<ArchiveResponse>;
 
   /**

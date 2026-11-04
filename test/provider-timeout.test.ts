@@ -46,7 +46,7 @@ describe("provider timeouts inside createArchive", () => {
     ["wayback", () => createWayback({ timeout: 2_000 })],
     ["arquivo", () => createArquivo({ timeout: 2_000 })],
   ])("keeps the %s factory timeout rather than the config default", async (_name, create) => {
-    const archive = createArchive(create(), { cache: false });
+    const archive = createArchive(create());
 
     await archive.snapshots("example.com");
 
@@ -54,7 +54,7 @@ describe("provider timeouts inside createArchive", () => {
   });
 
   it("gives the Wayback index a minute when nobody names a timeout", async () => {
-    const archive = createArchive(createWayback(), { cache: false });
+    const archive = createArchive(createWayback());
 
     await archive.snapshots("example.com");
     expect(sentTimeout()).toBe(60_000);
@@ -68,7 +68,7 @@ describe("provider timeouts inside createArchive", () => {
     ["commoncrawl", createCommonCrawl],
     ["archive-today", createArchiveToday],
   ])("gives %s a minute when nobody names a timeout", async (_name, create) => {
-    const archive = createArchive(create(), { cache: false, retries: 0 });
+    const archive = createArchive(create(), { retries: 0 });
 
     await archive.snapshots("example.com");
     expect(sentTimeout()).toBe(60_000);
@@ -79,7 +79,7 @@ describe("provider timeouts inside createArchive", () => {
   });
 
   it("leaves providers without a default on the configured timeout", async () => {
-    const archive = createArchive(createArquivo(), { cache: false });
+    const archive = createArchive(createArquivo());
 
     await archive.snapshots("example.com");
 
@@ -93,7 +93,7 @@ describe("provider timeouts inside createArchive", () => {
     ["a config without a deadline", 0, {}, {}, 0],
   ])("lets %s decide the Wayback timeout", async (_name, config, init, call, expected) => {
     configTimeout(config);
-    const archive = createArchive(createWayback(), { cache: false, ...init });
+    const archive = createArchive(createWayback(), { ...init });
 
     await archive.snapshots("example.com", call);
 

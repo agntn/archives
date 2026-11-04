@@ -2,7 +2,7 @@ import { objectContaining } from "./_matchers";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { fetchData, fetchResponse } from "../src/utils/_fetch";
 import { rawResponse } from "./_responses";
-import { WebarchivProvider, createArchive, providers, resetConfig, storage } from "../src";
+import { WebarchivProvider, createArchive, providers, resetConfig } from "../src";
 import createWebarchiv from "../src/providers/webarchiv";
 
 vi.mock("../src/utils/_fetch", async (importOriginal) => ({
@@ -26,7 +26,6 @@ function cdx(timestamp: string, url = "https://www.onb.ac.at/", extra = {}) {
 }
 
 beforeEach(async () => {
-  await storage.clear();
   resetConfig();
   vi.resetAllMocks();
 });
@@ -105,19 +104,6 @@ describe("Webarchiv Österreich", () => {
 
     expect(result.success).toBe(true);
     expect(result.pages).toEqual([]);
-  });
-
-  it("separates cached listings created with different provider limits", async () => {
-    fetchMock
-      .mockResolvedValueOnce(cdx("20200101000000"))
-      .mockResolvedValueOnce([cdx("20200101000000"), cdx("20200102000000")].join("\n"));
-
-    const narrow = await createArchive(createWebarchiv({ limit: 1 })).snapshots("onb.ac.at");
-    const wide = await createArchive(createWebarchiv({ limit: 2 })).snapshots("onb.ac.at");
-
-    expect(narrow.pages).toHaveLength(1);
-    expect(wide.pages).toHaveLength(2);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("does not invent an HTTP status missing from CDXJ", async () => {

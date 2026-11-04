@@ -2,7 +2,6 @@ import { fetchData } from "../utils/_fetch.ts";
 import type {
   ArchiveContentOptions,
   ArchiveContentResponse,
-  ArchiveOptions,
   ArchiveResponse,
   ArchivedPage,
   NlnzMetadata,
@@ -51,12 +50,6 @@ function page(capture: Readonly<PywbCapture>): ArchivedPage {
 export class NlnzProvider extends BaseProvider<NlnzOptions> {
   readonly name = "New Zealand Web Archive";
   readonly slug = "nlnz";
-
-  override cacheKey(options?: Readonly<ArchiveOptions>): string {
-    const requestedLimit =
-      options && Object.hasOwn(options, "limit") ? options.limit : this.options.limit;
-    return `nlnzLimit=${requestedLimit ?? 1000}`;
-  }
 
   /**
    * Lists captures under a domain or URL. pywb reads limit=0 as "everything", so it never goes out.
