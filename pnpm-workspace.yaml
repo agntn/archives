@@ -31,9 +31,9 @@ catalogs:
     "@agntn/ox": ^0.1.0
     "@earendil-works/pi-coding-agent": 0.99.2
     "@earendil-works/pi-tui": 1.1.0
-    "@iconify-json/lucide": 1.2.149
+    "@iconify-json/lucide": 1.2.151
     "@iconify-json/simple-icons": 1.2.101
-    "@iconify-json/vscode-icons": 1.2.94
+    "@iconify-json/vscode-icons": 1.2.96
     "@modelcontextprotocol/client": 2.2.0
     "@oh-my-pi/omptype": 18.4.8
     "@oh-my-pi/pi-coding-agent": 18.4.8
