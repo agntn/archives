@@ -90,11 +90,11 @@ catalogs:
       specifier: 2.2.0
       version: 2.2.0
     '@oh-my-pi/omptype':
-      specifier: 18.4.8
-      version: 18.4.8
+      specifier: 18.4.12
+      version: 18.4.12
     '@oh-my-pi/pi-coding-agent':
-      specifier: 18.4.8
-      version: 18.4.8
+      specifier: 18.4.12
+      version: 18.4.12
     '@types/node':
       specifier: 26.2.0
       version: 26.2.0
@@ -127,13 +127,13 @@ importers:
     dependencies:
       '@agntn/compressions':
         specifier: catalog:deps
-        version: 0.1.1(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))
+        version: 0.1.1(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))
       '@agntn/hashes':
         specifier: catalog:deps
-        version: 0.5.0(@cfworker/json-schema@4.1.1)(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))(supports-color@10.2.2)(typebox@1.3.15)(zod@4.6.5)
+        version: 0.5.0(@cfworker/json-schema@4.1.1)(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))(supports-color@10.2.2)(typebox@1.3.15)(zod@4.6.5)
       '@agntn/tools':
         specifier: catalog:deps
-        version: 0.2.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))(zod@4.6.5)
+        version: 0.2.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))(zod@4.6.5)
       '@modelcontextprotocol/server':
         specifier: catalog:deps
         version: 2.2.0
@@ -164,10 +164,10 @@ importers:
         version: 2.2.0
       '@oh-my-pi/omptype':
         specifier: catalog:dev
-        version: 18.4.8
+        version: 18.4.12
       '@oh-my-pi/pi-coding-agent':
         specifier: catalog:dev
-        version: 18.4.8
+        version: 18.4.12
       '@types/node':
         specifier: catalog:dev
         version: 26.2.0
@@ -200,7 +200,7 @@ importers:
     dependencies:
       '@agntn/tools':
         specifier: catalog:deps
-        version: 0.2.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))(zod@4.6.5)
+        version: 0.2.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))(zod@4.6.5)
       '@modelcontextprotocol/sdk':
         specifier: catalog:deps
         version: 1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5)
@@ -218,7 +218,7 @@ importers:
         version: 13.0.3
       docus:
         specifier: catalog:deps
-        version: 5.15.0(acd0798b8ca5a8e01f2115d780ee3099)
+        version: 5.15.0(102c1b8b3b6affc351e16449b9e7267a)
       nuxt:
         specifier: catalog:deps
         version: 4.6.4(@babel/plugin-proposal-decorators@8.0.2)(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@oxc-project/types@0.151.0)(@types/node@26.2.0)(@vue/compiler-sfc@3.5.44)(acorn@8.18.0)(better-sqlite3@13.0.3)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(lightningcss@1.33.0)(mlly@1.8.2)(oxc-parser@0.151.0)(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)))(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.67.4))(rollup@4.67.4)(srvx@1.0.5)(supports-color@10.2.2)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)
@@ -1776,13 +1776,9 @@ packages:
     engines: {node: '>= 22.13'}
     peerDependencies:
       petite-vue-i18n: '*'
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
-      vue: ^3.2.25
       vue-i18n: '*'
     peerDependenciesMeta:
       petite-vue-i18n:
-        optional: true
-      vite:
         optional: true
       vue-i18n:
         optional: true
@@ -1800,13 +1796,10 @@ packages:
     engines: {node: '>= 18'}
     peerDependencies:
       '@intlify/shared': ^9.0.0 || ^10.0.0 || ^11.0.0
-      '@vue/compiler-dom': ^3.0.0
       vue: ^3.0.0
       vue-i18n: ^9.0.0 || ^10.0.0 || ^11.0.0
     peerDependenciesMeta:
       '@intlify/shared':
-        optional: true
-      '@vue/compiler-dom':
         optional: true
       vue:
         optional: true
@@ -1868,7 +1861,6 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
-      zod: ^3.25 || ^4.0
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
@@ -1974,13 +1966,9 @@ packages:
 
   '@nuxt/devtools-kit@3.4.4':
     resolution: {integrity: sha512-q3aRKpnriK/kITYlYUXSE3O0R7WeJwSMLvtbo1HfcKXYg/q8688iIb5VURl0fbkSaFTk7ndU5HIbW+5f0JOJPQ==}
-    peerDependencies:
-      vite: '>=6.0'
 
   '@nuxt/devtools-kit@4.0.0-alpha.7':
     resolution: {integrity: sha512-Tgh+tSejh1GnZjdjgWyc4qCxskeX08XuSQBYMn/4SIV5AubeqYeAOMBD2qSmHOXjMCUpgyzpEhODcP3sgdgGRA==}
-    peerDependencies:
-      vite: '>=6.0'
 
   '@nuxt/devtools-wizard@3.4.4':
     resolution: {integrity: sha512-iGL6p2ZM926pfV0UUsnaseNGNEp/PWbX5f1zFqRgVxiDOEVsrBOfFA5sLgfuO2NWi3+3/84fy7ungcCP6zGYvA==}
@@ -1991,7 +1979,6 @@ packages:
     hasBin: true
     peerDependencies:
       '@vitejs/devtools': '*'
-      vite: '>=6.0'
     peerDependenciesMeta:
       '@vitejs/devtools':
         optional: true
@@ -2068,30 +2055,10 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
       '@inertiajs/vue3': ^2.0.7 || ^3
-      '@internationalized/date': ^3
-      '@internationalized/number': ^3
       '@nuxt/content': ^3
-      '@tiptap/core': ^3
-      '@tiptap/extension-bubble-menu': ^3
-      '@tiptap/extension-code': ^3
-      '@tiptap/extension-collaboration': ^3
-      '@tiptap/extension-drag-handle': ^3
-      '@tiptap/extension-drag-handle-vue-3': ^3
-      '@tiptap/extension-floating-menu': ^3
-      '@tiptap/extension-horizontal-rule': ^3
-      '@tiptap/extension-image': ^3
-      '@tiptap/extension-mention': ^3
-      '@tiptap/extension-node-range': ^3
-      '@tiptap/extension-placeholder': ^3
-      '@tiptap/markdown': ^3
-      '@tiptap/pm': ^3
-      '@tiptap/starter-kit': ^3
-      '@tiptap/suggestion': ^3
-      '@tiptap/vue-3': ^3
       ai: ^6 || ^7
       joi: ^18
       superstruct: ^2
-      tailwindcss: ^4
       typescript: ^5.6.3 || ^6 || ^7
       valibot: ^1
       vue-router: ^4.5.0 || ^5
@@ -2099,10 +2066,6 @@ packages:
       zod: ^3.24.0 || ^4
     peerDependenciesMeta:
       '@inertiajs/vue3':
-        optional: true
-      '@internationalized/date':
-        optional: true
-      '@internationalized/number':
         optional: true
       '@nuxt/content':
         optional: true
@@ -2146,7 +2109,6 @@ packages:
     engines: {node: ^22.22.3 || ^24.15.0 || >=26.0.0}
     peerDependencies:
       nuxt: ^4.6.4
-      vite: ^8.3.5
 
   '@nuxtjs/color-mode@4.0.1':
     resolution: {integrity: sha512-eiA7hWXi5zNHaYKyJFCGF6i0wFZtuvR7KDXZ6jiSvwxjCpRFwphrw0MOSmNfArTSSsT1wpW+/2H92cejeVfUlg==}
@@ -2162,7 +2124,6 @@ packages:
       agents: '>=0.20.1'
       h3: '>=1.15.11'
       secure-exec: '>=0.3.3'
-      vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
       vue: ^3.5.41
       zod: ^4.1.13
     peerDependenciesMeta:
@@ -2171,8 +2132,6 @@ packages:
       agents:
         optional: true
       secure-exec:
-        optional: true
-      vite:
         optional: true
       vue:
         optional: true
@@ -2184,7 +2143,6 @@ packages:
       agents: '>=0.20.1'
       h3: '>=1.15.11'
       secure-exec: '>=0.3.3'
-      vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
       vue: ^3.5.41
       zod: ^4.1.13
     peerDependenciesMeta:
@@ -2193,8 +2151,6 @@ packages:
       agents:
         optional: true
       secure-exec:
-        optional: true
-      vite:
         optional: true
       vue:
         optional: true
@@ -2219,34 +2175,34 @@ packages:
       zod:
         optional: true
 
-  '@oh-my-pi/omp-stats@18.4.8':
-    resolution: {integrity: sha512-PSZn1xZk5A79NMqHsAZLkHs69AqG3/ucsjUweIJbL5CbrxamobmqFmC7vVsmgoRbbLEqh8i/QcaCnRrfT6TI5Q==}
+  '@oh-my-pi/omp-stats@18.4.12':
+    resolution: {integrity: sha512-K91X9WqXc0NwEIxgoAVcQDn+x13LP5P6b2d1nveApzvPcwcYO+FVgs9gr5duK+H9wftKjjgbgRVEGtuyhn7yGQ==}
     engines: {bun: '>=1.3.14'}
     hasBin: true
 
-  '@oh-my-pi/omptype@18.4.8':
-    resolution: {integrity: sha512-YRqUJFD475hWa5mQZUl9pXFKbkmeswE+KXrrS2DjUq+9aBltKZyD9Nvb62AU0RxJyZPKXfgTEWUWoryPShhsgg==}
+  '@oh-my-pi/omptype@18.4.12':
+    resolution: {integrity: sha512-q5QouToaZ7l6C3MSKp0yrr3fMayTWeS950H3Te03OKIEM2x/c1EXUjFgfEBb8V7GbTVAEYVDcmtSXrLpUxMUEA==}
     engines: {bun: '>=1.3.14', node: '>=20'}
 
-  '@oh-my-pi/pi-agent-core@18.4.8':
-    resolution: {integrity: sha512-O3NGU9GuT00+YrwdZkby8zashWXDDY/cJOMI+7MHSgVd8Aq6iH8txsi3p8Jgh3T/Lo2Dcx+aYNggEx573q+Hlw==}
+  '@oh-my-pi/pi-agent-core@18.4.12':
+    resolution: {integrity: sha512-4phzjgb9sbhHw72U8nCdarCReEFqDyoOpm79vzAb//sRWTBUo/TWNx34Rt03sSby1QNWy/ExjTsWnl2fM20TjQ==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-ai@18.4.8':
-    resolution: {integrity: sha512-PN/8ZiJUo93MJ0aU2pu1HzSCjD5nhEmCq9gMi1v5FHW7Z95pKGKdEyndo7NPxR+MC8fhtQuu7Wlm8QWpr/Wcgw==}
+  '@oh-my-pi/pi-ai@18.4.12':
+    resolution: {integrity: sha512-o5ED+YbxFj4PZ34botoL8ThiEjfNitbqMObBTfbgFdtow+uAZWlRRZ9MHPHR9uZiYrOdLCMjt8l72ga+UBoUfA==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-catalog@18.4.8':
-    resolution: {integrity: sha512-QdL+GA4CpSO2Ocx6Ikg/YrxAGJtRcyFKUZ3oPXjh3UOt/MMjzRJF3aFnsgV3Z7xp9NOw2EV9ur68Kwpw86trQA==}
+  '@oh-my-pi/pi-catalog@18.4.12':
+    resolution: {integrity: sha512-RJCryq49wO2zoJ9BMyV4TV9lq1lPLpOnO+iHtqu8hoT0YdiM+JYN7+iG44FJVF0cAHMnY5hpFyYXyuU5g6N2lA==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-coding-agent@18.4.8':
-    resolution: {integrity: sha512-PuewQeW6LmPXPnJljY9kB4UgOFq8JLbqstTzjgwkjp7C0Ja6mBGMYWxY+WiWUKIH22BI++4CV9CVYca48S9BVg==}
+  '@oh-my-pi/pi-coding-agent@18.4.12':
+    resolution: {integrity: sha512-1jVJXxwHT5fm/0UsliP/tQ4qx7GGOI9n64rdQZMcWyiWpjZO8U/e4xdcyJuzLGLXFO4mMVO44f9sEyWXqrZ0jQ==}
     engines: {bun: '>=1.3.14'}
     hasBin: true
 
-  '@oh-my-pi/pi-mnemopi@18.4.8':
-    resolution: {integrity: sha512-YAJ4vVwpGu02PTSthmqH0Oa0mLNJttxfb/EMz8bJze1yQwIZsS0ZLla/qP6d0DwimMfohQOwDvKMmdruVh2N7A==}
+  '@oh-my-pi/pi-mnemopi@18.4.12':
+    resolution: {integrity: sha512-g05n6Ncb68svlhNddAUg+hlF3uxqg8HYX/vH1eODwpnzMiV6b2RfYKkWZs6O+1oAyKlqPKleFdhSxgW/iSMV9A==}
     engines: {bun: '>=1.3.14'}
     hasBin: true
     peerDependencies:
@@ -2258,60 +2214,60 @@ packages:
       onnxruntime-node:
         optional: true
 
-  '@oh-my-pi/pi-natives-darwin-arm64@18.4.8':
-    resolution: {integrity: sha512-xDPjrsQiTH3IoZtvBv+ZQnHMS+wnSypP4jA9C+4dEKWKVxYhK1eYDtXOL68bwF35i6yavMAqKOR3ldj5SlKpuw==}
+  '@oh-my-pi/pi-natives-darwin-arm64@18.4.12':
+    resolution: {integrity: sha512-tub6EWayLV4fsvZ45aVP2UuwFidEbVfgHsdxgphq2uINYxvuIsUo0qRcJRLCxeTluV37v0ItpK5xNi2N1ABjJA==}
     engines: {bun: '>=1.3.14'}
     cpu: [arm64]
     os: [darwin]
 
-  '@oh-my-pi/pi-natives-darwin-x64@18.4.8':
-    resolution: {integrity: sha512-6Rfaf474LP0SEMbC2+FXobs4rHh5iUjDrvVktuw8qdf1xzRhJelGun9sNNk9EP1LhX/Tt1lcaXFTENZFFmgPLg==}
+  '@oh-my-pi/pi-natives-darwin-x64@18.4.12':
+    resolution: {integrity: sha512-CLXGKXeN2+Bf/EJ/VXNmXuq0BXvPnfiqxa1OTFfePrDJe7o5T11P39gm62g6o+V2duaEOhTAgm4U4FFYFdEQiw==}
     engines: {bun: '>=1.3.14'}
     cpu: [x64]
     os: [darwin]
 
-  '@oh-my-pi/pi-natives-linux-arm64@18.4.8':
-    resolution: {integrity: sha512-Y97/TPG6TtnJQbDZOKEr97ffrLMIZRODJTO+X3NwaZse4TzBYK0LJQNJi9w5ToUS3oGSsq2/CCHNCcIbPBYzXQ==}
+  '@oh-my-pi/pi-natives-linux-arm64@18.4.12':
+    resolution: {integrity: sha512-ezgc4uTCJLlT+qbLw1gUXDl+UPuc36oEcfZguBb1UORzIQNjwmSoL7GG9NbcWwrqAjUv7118McXX8QXLQxM1bg==}
     engines: {bun: '>=1.3.14'}
     cpu: [arm64]
     os: [linux]
 
-  '@oh-my-pi/pi-natives-linux-x64@18.4.8':
-    resolution: {integrity: sha512-l+fel7Lu982nIcO1UUIbArRr04VNOffepOBtQ7SKeEDjZfCG8cacXU3jO9WIxibDgImNTOTaNvLGNKcxam6FuA==}
+  '@oh-my-pi/pi-natives-linux-x64@18.4.12':
+    resolution: {integrity: sha512-DRzKJZVzkOS/eqCjEAtoHfYgBdZTO0b7lRlrZ/zbJAIU5J8584A6Pfc5LuSU9nJhOEtzBurQtdV2qDLHcvcRcw==}
     engines: {bun: '>=1.3.14'}
     cpu: [x64]
     os: [linux]
 
-  '@oh-my-pi/pi-natives-win32-arm64@18.4.8':
-    resolution: {integrity: sha512-BOhIQ0BeUW2Wn/63YGaJTB2lBz6Flr5JLyusxqHB2sYp80xyB24fC2N5XiIBoS0K30pYKJC8pJERAgnvdzSKww==}
+  '@oh-my-pi/pi-natives-win32-arm64@18.4.12':
+    resolution: {integrity: sha512-HyFnLsTPBUlLDZMGJRhBs4B73y1lIC4u9saM4vVRbns02Yu4B10ZOBrjpxoYADKOt554w8LQTPoiDhyaFtRjfg==}
     engines: {bun: '>=1.3.14'}
     cpu: [arm64]
     os: [win32]
 
-  '@oh-my-pi/pi-natives-win32-x64@18.4.8':
-    resolution: {integrity: sha512-ZUOIRji3rBcylWn23FrQrPJOiatCKnMiL/hHeGzxIXh++sxxqSMursyZxQ40SdC4AB5oZjoDoFKLPl5/EGdXrg==}
+  '@oh-my-pi/pi-natives-win32-x64@18.4.12':
+    resolution: {integrity: sha512-MC7D080Er1UtkVGWULQcMLcMAqfsgBbE1ugMzC9IrsWMs6Z017Xa1RDxqR48FC5tveVNH5NF97oT1weM3GDS9A==}
     engines: {bun: '>=1.3.14'}
     cpu: [x64]
     os: [win32]
 
-  '@oh-my-pi/pi-natives@18.4.8':
-    resolution: {integrity: sha512-vsvulBMEKJCnWcBXv/bTF5ML3f2N9rikpZjcY2jjBCrIjcjwb7EhuBt7Gj5t8hOL6T/yFkV7dVkRu79T+nxaaw==}
+  '@oh-my-pi/pi-natives@18.4.12':
+    resolution: {integrity: sha512-Uy9i/ITQfAcDjQlpxR6jjzrbZrG9gqcfagQaL+crsy7ZoShvpcvoOcBry2pvQl+TyjWFbdGp2DkIw79lb2uslA==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-tui@18.4.8':
-    resolution: {integrity: sha512-7ww92Erk3h4rZ9k55zB8Nq8KvXbW23wn1I6NWDhm2Epiw6obZuensrhtpFFIVrLIu5q44hrYMP5M2KMdEXx9bQ==}
+  '@oh-my-pi/pi-tui@18.4.12':
+    resolution: {integrity: sha512-qTQTSJ6bOeaGY/mrAyyefIfmdETuJg15Drj1UGkDnbHtmIiHNSyOExtt/vE7UwPdjZ6bQmTO30oOi0WWTUNDIg==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-utils@18.4.8':
-    resolution: {integrity: sha512-Y+wNp884l4KBpX4r8lKck1rOOx2PCVIHSIJhS9yYu3FZCS7h4CKJpILXSSDeCqDc9sBqiUjMKP2fr6weQJNUXA==}
+  '@oh-my-pi/pi-utils@18.4.12':
+    resolution: {integrity: sha512-Q5MY8adVkd62OgneqFpSxK3MWWm8kFvNQ/LBsF04g/Rrt19MH/7LbdNLq5KhiD1L2V3k5cGoBi1Ja3Axw3Fn/A==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/pi-wire@18.4.8':
-    resolution: {integrity: sha512-f4IXVSwDPle91zV04NOzzaqvOMz/DaxKpXJs7L9ScVQEazDQY3pQeOC5qJneTCZARb7u29ZT6EJPXHKeq31/Gw==}
+  '@oh-my-pi/pi-wire@18.4.12':
+    resolution: {integrity: sha512-8tI4nS7/gGr/SZ7AmBjHp03lm0q1NqUoThdPRxn7gxcwezz5QVSdhD1lRfon87zmLBIFWfe9RrOxgtVgFuyAOg==}
     engines: {bun: '>=1.3.14'}
 
-  '@oh-my-pi/snapcompact@18.4.8':
-    resolution: {integrity: sha512-zrMPdXYkvwRR7yZmehHPq7tnb980LqnBmfKlxyLriJOPcP7xc3ctzYZqaYZf5wnQEcI9CjF00gNI9r+vXif+dg==}
+  '@oh-my-pi/snapcompact@18.4.12':
+    resolution: {integrity: sha512-9ONy7S0q5oQOGZUiToZgtj1Taq24cB5q+CvlBcujffEk9Ptg+CIMvZYlCyX7kX74VPXj8/w2EoQ8x9pgxvp4Zg==}
     engines: {bun: '>=1.3.14'}
 
   '@opentelemetry/api-logs@0.220.0':
@@ -2409,12 +2365,14 @@ packages:
   '@opentelemetry/sdk-trace-base@2.10.0':
     resolution: {integrity: sha512-GuYQQT7QD2EeO8lcZLRQzcbOyhqAzL+6WWTKTU9mSUBYBazkEDl+VrQcXQhbB08OWM9anD1aHleVadzulpOaUQ==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.3.0 <1.10.0'
 
   '@opentelemetry/sdk-trace-node@2.10.0':
     resolution: {integrity: sha512-GZK/G6oZyBLGlH1pUgeDch7D91KoHd2uotUGIkWCPi9GI5T9X0p4L7nNAMDR1BQjkRYoDqo+ddfVx9t5Uhys+Q==}
     engines: {node: ^18.19.0 || >=20.6.0}
+    deprecated: Use @opentelemetry/sdk-trace package
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
 
@@ -3393,13 +3351,10 @@ packages:
       '@babel/plugin-transform-runtime': ^7.29.0 || ^8.0.0-rc.1
       '@babel/runtime': ^7.27.0 || ^8.0.0-rc.1
       rolldown: ^1.0.0-rc.5
-      vite: ^8.0.0
     peerDependenciesMeta:
       '@babel/plugin-transform-runtime':
         optional: true
       '@babel/runtime':
-        optional: true
-      vite:
         optional: true
 
   '@rolldown/pluginutils@1.0.1':
@@ -3700,6 +3655,9 @@ packages:
   '@smithy/core@3.34.1':
     resolution: {integrity: sha512-dLcOUxz8YCv1RZUMKq6GbyUf95pLbrqh34bPvpCZ1+CByFF31BEAFewZjsGCnVsZTKdThNENfGyAgk2TJqVwSw==}
     engines: {node: '>=18.0.0'}
+    deprecated: |-
+      Deprecated due to a bug in custom logger data redaction. Upgrade to the latest version. If you used a custom logger with this
+        version, review your logs and rotate any credentials or other secrets. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.4.16':
     resolution: {integrity: sha512-QfuLWAkLzptffFW980AFeHZFdqds2B64rpEd3uJ6lgs3xVn9QegGMUgUcj+4d7dRrAsya3r58ZKpku97WcFb4w==}
@@ -3834,8 +3792,6 @@ packages:
 
   '@tailwindcss/vite@4.3.3':
     resolution: {integrity: sha512-yYU8cogLeSh/ms2jh8Fj7jaba/EWa7Ja6GoUqYZaraEuCI5YS6ms6ObZgjjedm+jm6XZjdNRWBpPP6Z86oOxcw==}
-    peerDependencies:
-      vite: ^5.2.0 || ^6 || ^7 || ^8
 
   '@takumi-rs/core-darwin-arm64@2.16.2':
     resolution: {integrity: sha512-4bTzrfKNKVvM7r09pGV4ySUYkPrIW9IInOoOsNlcUKL8znMqfaM5cxie6VL0Hn94wHFIiAK9cDQEZwEe0SLMPg==}
@@ -4374,7 +4330,6 @@ packages:
       oxc-parser: '>=0.98.0'
       rolldown: '>=1.0.0'
       unhead: ^3.4.3
-      vite: '>=6.4.2'
       webpack: '>=5.0.0'
     peerDependenciesMeta:
       '@unhead/cli':
@@ -4389,20 +4344,15 @@ packages:
         optional: true
       rolldown:
         optional: true
-      vite:
-        optional: true
       webpack:
         optional: true
 
   '@unhead/vue@3.4.3':
     resolution: {integrity: sha512-Wrmk62oC/V1EcBSKRDuy77kVaBtBXXsj6b+vEEWvmfo9AQfpLlc2b6vvvSj9WnXr8VY1ksKHj49Ejo8J/wLSOA==}
     peerDependencies:
-      vite: '>=6.4.2'
       vue: '>=3.5.18'
       webpack: '>=5.0.0'
     peerDependenciesMeta:
-      vite:
-        optional: true
       webpack:
         optional: true
 
@@ -4419,14 +4369,12 @@ packages:
     resolution: {integrity: sha512-YXvi4as2clxt6DFw5+a0tTA97ntiQXm/raR8ofNj3aNwwdlVGTiG2gp7EvfZW17P50acL/9bP0ccF4XnqNmlgA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
-      vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
       vue: ^3.0.0
 
   '@vitejs/plugin-vue@6.0.10':
     resolution: {integrity: sha512-b80aUQh3n+qEzzZm5oQp3rT2QImeCx58K6eFl/RkJ3d65KW0kTuv5lNsLRVAjbW9YRUpo/wzmvzMgV34bTAItA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
-      vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
       vue: ^3.2.25 || ^3.6.0-rc.10
 
   '@vitest/browser-preview@5.0.1':
@@ -4460,11 +4408,8 @@ packages:
     resolution: {integrity: sha512-6K1DoBNAPGvuOcSsGA4D6x+5zEEff/KmOOP3uetT2TrGpVfI+HRHRnJJfKi5ib/g1vx8IYHQD8s0pbJz8WQI7Q==}
     peerDependencies:
       msw: ^2.4.9
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       msw:
-        optional: true
-      vite:
         optional: true
 
   '@vitest/pretty-format@5.0.1':
@@ -5143,7 +5088,6 @@ packages:
       chat: ^4.29.0
       just-bash: ^3.0.0
       react: ^19.0.0
-      vite: '>=6.0.0 <9.0.0'
       zod: ^4.0.0
     peerDependenciesMeta:
       '@ai-sdk/provider':
@@ -5174,8 +5118,6 @@ packages:
         optional: true
       react:
         optional: true
-      vite:
-        optional: true
 
   ai@7.0.141:
     resolution: {integrity: sha512-vzkkd/613Gt7xNiV740UqwCmgdk4vh4dwQsDSHl+gpUJm8U+SFb7TRnUIj1lPxO0ZY8vhr4KXcJi0mDK/UNM2Q==}
@@ -5185,11 +5127,6 @@ packages:
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
-    peerDependencies:
-      ajv: ^8.0.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
 
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
@@ -6189,11 +6126,6 @@ packages:
   fontless@0.2.1:
     resolution: {integrity: sha512-mUWZ8w91/mw2KEcZ6gHNoNNmsAq9Wiw2IypIux5lM03nhXm+WSloXGUNuRETNTLqZexMgpt7Aj/v63qqrsWraQ==}
     engines: {node: '>=18.12.0'}
-    peerDependencies:
-      vite: '*'
-    peerDependenciesMeta:
-      vite:
-        optional: true
 
   for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
@@ -7229,11 +7161,6 @@ packages:
   my-bad@0.2.11:
     resolution: {integrity: sha512-K1R6DRz31BR7YYaDDLRr97XWKWku3SQhHKpDgz7i/VS3O3pvphIzbJIrrEXupSEmPtZElY9UzCrDc0nWvG4HyA==}
     engines: {node: '>=22.12.0'}
-    peerDependencies:
-      vite: '>=6'
-    peerDependenciesMeta:
-      vite:
-        optional: true
 
   nanoid@3.3.20:
     resolution: {integrity: sha512-uKdg2G3GNCKQn9byYOpxbGqrT2fGO5KRt5J/8b3pok8rT6qxGWF6hxMyJiEYtAf+FVyYuD9hRaDqX5uPFYJ4ZQ==}
@@ -8597,11 +8524,6 @@ packages:
 
   unhead@3.4.3:
     resolution: {integrity: sha512-0FZI/qCCyIey14CKlGMFpiQumWSatlthJy7Xvro7H3nmi/V2owkcCXG03k0GXDc2/TV1K6bvrbAwhzTRe5Nhdw==}
-    peerDependencies:
-      vite: '>=6.4.2'
-    peerDependenciesMeta:
-      vite:
-        optional: true
 
   unicode-emoji-modifier-base@1.0.0:
     resolution: {integrity: sha512-yLSH4py7oFH3oG/9K+XWrz1pSi3dfUrWEnInbxMfArOfc1+33BlGPQtLsOYwvdMy11AwUBetYuaRxSPqgkq+8g==}
@@ -8715,7 +8637,6 @@ packages:
       rolldown: '*'
       rollup: '*'
       unloader: '*'
-      vite: '*'
       webpack: '*'
     peerDependenciesMeta:
       '@farmfe/core':
@@ -8733,8 +8654,6 @@ packages:
       rollup:
         optional: true
       unloader:
-        optional: true
-      vite:
         optional: true
       webpack:
         optional: true
@@ -8898,9 +8817,6 @@ packages:
 
   vaul-vue@0.4.1:
     resolution: {integrity: sha512-A6jOWOZX5yvyo1qMn7IveoWN91mJI5L3BUKsIwkg6qrTGgHs1Sb1JF/vyLJgnbN1rH4OOOxFbtqL9A46bOyGUQ==}
-    peerDependencies:
-      reka-ui: ^2.0.0
-      vue: ^3.3.0
 
   verkit@0.3.2:
     resolution: {integrity: sha512-zj/ob3UsvJGN0whEAKFp53REA5X66hvffVqoCtVQAakJKnKlH+/PcOfMoFwIG/o4rElqLv/ycAFlx8ZlXUorCg==}
@@ -8945,7 +8861,6 @@ packages:
       oxlint: '>=1'
       stylelint: '>=16.26.1'
       typescript: '*'
-      vite: '>=5.4.21'
       vue-tsc: ~2.2.10 || ^3.0.0
     peerDependenciesMeta:
       '@biomejs/biome':
@@ -8970,7 +8885,6 @@ packages:
     engines: {node: '>=14'}
     peerDependencies:
       '@nuxt/kit': '*'
-      vite: ^6.0.0 || ^7.0.0-0 || ^8.0.0-0
     peerDependenciesMeta:
       '@nuxt/kit':
         optional: true
@@ -8980,7 +8894,6 @@ packages:
     engines: {node: '>18.0.0'}
     peerDependencies:
       rollup: ^4.59.0
-      vite: ^5.4.21 || ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       rollup:
         optional: true
@@ -8988,7 +8901,6 @@ packages:
   vite-plugin-vue-tracer@1.5.0:
     resolution: {integrity: sha512-G2aQ676fLBPnYhRi5lsARoL4hbtc/sx6fVzO7p44AB+1xQXo2UuiRgv7K26UdijrNzmuQprmJ121n3rdjBk1CA==}
     peerDependencies:
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0-0
       vue: ^3.5.0
 
   vite-plus@1.0.0:
@@ -9020,7 +8932,6 @@ packages:
       '@vitest/ui': 5.0.1
       happy-dom: '*'
       jsdom: '*'
-      vite: ^6.4.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -9088,7 +8999,6 @@ packages:
       '@pinia/colada': '>=0.21.2'
       '@vue/compiler-sfc': ^3.5.34 || ^4.0.0
       pinia: ^3.0.4 || ^4.0.2
-      vite: ^7.3.0 || ^8.0.0
       vue: ^3.5.34 || ^4.0.0
     peerDependenciesMeta:
       '@pinia/colada':
@@ -9096,8 +9006,6 @@ packages:
       '@vue/compiler-sfc':
         optional: true
       pinia:
-        optional: true
-      vite:
         optional: true
 
   vue@3.5.44:
@@ -9306,38 +9214,38 @@ packages:
 
 snapshots:
 
-  '@agntn/compressions@0.1.1(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))':
+  '@agntn/compressions@0.1.1(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))':
     dependencies:
-      '@agntn/encodings': 0.1.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))
-      '@agntn/hashes': 0.6.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))
-      '@agntn/tools': 0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))
+      '@agntn/encodings': 0.1.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))
+      '@agntn/hashes': 0.6.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))
+      '@agntn/tools': 0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))
       '@modelcontextprotocol/server': 2.2.0
       citty: 0.2.2
       consola: 3.4.2
     optionalDependencies:
       '@earendil-works/pi-coding-agent': 0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5)
-      '@oh-my-pi/pi-coding-agent': 18.4.8
+      '@oh-my-pi/pi-coding-agent': 18.4.12
       ai: 7.0.141(zod@4.6.5)
 
-  '@agntn/encodings@0.1.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))':
+  '@agntn/encodings@0.1.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))':
     dependencies:
-      '@agntn/hashes': 0.6.1(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))
-      '@agntn/tools': 0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))
+      '@agntn/hashes': 0.6.1(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))
+      '@agntn/tools': 0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))
       '@modelcontextprotocol/server': 2.2.0
       citty: 0.2.2
       consola: 3.4.2
     optionalDependencies:
       '@earendil-works/pi-coding-agent': 0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5)
-      '@oh-my-pi/pi-coding-agent': 18.4.8
+      '@oh-my-pi/pi-coding-agent': 18.4.12
       ai: 7.0.141(zod@4.6.5)
 
-  '@agntn/hashes@0.5.0(@cfworker/json-schema@4.1.1)(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))(supports-color@10.2.2)(typebox@1.3.15)(zod@4.6.5)':
+  '@agntn/hashes@0.5.0(@cfworker/json-schema@4.1.1)(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))(supports-color@10.2.2)(typebox@1.3.15)(zod@4.6.5)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.30.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)
       citty: 0.2.2
     optionalDependencies:
       '@earendil-works/pi-coding-agent': 0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5)
-      '@oh-my-pi/pi-coding-agent': 18.4.8
+      '@oh-my-pi/pi-coding-agent': 18.4.12
       ai: 7.0.141(zod@4.6.5)
       typebox: 1.3.15
       zod: 4.6.5
@@ -9345,24 +9253,24 @@ snapshots:
       - '@cfworker/json-schema'
       - supports-color
 
-  '@agntn/hashes@0.6.1(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))':
+  '@agntn/hashes@0.6.1(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))':
     dependencies:
-      '@agntn/tools': 0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))
+      '@agntn/tools': 0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))
       '@modelcontextprotocol/server': 2.2.0
       citty: 0.2.2
     optionalDependencies:
       '@earendil-works/pi-coding-agent': 0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5)
-      '@oh-my-pi/pi-coding-agent': 18.4.8
+      '@oh-my-pi/pi-coding-agent': 18.4.12
       ai: 7.0.141(zod@4.6.5)
 
-  '@agntn/hashes@0.6.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))':
+  '@agntn/hashes@0.6.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))':
     dependencies:
-      '@agntn/tools': 0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))
+      '@agntn/tools': 0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))
       '@modelcontextprotocol/server': 2.2.0
       citty: 0.2.2
     optionalDependencies:
       '@earendil-works/pi-coding-agent': 0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5)
-      '@oh-my-pi/pi-coding-agent': 18.4.8
+      '@oh-my-pi/pi-coding-agent': 18.4.12
       ai: 7.0.141(zod@4.6.5)
 
   '@agntn/ox@0.1.0(oxfmt@0.70.0(vite-plus@1.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)))(oxlint-tsgolint@7.0.2003)(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)))':
@@ -9371,18 +9279,18 @@ snapshots:
       oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))
       oxlint-tsgolint: 7.0.2003
 
-  '@agntn/tools@0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))':
+  '@agntn/tools@0.0.0(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))':
     optionalDependencies:
       '@earendil-works/pi-coding-agent': 0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5)
       '@modelcontextprotocol/server': 2.2.0
-      '@oh-my-pi/pi-coding-agent': 18.4.8
+      '@oh-my-pi/pi-coding-agent': 18.4.12
       ai: 7.0.141(zod@4.6.5)
 
-  '@agntn/tools@0.2.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.8)(ai@7.0.141(zod@4.6.5))(zod@4.6.5)':
+  '@agntn/tools@0.2.4(@earendil-works/pi-coding-agent@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5))(@modelcontextprotocol/server@2.2.0)(@oh-my-pi/pi-coding-agent@18.4.12)(ai@7.0.141(zod@4.6.5))(zod@4.6.5)':
     optionalDependencies:
       '@earendil-works/pi-coding-agent': 0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.5))(@smithy/signature-v4@5.6.12)(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5)
       '@modelcontextprotocol/server': 2.2.0
-      '@oh-my-pi/pi-coding-agent': 18.4.8
+      '@oh-my-pi/pi-coding-agent': 18.4.12
       ai: 7.0.141(zod@4.6.5)
       zod: 4.6.5
 
@@ -11369,7 +11277,7 @@ snapshots:
       - vue
       - yaml
 
-  '@nuxt/image@2.1.0(@nuxt/schema@4.6.4)(@types/node@26.2.0)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))(unstorage@1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2)))':
+  '@nuxt/image@2.1.0(@nuxt/schema@4.6.4)(@types/node@26.2.0)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))(unstorage@1.17.6(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2)))':
     dependencies:
       '@noble/hashes': 2.4.0
       '@nuxt/kit': 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))
@@ -11382,7 +11290,7 @@ snapshots:
       std-env: 4.3.0
       ufo: 1.6.4
     optionalDependencies:
-      ipx: 4.0.0-beta.1(@types/node@26.2.0)(unstorage@1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2)))
+      ipx: 4.0.0-beta.1(@types/node@26.2.0)(unstorage@1.17.6(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2)))
     transitivePeerDependencies:
       - '@nuxt/schema'
       - '@types/node'
@@ -12266,54 +12174,54 @@ snapshots:
       - vue
       - yaml
 
-  '@oh-my-pi/omp-stats@18.4.8':
+  '@oh-my-pi/omp-stats@18.4.12':
     dependencies:
-      '@oh-my-pi/pi-ai': 18.4.8
-      '@oh-my-pi/pi-catalog': 18.4.8
-      '@oh-my-pi/pi-utils': 18.4.8
+      '@oh-my-pi/pi-ai': 18.4.12
+      '@oh-my-pi/pi-catalog': 18.4.12
+      '@oh-my-pi/pi-utils': 18.4.12
       lucide-react: 1.31.0(react@19.2.7)
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@oh-my-pi/omptype@18.4.8': {}
+  '@oh-my-pi/omptype@18.4.12': {}
 
-  '@oh-my-pi/pi-agent-core@18.4.8':
+  '@oh-my-pi/pi-agent-core@18.4.12':
     dependencies:
-      '@oh-my-pi/pi-ai': 18.4.8
-      '@oh-my-pi/pi-catalog': 18.4.8
-      '@oh-my-pi/pi-natives': 18.4.8
-      '@oh-my-pi/pi-utils': 18.4.8
-      '@oh-my-pi/pi-wire': 18.4.8
-      '@oh-my-pi/snapcompact': 18.4.8
+      '@oh-my-pi/pi-ai': 18.4.12
+      '@oh-my-pi/pi-catalog': 18.4.12
+      '@oh-my-pi/pi-natives': 18.4.12
+      '@oh-my-pi/pi-utils': 18.4.12
+      '@oh-my-pi/pi-wire': 18.4.12
+      '@oh-my-pi/snapcompact': 18.4.12
       '@opentelemetry/api': 1.9.1
 
-  '@oh-my-pi/pi-ai@18.4.8':
+  '@oh-my-pi/pi-ai@18.4.12':
     dependencies:
-      '@oh-my-pi/omptype': 18.4.8
-      '@oh-my-pi/pi-catalog': 18.4.8
-      '@oh-my-pi/pi-natives': 18.4.8
-      '@oh-my-pi/pi-utils': 18.4.8
-      '@oh-my-pi/pi-wire': 18.4.8
+      '@oh-my-pi/omptype': 18.4.12
+      '@oh-my-pi/pi-catalog': 18.4.12
+      '@oh-my-pi/pi-natives': 18.4.12
+      '@oh-my-pi/pi-utils': 18.4.12
+      '@oh-my-pi/pi-wire': 18.4.12
 
-  '@oh-my-pi/pi-catalog@18.4.8':
+  '@oh-my-pi/pi-catalog@18.4.12':
     dependencies:
-      '@oh-my-pi/omptype': 18.4.8
-      '@oh-my-pi/pi-utils': 18.4.8
+      '@oh-my-pi/omptype': 18.4.12
+      '@oh-my-pi/pi-utils': 18.4.12
 
-  '@oh-my-pi/pi-coding-agent@18.4.8':
+  '@oh-my-pi/pi-coding-agent@18.4.12':
     dependencies:
       '@babel/parser': 7.29.9
-      '@oh-my-pi/omp-stats': 18.4.8
-      '@oh-my-pi/omptype': 18.4.8
-      '@oh-my-pi/pi-agent-core': 18.4.8
-      '@oh-my-pi/pi-ai': 18.4.8
-      '@oh-my-pi/pi-catalog': 18.4.8
-      '@oh-my-pi/pi-mnemopi': 18.4.8
-      '@oh-my-pi/pi-natives': 18.4.8
-      '@oh-my-pi/pi-tui': 18.4.8
-      '@oh-my-pi/pi-utils': 18.4.8
-      '@oh-my-pi/pi-wire': 18.4.8
-      '@oh-my-pi/snapcompact': 18.4.8
+      '@oh-my-pi/omp-stats': 18.4.12
+      '@oh-my-pi/omptype': 18.4.12
+      '@oh-my-pi/pi-agent-core': 18.4.12
+      '@oh-my-pi/pi-ai': 18.4.12
+      '@oh-my-pi/pi-catalog': 18.4.12
+      '@oh-my-pi/pi-mnemopi': 18.4.12
+      '@oh-my-pi/pi-natives': 18.4.12
+      '@oh-my-pi/pi-tui': 18.4.12
+      '@oh-my-pi/pi-utils': 18.4.12
+      '@oh-my-pi/pi-wire': 18.4.12
+      '@oh-my-pi/snapcompact': 18.4.12
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/api-logs': 0.220.0
       '@opentelemetry/context-async-hooks': 2.10.0(@opentelemetry/api@1.9.1)
@@ -12338,64 +12246,64 @@ snapshots:
       - utf-8-validate
       - yauzl
 
-  '@oh-my-pi/pi-mnemopi@18.4.8':
+  '@oh-my-pi/pi-mnemopi@18.4.12':
     dependencies:
-      '@oh-my-pi/pi-ai': 18.4.8
-      '@oh-my-pi/pi-catalog': 18.4.8
-      '@oh-my-pi/pi-natives': 18.4.8
-      '@oh-my-pi/pi-utils': 18.4.8
+      '@oh-my-pi/pi-ai': 18.4.12
+      '@oh-my-pi/pi-catalog': 18.4.12
+      '@oh-my-pi/pi-natives': 18.4.12
+      '@oh-my-pi/pi-utils': 18.4.12
 
-  '@oh-my-pi/pi-natives-darwin-arm64@18.4.8':
+  '@oh-my-pi/pi-natives-darwin-arm64@18.4.12':
     optional: true
 
-  '@oh-my-pi/pi-natives-darwin-x64@18.4.8':
+  '@oh-my-pi/pi-natives-darwin-x64@18.4.12':
     optional: true
 
-  '@oh-my-pi/pi-natives-linux-arm64@18.4.8':
+  '@oh-my-pi/pi-natives-linux-arm64@18.4.12':
     optional: true
 
-  '@oh-my-pi/pi-natives-linux-x64@18.4.8':
+  '@oh-my-pi/pi-natives-linux-x64@18.4.12':
     optional: true
 
-  '@oh-my-pi/pi-natives-win32-arm64@18.4.8':
+  '@oh-my-pi/pi-natives-win32-arm64@18.4.12':
     optional: true
 
-  '@oh-my-pi/pi-natives-win32-x64@18.4.8':
+  '@oh-my-pi/pi-natives-win32-x64@18.4.12':
     optional: true
 
-  '@oh-my-pi/pi-natives@18.4.8':
+  '@oh-my-pi/pi-natives@18.4.12':
     optionalDependencies:
-      '@oh-my-pi/pi-natives-darwin-arm64': 18.4.8
-      '@oh-my-pi/pi-natives-darwin-x64': 18.4.8
-      '@oh-my-pi/pi-natives-linux-arm64': 18.4.8
-      '@oh-my-pi/pi-natives-linux-x64': 18.4.8
-      '@oh-my-pi/pi-natives-win32-arm64': 18.4.8
-      '@oh-my-pi/pi-natives-win32-x64': 18.4.8
+      '@oh-my-pi/pi-natives-darwin-arm64': 18.4.12
+      '@oh-my-pi/pi-natives-darwin-x64': 18.4.12
+      '@oh-my-pi/pi-natives-linux-arm64': 18.4.12
+      '@oh-my-pi/pi-natives-linux-x64': 18.4.12
+      '@oh-my-pi/pi-natives-win32-arm64': 18.4.12
+      '@oh-my-pi/pi-natives-win32-x64': 18.4.12
 
-  '@oh-my-pi/pi-tui@18.4.8':
+  '@oh-my-pi/pi-tui@18.4.12':
     dependencies:
-      '@oh-my-pi/omptype': 18.4.8
-      '@oh-my-pi/pi-agent-core': 18.4.8
-      '@oh-my-pi/pi-ai': 18.4.8
-      '@oh-my-pi/pi-catalog': 18.4.8
-      '@oh-my-pi/pi-natives': 18.4.8
-      '@oh-my-pi/pi-utils': 18.4.8
-      '@oh-my-pi/pi-wire': 18.4.8
-      '@oh-my-pi/snapcompact': 18.4.8
+      '@oh-my-pi/omptype': 18.4.12
+      '@oh-my-pi/pi-agent-core': 18.4.12
+      '@oh-my-pi/pi-ai': 18.4.12
+      '@oh-my-pi/pi-catalog': 18.4.12
+      '@oh-my-pi/pi-natives': 18.4.12
+      '@oh-my-pi/pi-utils': 18.4.12
+      '@oh-my-pi/pi-wire': 18.4.12
+      '@oh-my-pi/snapcompact': 18.4.12
 
-  '@oh-my-pi/pi-utils@18.4.8':
+  '@oh-my-pi/pi-utils@18.4.12':
     dependencies:
-      '@oh-my-pi/pi-natives': 18.4.8
+      '@oh-my-pi/pi-natives': 18.4.12
 
-  '@oh-my-pi/pi-wire@18.4.8': {}
+  '@oh-my-pi/pi-wire@18.4.12': {}
 
-  '@oh-my-pi/snapcompact@18.4.8':
+  '@oh-my-pi/snapcompact@18.4.12':
     dependencies:
-      '@oh-my-pi/pi-ai': 18.4.8
-      '@oh-my-pi/pi-catalog': 18.4.8
-      '@oh-my-pi/pi-natives': 18.4.8
-      '@oh-my-pi/pi-utils': 18.4.8
-      '@oh-my-pi/pi-wire': 18.4.8
+      '@oh-my-pi/pi-ai': 18.4.12
+      '@oh-my-pi/pi-catalog': 18.4.12
+      '@oh-my-pi/pi-natives': 18.4.12
+      '@oh-my-pi/pi-utils': 18.4.12
+      '@oh-my-pi/pi-wire': 18.4.12
 
   '@opentelemetry/api-logs@0.220.0':
     dependencies:
@@ -15159,7 +15067,7 @@ snapshots:
 
   diff@9.0.0: {}
 
-  docus@5.15.0(acd0798b8ca5a8e01f2115d780ee3099):
+  docus@5.15.0(102c1b8b3b6affc351e16449b9e7267a):
     dependencies:
       '@ai-sdk/gateway': 4.0.114(zod@4.6.5)
       '@ai-sdk/mcp': 2.0.76(zod@4.6.5)
@@ -15169,7 +15077,7 @@ snapshots:
       '@iconify-json/simple-icons': 1.2.101
       '@iconify-json/vscode-icons': 1.2.94
       '@nuxt/content': 3.16.2(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(@types/node@26.2.0)(better-sqlite3@13.0.3)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(rollup@4.67.4)(supports-color@10.2.2)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)
-      '@nuxt/image': 2.1.0(@nuxt/schema@4.6.4)(@types/node@26.2.0)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))(unstorage@1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2)))
+      '@nuxt/image': 2.1.0(@nuxt/schema@4.6.4)(@types/node@26.2.0)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))(unstorage@1.17.6(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2)))
       '@nuxt/kit': 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))
       '@nuxt/ui': 4.11.3(aa87d7f5e6d2cc944f1982b900b80049)
       '@nuxtjs/i18n': 10.6.0(@nuxt/schema@4.6.4)(@types/node@26.2.0)(db0@0.4.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(supports-color@10.2.2)(terser@5.51.2)(typescript@7.0.2)(vue@3.5.44(typescript@7.0.2))(yaml@2.9.1)
@@ -15193,7 +15101,7 @@ snapshots:
       nuxt: 4.6.4(@babel/plugin-proposal-decorators@8.0.2)(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@oxc-project/types@0.151.0)(@types/node@26.2.0)(@vue/compiler-sfc@3.5.44)(acorn@8.18.0)(better-sqlite3@13.0.3)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(lightningcss@1.33.0)(mlly@1.8.2)(oxc-parser@0.151.0)(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)))(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.67.4))(rollup@4.67.4)(srvx@1.0.5)(supports-color@10.2.2)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)
       nuxt-agent-discovery: 0.7.1(989df729f2fa640b4e24ccb265ff634d)
       nuxt-llms: 0.2.0(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))
-      nuxt-og-image: 6.10.4(fe2ae0a443f8aec59dfa3c80561ecde3)
+      nuxt-og-image: 6.10.4(a604577e465dc0c2bedb71b363eed739)
       nuxt-schema-org: 6.4.3(be817ddaa680d4ec73a0f8f84a46b4ca)
       pathe: 2.0.3
       pkg-types: 2.4.0
@@ -16284,12 +16192,12 @@ snapshots:
 
   ipaddr.js@1.9.1: {}
 
-  ipx@4.0.0-beta.1(@types/node@26.2.0)(unstorage@1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))):
+  ipx@4.0.0-beta.1(@types/node@26.2.0)(unstorage@1.17.6(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))):
     dependencies:
       sharp: 0.35.5(@types/node@26.2.0)
       srvx: 0.12.8
     optionalDependencies:
-      unstorage: 1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
+      unstorage: 1.17.6(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
     transitivePeerDependencies:
       - '@types/node'
     optional: true
@@ -17386,7 +17294,7 @@ snapshots:
       - rolldown
       - unplugin
 
-  nuxt-og-image@6.10.4(fe2ae0a443f8aec59dfa3c80561ecde3):
+  nuxt-og-image@6.10.4(a604577e465dc0c2bedb71b363eed739):
     dependencies:
       '@clack/prompts': 1.8.1
       '@nuxt/kit': 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))
@@ -17419,7 +17327,7 @@ snapshots:
       ufo: 1.6.4
       ultrahtml: 1.7.0
       unplugin: 3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)
-      unstorage: 1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
+      unstorage: 1.17.6(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
     optionalDependencies:
       '@takumi-rs/core': 2.16.2(csstype@3.2.3)(react@19.2.7)
       fontless: 0.2.1(@types/node@26.2.0)(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)
@@ -19687,6 +19595,20 @@ snapshots:
       ufo: 1.6.4
     optionalDependencies:
       db0: 0.3.4(better-sqlite3@13.0.3)
+      ioredis: 5.11.1(supports-color@10.2.2)
+
+  unstorage@1.17.6(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2)):
+    dependencies:
+      anymatch: 3.1.3
+      chokidar: 5.0.0
+      destr: 2.0.5
+      h3: 1.15.11
+      lru-cache: 11.5.3
+      node-fetch-native: 1.6.7
+      ofetch: 1.5.1
+      ufo: 1.6.4
+    optionalDependencies:
+      db0: 0.4.1
       ioredis: 5.11.1(supports-color@10.2.2)
 
   untun@0.2.2: {}

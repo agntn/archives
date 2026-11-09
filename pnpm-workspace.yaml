@@ -35,8 +35,8 @@ catalogs:
     "@iconify-json/simple-icons": 1.2.101
     "@iconify-json/vscode-icons": 1.2.94
     "@modelcontextprotocol/client": 2.2.0
-    "@oh-my-pi/omptype": 18.4.8
-    "@oh-my-pi/pi-coding-agent": 18.4.8
+    "@oh-my-pi/omptype": 18.4.12
+    "@oh-my-pi/pi-coding-agent": 18.4.12
     "@types/node": 26.2.0
     ai: 7.0.141
     obuild: 0.4.43
