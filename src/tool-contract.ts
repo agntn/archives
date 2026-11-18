@@ -44,6 +44,12 @@ export type ContentFormat = (typeof CONTENT_FORMATS)[number];
 
 export const CONTENT_FORMAT_HINT = `How to return the body. "text" (default) strips markup from an HTML capture and returns what a reader would see; "raw" returns the decoded capture body without stripping markup.`;
 
+/** What a content read does with the origin's headers: print them with the body, or alone. */
+export const CONTENT_HEADERS = ["include", "only"] as const;
+export type ContentHeaders = (typeof CONTENT_HEADERS)[number];
+
+export const CONTENT_HEADERS_HINT = `Origin response headers the archive kept with the capture, such as Last-Modified and ETag. "include" prints them above the body; "only" prints them and leaves the body unread. Omit for no headers.`;
+
 /** Most targets one snapshot call looks up, the batch cap agntn/web uses too. */
 export const MAX_SNAPSHOT_TARGETS = 10;
 
