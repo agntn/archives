@@ -1539,6 +1539,46 @@ describe("origin headers", () => {
     expect(rawMock).not.toHaveBeenCalled();
   });
 
+  it("stops a Common Crawl record soon after its headers", async () => {
+    const segment = gzipSync(
+      Buffer.concat([
+        Buffer.from("WARC/1.0\r\n\r\nHTTP/1.1 200 OK\r\nETag: x\r\n\r\n"),
+        randomBytes(1_000_000),
+      ]),
+    );
+    let sent = 0;
+    const range = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          const chunk = segment.subarray(sent, sent + 4096);
+          sent += chunk.length;
+          if (chunk.length > 0) controller.enqueue(chunk);
+          else controller.close();
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    fetchMock
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          url: "https://example.com/",
+          timestamp: "20240101000000",
+          status: "200",
+          length: String(segment.length),
+          offset: "0",
+          filename: "segment.warc.gz",
+        }),
+      )
+      .mockResolvedValueOnce(range);
+
+    const response = await createArchive(
+      createCommonCrawl({ collection: "CC-MAIN-2024-10" }),
+    ).content("example.com", { originHeaders: "only" });
+
+    expect(response.content?.originHeaders).toEqual({ etag: "x" });
+    expect(sent).toBeLessThan(segment.length / 10);
+  });
+
   it("reads them from the WARC record, where no line of a hostile value survives", async () => {
     const extra = Array.from(
       { length: 70 },
