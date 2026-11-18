@@ -23,6 +23,15 @@ function mergePerformance(layers: readonly (ConfigLayer | undefined)[]): Record<
 }
 
 /**
+ * Browsers and Workers have no home directory.
+ *
+ * @returns {undefined} No root to pin.
+ */
+export function homeDirectory(): undefined {
+  return undefined;
+}
+
+/**
  * Stands in for c12 in browsers and Workers, where there are no config files to find.
  *
  * @param options - The overrides and defaults to merge; file options have nothing to read

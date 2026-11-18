@@ -1,6 +1,9 @@
 import { loadConfig } from "c12";
 import type { ArchivesConfig, ResolveConfigOptions } from "./config.ts";
 
+/** Where a server reads config when its host pinned no root. */
+export { homedir as homeDirectory } from "node:os";
+
 /**
  * Reads `archives.config.ts`, `.archives` and the `archives` key in `package.json` through c12.
  *

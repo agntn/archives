@@ -55,6 +55,9 @@ let cachedConfig: ArchivesConfig | undefined;
 /** Bumped on every cache change, so a discovery that started earlier can't overwrite it. */
 let configGeneration = 0;
 
+/** Whether the cache came from `setConfig()`, not from disk. */
+let configIsSet = false;
+
 /**
  * Replaces the cached config.
  *
@@ -63,10 +66,14 @@ let configGeneration = 0;
 function replaceCachedConfig(config?: ArchivesConfig): void {
   configGeneration += 1;
   cachedConfig = config;
+  configIsSet = false;
 }
 
 // Directory c12 searches when a caller does not pass its own `cwd`.
 let configCwd: string | undefined;
+
+/** A server is up, so unpinned discovery reads home. */
+let homeIsDefault = false;
 
 type Discovery = typeof import("#config-discovery");
 
@@ -125,6 +132,13 @@ export function setConfigCwd(cwd: string): void {
   replaceCachedConfig();
 }
 
+/** Makes home the root a server falls back to. */
+export function preferHomeConfig(): void {
+  if (homeIsDefault) return;
+  homeIsDefault = true;
+  if (configCwd === undefined && !configIsSet) replaceCachedConfig();
+}
+
 /**
  * Uses `config` instead of config files until `resetConfig()` or `setConfigCwd()`.
  *
@@ -135,6 +149,7 @@ export function setConfig(config: Pick<ConfigLayer, "performance"> = {}): Archiv
   const settings = { performance: { ...config.performance } };
   const resolved = postProcessConfig(settings, getDefaultConfig());
   replaceCachedConfig(resolved);
+  configIsSet = true;
   return resolved;
 }
 
@@ -154,8 +169,9 @@ export async function resolveConfig(options: ResolveConfigOptions = {}): Promise
   const generation = configGeneration;
   const defaults = getDefaultConfig();
 
-  const { discoverConfig } = await loadDiscovery();
-  const config = await discoverConfig({ ...options, cwd: options.cwd ?? configCwd }, defaults);
+  const { discoverConfig, homeDirectory } = await loadDiscovery();
+  const root = configCwd ?? (homeIsDefault ? homeDirectory() : undefined);
+  const config = await discoverConfig({ ...options, cwd: options.cwd ?? root }, defaults);
 
   // Apply post-processing
   const resolvedConfig = postProcessConfig(config, defaults);
