@@ -146,6 +146,17 @@ describe("archived content diff", () => {
     );
   });
 
+  it("points at the two URLs when only the scheme sets a pair apart", () => {
+    expect(() =>
+      diffArchivedContent(
+        capture("2015-01-01T00:00:00Z", "before", { url: "http://example.com:80/puzzle" }),
+        capture("2024-01-01T00:00:00Z", "after", { url: "https://example.com:443/puzzle#top" }),
+      ),
+    ).toThrow(
+      'Cannot diff captures of different original URLs: before is "http://example.com/puzzle", after is "https://example.com/puzzle". Only the scheme differs: read both captures from one of these two URLs',
+    );
+  });
+
   it("requires one underlying archive for Memento comparisons", () => {
     const before = capture("2020-01-01T00:00:00Z", "before", {
       _meta: { provider: "memento", archive: "web.archive.org" },

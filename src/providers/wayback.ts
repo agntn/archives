@@ -229,7 +229,7 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
   private async findCaptures(
     target: string,
     wanted: string,
-    options: Readonly<ArchiveContentOptions>,
+    options: Readonly<Partial<WaybackOptions> & ArchiveContentOptions>,
   ): Promise<CdxCapture[]> {
     const params: Record<string, string> = {
       url: target,
@@ -237,6 +237,7 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
       fl: "original,timestamp,statuscode",
       limit: "-5",
     };
+    if (options.filter !== undefined) params.filter = options.filter;
     if (wanted) params.to = wanted;
 
     const captures = await this.queryCaptures(params, options);
