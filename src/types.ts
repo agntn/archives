@@ -157,6 +157,9 @@ export interface UnsupportedProviderRecord {
   reason: string;
 }
 
+/** How a read treats the origin's headers: beside the body, or in its place. */
+export type OriginHeadersMode = "include" | "only";
+
 // Options for reading one archived capture, on top of the shared ones.
 export interface ArchiveContentOptions extends ArchiveOptions {
   /**
@@ -168,6 +171,8 @@ export interface ArchiveContentOptions extends ArchiveOptions {
   maxBytes?: number;
   /** Also return the bytes read as `body`. */
   body?: boolean;
+  /** Return the origin's response headers as `originHeaders`; `"only"` leaves the body unread. */
+  originHeaders?: OriginHeadersMode;
 }
 
 /** One capture and its body as text. `body: true` adds the bytes the text was decoded from. */
@@ -183,6 +188,8 @@ export interface ArchivedContent {
   truncated: boolean; // Body was cut off at maxBytes
   /** Those bytes themselves, present only when the read asked for `body`. */
   body?: Uint8Array;
+  /** Headers the origin sent, lowercase names. Only when asked for, never from Archive.today. */
+  originHeaders?: Readonly<Record<string, string>>;
   _meta: ArchivedPageMetadata;
 }
 

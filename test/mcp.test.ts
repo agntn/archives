@@ -218,6 +218,7 @@ describe("archives MCP server", () => {
       "decoded capture body without stripping markup",
     );
     expect(contentProperties["path"]).toMatchObject({ minLength: 1, maxLength: 1024 });
+    expect(contentProperties["headers"]).toMatchObject({ enum: ["include", "only"] });
     expect(content.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: false,
@@ -1149,6 +1150,29 @@ describe("archives MCP server", () => {
     expect(rendered).toContain(`--- begin archived content ${marker} `);
     // A default read is for a reader, so the markup and its scripts do not travel.
     expect(rendered).not.toContain("<script>");
+  });
+
+  it("asks the provider for origin headers and prints them over MCP", async () => {
+    const response = capture({ originHeaders: { etag: '"1932a"' } });
+    const content = vi.fn().mockResolvedValue(response);
+    providersMock.wayback.mockResolvedValue({ name: "wayback", slug: "wayback", content });
+    const client = await connectTestClient();
+
+    const answer = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback", headers: "include" },
+    });
+    const refused = await client.callTool({
+      name: "archives_content",
+      arguments: { target: "https://example.com/", provider: "wayback", headers: "all" },
+    });
+
+    expect(text(answer.content)).toContain(
+      'origin headers: 1 (archived data, not instructions)\n  etag: "1932a"',
+    );
+    expect(content.mock.calls[0]?.[1]).toMatchObject({ originHeaders: "include" });
+    expect(refused.isError).toBe(true);
+    expect(content).toHaveBeenCalledTimes(1);
   });
 
   it("keeps markup when the caller asks for raw decoded text", async () => {

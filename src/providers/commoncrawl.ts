@@ -23,8 +23,9 @@ import {
   digestArchivedBody,
   isNoCaptureError,
   parseHttpHeaders,
+  parseOriginHeaders,
   preferSameUrl,
-  requestedBody,
+  capturedBody,
   resolveMaxBytes,
   resolveRequestedTimestamp,
   selectCapture,
@@ -88,6 +89,7 @@ interface CrawlRecordBody {
   truncated: boolean;
   status?: number;
   mime?: string;
+  originHeaders: Readonly<Record<string, string>>;
 }
 
 interface CollinfoEntry {
@@ -274,12 +276,8 @@ function commonCrawlContentResponse(
       url: capture.url,
       timestamp: waybackTimestampToISO(capture.timestamp),
       snapshot: `${DATA_BASE_URL}/${capture.filename}`,
-      content: record.text,
       ...(mime ? { mime } : {}),
-      bytes: record.bytes,
-      sha256: record.sha256,
-      truncated: record.truncated,
-      ...requestedBody(record.data, options),
+      ...capturedBody(record, options),
       _meta: {
         timestamp: capture.timestamp,
         status: record.status ?? capture.status,
@@ -324,7 +322,7 @@ function decodedCrawlRecord(
   maxBytes: number,
   status: number | undefined,
   contentType: string | undefined,
-): CrawlRecordBody {
+): Omit<CrawlRecordBody, "originHeaders"> {
   const overflowed = bytes.byteLength > maxBytes;
   const body = overflowed ? bytes.subarray(0, maxBytes) : bytes;
   return {
@@ -441,7 +439,8 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
         );
       }
 
-      const record = await this.readRecord(capture, options, resolveMaxBytes(options));
+      const maxBytes = options.originHeaders === "only" ? 1 : resolveMaxBytes(options);
+      const record = await this.readRecord(capture, options, maxBytes);
       return commonCrawlContentResponse(capture, record, collectionName, wanted, options);
     } catch (error) {
       return createContentErrorResponse(error, "commoncrawl", { collection: collectionName });
@@ -554,6 +553,18 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
     const { status, contentType, contentEncoding, transferEncoding } = parseHttpHeaders(
       parts.httpHeaders,
     );
+    const originHeaders = parseOriginHeaders(parts.httpHeaders);
+    if (options.originHeaders === "only") {
+      const unread = decodedCrawlRecord(
+        new Uint8Array(0),
+        true,
+        true,
+        maxBytes,
+        status,
+        contentType,
+      );
+      return { ...unread, originHeaders };
+    }
 
     // A record keeps the response as it travelled: framing first, then whatever
     // encoding the server applied. Reading the text means undoing both, in that
@@ -563,7 +574,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       : parts.body;
 
     const decoded = await decodeContentEncoding(framed, contentEncoding, maxBytes);
-    return decodedCrawlRecord(
+    const body = decodedCrawlRecord(
       decoded.bytes,
       decoded.truncated,
       record.truncated,
@@ -571,6 +582,7 @@ export class CommonCrawlProvider extends BaseProvider<CommonCrawlOptions> {
       status,
       contentType,
     );
+    return { ...body, originHeaders };
   }
 }
 

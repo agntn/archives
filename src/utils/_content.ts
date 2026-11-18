@@ -44,6 +44,14 @@ const CHARSET_PARAMETER = /charset\s*=\s*"?([\w-]+)"?/i;
 const META_CHARSET = /<meta[^>]+charset\s*=\s*["']?\s*([\w-]+)/i;
 const HTTP_STATUS_LINE = /^HTTP\/[\d.]+\s+(\d{3})/i;
 
+/** What Wayback and pywb replay put in front of each header the origin sent. */
+const ORIGIN_HEADER_PREFIX = "x-archive-orig-";
+const HEADER_NAME = /^[\w!#$%&'*+.^`|~-]{1,64}$/;
+/** Origin headers kept from one capture; the rest are dropped. */
+const MAX_ORIGIN_HEADERS = 64;
+/** Longest origin header value kept; `Last-Modified` and `ETag` fit many times over. */
+const MAX_ORIGIN_HEADER_VALUE = 256;
+
 /**
  * Effective byte cap for one content request.
  *
@@ -350,7 +358,19 @@ export interface FetchedBody {
   capturedAt?: string;
   /** Destination the archived site named in a redirect response, kept as data and never visited. */
   redirect?: string;
+  /** Headers the origin sent, as the replay kept them. */
+  originHeaders: Readonly<Record<string, string>>;
 }
+
+/** A read without `originHeaders` came from an archive that replays no origin response. */
+type CapturedBodyRead = Readonly<Pick<FetchedBody, "text" | "data" | "bytes" | "sha256">> & {
+  readonly truncated: boolean;
+  readonly originHeaders?: Readonly<Record<string, string>>;
+};
+type CapturedBody = Pick<
+  ArchivedContent,
+  "content" | "bytes" | "sha256" | "truncated" | "body" | "originHeaders"
+>;
 
 /** Optional validation for each URL in a playback redirect chain. */
 export interface FetchBodyPolicy {
@@ -412,7 +432,8 @@ async function decodeFetchedResponse(
   fallbackURL: string,
 ): Promise<FetchedBody> {
   const contentType = headerValue(response.headers, "content-type");
-  const { bytes, truncated } = await readCappedBytes(response.body, maxBytes);
+  const { bytes, truncated } =
+    maxBytes > 0 ? await readCappedBytes(response.body, maxBytes) : await unreadBody(response);
   const { status } = response;
   const location = REDIRECT_STATUSES.has(status) ? headerValue(response.headers, "location") : "";
 
@@ -427,6 +448,7 @@ async function decodeFetchedResponse(
     url: response.url || fallbackURL,
     capturedAt: parseMementoDatetime(headerValue(response.headers, "memento-datetime")),
     ...(location ? { redirect: location.slice(0, MAX_REDIRECT_LENGTH) } : {}),
+    originHeaders: replayedOriginHeaders(response.headers),
   };
 }
 
@@ -453,6 +475,14 @@ async function fetchUnredirectedBody(
 
 async function cancelResponseBody(response: Readonly<Response>): Promise<void> {
   await response.body?.cancel().catch(() => undefined);
+}
+
+/* Drops a body nobody asked for, so a read for headers never downloads the page. */
+async function unreadBody(
+  response: Readonly<Response>,
+): Promise<{ bytes: Uint8Array; truncated: boolean }> {
+  await cancelResponseBody(response);
+  return { bytes: new Uint8Array(0), truncated: true };
 }
 
 function redirectDestination(response: Readonly<Response>, current: URL): URL {
@@ -531,7 +561,7 @@ export async function fetchBody(
   options: FetchBodyOptions = {},
   policy?: Readonly<FetchBodyPolicy>,
 ): Promise<FetchedBody> {
-  const maxBytes = resolveMaxBytes(options);
+  const maxBytes = options.originHeaders === "only" ? 0 : resolveMaxBytes(options);
   return policy
     ? fetchPolicyBody(baseURL, path, options, policy, maxBytes)
     : fetchUnredirectedBody(baseURL, path, options, maxBytes);
@@ -583,12 +613,8 @@ export async function readPlaybackCapture(
     url: original,
     timestamp,
     snapshot: `${baseURL}${prefix}/${servedStamp}/${original}`,
-    content: body.text,
     ...(body.mime ? { mime: body.mime } : {}),
-    bytes: body.bytes,
-    sha256: body.sha256,
-    truncated: body.truncated,
-    ...requestedBody(body.data, options),
+    ...capturedBody(body, options),
     _meta: {
       timestamp: servedStamp,
       status: body.status,
@@ -863,6 +889,60 @@ function concatBytes(chunks: readonly Uint8Array[]): Uint8Array {
     offset += chunk.byteLength;
   }
   return bytes;
+}
+
+/**
+ * Keeps a bounded, lowercase copy of header pairs; a repeated name joins its values.
+ *
+ * @param entries - Name and value pairs as the archive gave them
+ * @returns {Record<string, string>} The headers kept
+ */
+function keptHeaders(entries: readonly (readonly [string, string])[]): Record<string, string> {
+  const kept = new Map<string, string>();
+  for (const [rawName, rawValue] of entries) {
+    const name = rawName.trim().toLowerCase();
+    const prior = kept.get(name);
+    const full = prior === undefined && kept.size >= MAX_ORIGIN_HEADERS;
+    if (full || !HEADER_NAME.test(name)) continue;
+    const value = prior === undefined ? rawValue.trim() : `${prior}, ${rawValue.trim()}`;
+    kept.set(name, cutHeaderValue(value));
+  }
+  return Object.fromEntries(kept);
+}
+
+/* Cuts a value at the cap and marks the cut, so a clipped CSP never reads as the whole one. */
+function cutHeaderValue(value: string): string {
+  if (value.length <= MAX_ORIGIN_HEADER_VALUE) return value;
+  const end = MAX_ORIGIN_HEADER_VALUE - 1;
+  const splitsPair = /^[\uDC00-\uDFFF]$/.test(value.slice(end, end + 1));
+  return `${value.slice(0, splitsPair ? end - 1 : end)}…`;
+}
+
+/* The `x-archive-orig-*` headers of a replay answer, prefix off. */
+function replayedOriginHeaders(headers: Readonly<Headers>): Record<string, string> {
+  const entries: Array<[string, string]> = [];
+  for (const [name, value] of headers.entries()) {
+    if (name.startsWith(ORIGIN_HEADER_PREFIX)) {
+      entries.push([name.slice(ORIGIN_HEADER_PREFIX.length), value]);
+    }
+  }
+  return keptHeaders(entries);
+}
+
+/**
+ * Reads every header of a WARC record's HTTP block, kept as the origin sent it.
+ *
+ * @param headers - Status line and header lines
+ * @returns {Record<string, string>} The headers kept
+ */
+export function parseOriginHeaders(headers: string): Record<string, string> {
+  const lines = headers.split(/\r?\n/).slice(1);
+  return keptHeaders(
+    lines.map((line) => {
+      const colon = /^\S/.test(line) ? line.indexOf(":") : -1;
+      return colon > 0 ? [line.slice(0, colon), line.slice(colon + 1)] : ["", ""];
+    }),
+  );
 }
 
 /**
@@ -1187,6 +1267,33 @@ export function requestedBody(
   options: Readonly<ArchiveContentOptions>,
 ): { body?: Uint8Array } {
   return options.body ? { body: bytes } : {};
+}
+
+/**
+ * Body and header fields of a capture, as the read asked for them.
+ *
+ * @param read - What the archive returned
+ * @param options - Read options; `originHeaders: "only"` leaves the body fields empty
+ * @returns {CapturedBody} Fields to spread into `ArchivedContent`
+ */
+export function capturedBody(
+  read: CapturedBodyRead,
+  options: Readonly<ArchiveContentOptions>,
+): CapturedBody {
+  if (!options.originHeaders) return readBody(read, options);
+  const kept = read.originHeaders ? { originHeaders: read.originHeaders } : {};
+  if (options.originHeaders === "only") return { content: "", bytes: 0, truncated: true, ...kept };
+  return { ...readBody(read, options), ...kept };
+}
+
+function readBody(read: CapturedBodyRead, options: Readonly<ArchiveContentOptions>): CapturedBody {
+  return {
+    content: read.text,
+    bytes: read.bytes,
+    sha256: read.sha256,
+    truncated: read.truncated,
+    ...requestedBody(read.data, options),
+  };
 }
 
 /* Picks the character set to decode with: the declared one, then the document's own. */

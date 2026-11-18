@@ -93,13 +93,13 @@ npx @agntn/archives snapshots example.com --provider wayback --limit 3
 
 Same digest in 2003 and 2004. A whole year online and not one byte moved. Every tool is a command here, and its flags come straight from the schema. So `--help` can't drift from what the tool takes. Want data instead of text? Add `--json`.
 
-| Command                          | What it does                                         |
-| -------------------------------- | ---------------------------------------------------- |
-| `snapshots <target>`             | Lists captures. A JSON list looks up several at once |
-| `content <target>`               | Reads one capture. `--path` keeps the bytes too      |
-| `diff <target> <before> <after>` | Compares two captures from one archive               |
-| `providers`                      | Lists the providers and whether Perma.cc has a key   |
-| `mcp`                            | Runs the MCP server over stdio                       |
+| Command                          | What it does                                             |
+| -------------------------------- | -------------------------------------------------------- |
+| `snapshots <target>`             | Lists captures. A JSON list looks up several at once     |
+| `content <target>`               | Reads a capture. `--path` saves it, `--headers` dates it |
+| `diff <target> <before> <after>` | Compares two captures from one archive                   |
+| `providers`                      | Lists the providers and whether Perma.cc has a key       |
+| `mcp`                            | Runs the MCP server over stdio                           |
 
 ## 🔍 What changed?
 
