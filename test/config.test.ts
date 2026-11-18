@@ -1,4 +1,5 @@
 import { anyValue, objectContaining } from "./_matchers";
+import { homedir } from "node:os";
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import * as archives from "../src";
 import { getConfig, resolveConfig, resetConfig, setConfig, setConfigCwd } from "../src/config";
@@ -219,6 +220,36 @@ describe("Config", () => {
       } finally {
         setConfigCwd(process.cwd());
       }
+    });
+
+    it("reads a server's config from home until a root is pinned", async () => {
+      vi.resetModules();
+      const fresh = await import("../src/config");
+
+      fresh.preferHomeConfig();
+      await fresh.getConfig();
+      expect(mockedLoadConfig).toHaveBeenLastCalledWith(objectContaining({ cwd: homedir() }));
+
+      fresh.setConfigCwd("/srv/host");
+      fresh.preferHomeConfig();
+      await fresh.getConfig();
+      expect(mockedLoadConfig).toHaveBeenLastCalledWith(objectContaining({ cwd: "/srv/host" }));
+    });
+
+    it("drops a cwd lookup for the server's home, but never a setConfig", async () => {
+      vi.resetModules();
+      const looked = await import("../src/config");
+      await looked.getConfig();
+      looked.preferHomeConfig();
+      await looked.getConfig();
+      expect(mockedLoadConfig).toHaveBeenCalledTimes(2);
+
+      vi.resetModules();
+      const set = await import("../src/config");
+      set.setConfig({ performance: { retries: 4 } });
+      set.preferHomeConfig();
+      expect((await set.getConfig()).performance.retries).toBe(4);
+      expect(mockedLoadConfig).toHaveBeenCalledTimes(2);
     });
 
     it("outlasts a discovery that was already running", async () => {

@@ -345,39 +345,82 @@ describe.skipIf(!existsSync(join(root, "dist/cli.mjs")))(
 );
 
 describe.skipIf(!existsSync(join(root, "dist/mcp.mjs")))("a host embedding the bundle", () => {
-  it("runs the config of the root it pinned, not of its cwd", () => {
+  const entry = (file: string): string => JSON.stringify(pathToFileURL(join(root, file)).href);
+  const args = `{ target: "example.com", provider: "webcite" }`;
+  const sdk = JSON.stringify(import.meta.resolve("@modelcontextprotocol/client"));
+
+  /* Runs `body` as a host started in `browsed` and returns the roots whose config ran. */
+  function configRoots(body: (pinned: string) => string): string[] {
     const sandbox = mkdtempSync(join(tmpdir(), "archives-host-"));
-    const pinned = join(sandbox, "pinned");
-    const browsed = join(sandbox, "browsed");
     try {
-      for (const dir of [pinned, browsed]) {
-        mkdirSync(dir);
+      for (const dir of ["home", "pinned", "browsed"]) {
+        mkdirSync(join(sandbox, dir));
         writeFileSync(
-          join(dir, "archives.config.ts"),
+          join(sandbox, dir, "archives.config.ts"),
           `(globalThis.configRuns ??= []).push(${JSON.stringify(dir)});\nexport default {};\n`,
         );
       }
-      const entry = (file: string): string => JSON.stringify(pathToFileURL(join(root, file)).href);
       const host = `
-        import { setConfigCwd } from ${entry("dist/index.mjs")};
-        import { callTool } from ${entry("dist/mcp.mjs")};
-        setConfigCwd(${JSON.stringify(pinned)});
-        await callTool("archives_snapshots", { target: "example.com", provider: "webcite" });
+        ${body(join(sandbox, "pinned"))}
         process.stdout.write(JSON.stringify(globalThis.configRuns ?? []));
       `;
-
       const { stdout, stderr, status } = spawnSync(
         process.execPath,
         ["--input-type=module", "-e", host],
-        { cwd: browsed, env, encoding: "utf8" },
+        {
+          cwd: join(sandbox, "browsed"),
+          env: { ...env, HOME: join(sandbox, "home") },
+          encoding: "utf8",
+        },
       );
 
       expect(stderr).toBe("");
       expect(status).toBe(0);
-      expect(stdout).toBe(JSON.stringify([pinned]));
+      const roots: unknown = JSON.parse(stdout);
+      return Array.isArray(roots) ? roots.map(String) : [];
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
     }
+  }
+
+  it("runs the config of the root it pinned, not of its cwd", () => {
+    const roots = configRoots(
+      (pinned) => `
+        import { setConfigCwd } from ${entry("dist/index.mjs")};
+        import { callTool } from ${entry("dist/mcp.mjs")};
+        setConfigCwd(${JSON.stringify(pinned)});
+        await callTool("archives_snapshots", ${args});
+      `,
+    );
+
+    expect(roots).toEqual(["pinned"]);
+  });
+
+  it("runs the home config when the host pinned nothing", () => {
+    const roots = configRoots(
+      () => `
+        import { Client, InMemoryTransport } from ${sdk};
+        import { createMcpServer } from ${entry("dist/mcp.mjs")};
+        const [near, far] = InMemoryTransport.createLinkedPair();
+        const client = new Client({ name: "host", version: "1.0.0" });
+        await Promise.all([createMcpServer().connect(far), client.connect(near)]);
+        await client.callTool({ name: "archives_snapshots", arguments: ${args} });
+        await client.close();
+      `,
+    );
+
+    expect(roots).toEqual(["home"]);
+  });
+
+  it("runs the home config for a bare callTool too", () => {
+    const roots = configRoots(
+      () => `
+        import { callTool } from ${entry("dist/mcp.mjs")};
+        await callTool("archives_snapshots", ${args});
+      `,
+    );
+
+    expect(roots).toEqual(["home"]);
   });
 });
 

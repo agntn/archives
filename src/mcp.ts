@@ -5,6 +5,7 @@ import {
   toolAnnotations,
 } from "@agntn/tools/mcp";
 import type { CallToolResult, Server, Tool } from "@modelcontextprotocol/server";
+import { preferHomeConfig } from "./config.ts";
 import { serverInfo } from "./server-info.ts";
 import { archivesTools } from "./tools.ts";
 
@@ -32,6 +33,7 @@ export async function callTool(
   args: Readonly<Record<string, unknown>>,
   signal?: Readonly<AbortSignal>,
 ): Promise<CallToolResult> {
+  preferHomeConfig();
   const tool = toolsByName.get(name);
   if (!tool) return errorResult(`Unknown archives tool: ${JSON.stringify(name)}`);
   try {
@@ -50,9 +52,11 @@ export async function callTool(
 
 /**
  * Creates an unconnected MCP server exposing archive snapshot, content, diff and provider tools.
+ * Its config comes from the home directory, or from the root the host gave `setConfigCwd()`.
  *
  * @returns {Server} Unconnected MCP server.
  */
 export function createMcpServer(): Server {
+  preferHomeConfig();
   return createToolServer(serverInfo, archivesTools);
 }

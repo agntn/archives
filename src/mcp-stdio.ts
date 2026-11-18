@@ -1,9 +1,7 @@
-import { homedir } from "node:os";
 import {
   serveStdio as serveEras,
   type StdioServerHandle,
 } from "@modelcontextprotocol/server/stdio";
-import { setConfigCwd } from "./config.ts";
 import { createMcpServer } from "./mcp.ts";
 
 /**
@@ -12,6 +10,5 @@ import { createMcpServer } from "./mcp.ts";
  * @returns {StdioServerHandle} What closes the connection.
  */
 export function serveStdio(): StdioServerHandle {
-  setConfigCwd(homedir());
   return serveEras(() => createMcpServer());
 }
