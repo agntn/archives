@@ -99,8 +99,10 @@ function capture(overrides: ContentOverrides = {}): ArchiveContentResponse {
   };
 }
 
+type SchemeCapture = string | ContentOverrides;
+
 /* A Wayback of a site that moved to HTTPS; `extra` holds one scheme's own captures. */
-function mixedSchemeArchive(extra: Readonly<Record<string, string>>) {
+function mixedSchemeArchive(extra: Readonly<Record<string, SchemeCapture>>) {
   const fallback = (year: string | undefined) =>
     year === "2015"
       ? capture({
@@ -113,17 +115,18 @@ function mixedSchemeArchive(extra: Readonly<Record<string, string>>) {
           timestamp: "2024-12-20T00:00:00Z",
           content: "<p>new, and longer than it used to be</p>",
         });
-  const content = vi.fn((target: string, options: Readonly<{ timestamp?: string }>) => {
+  type Read = Readonly<{ timestamp?: string; filter?: string }>;
+  const content = vi.fn((target: string, options: Read) => {
     const scheme = /^https?:/.exec(target)?.[0] ?? "";
-    const timestamp = extra[`${scheme}${options.timestamp ?? ""}`];
+    const own = extra[`${scheme}${options.timestamp ?? ""}`];
+    if (own === undefined) return Promise.resolve(fallback(options.timestamp));
+    const overrides = typeof own === "string" ? { timestamp: own } : own;
     return Promise.resolve(
-      timestamp === undefined
-        ? fallback(options.timestamp)
-        : capture({
-            url: scheme === "http:" ? "http://example.com/page" : "https://example.com/page",
-            timestamp,
-            content: `<p>${scheme} ${timestamp}</p>`,
-          }),
+      capture({
+        url: scheme === "http:" ? "http://example.com/page" : "https://example.com/page",
+        content: `<p>${scheme} ${options.timestamp}</p>`,
+        ...overrides,
+      }),
     );
   });
   providersMock.wayback.mockResolvedValue({
@@ -1239,11 +1242,13 @@ describe("archives MCP server", () => {
 
     const rendered = text(response.content);
     expect(response.isError).toBeUndefined();
-    expect(content.mock.calls.map(([target, options]) => [target, options.timestamp])).toEqual([
-      ["https://example.com/page", "2015"],
-      ["https://example.com/page", "2024"],
-      ["http://example.com:80/page", "2024"],
-      ["https://example.com/page", "2015"],
+    expect(
+      content.mock.calls.map(([target, options]) => [target, options.timestamp, options.filter]),
+    ).toEqual([
+      ["https://example.com/page", "2015", undefined],
+      ["https://example.com/page", "2024", undefined],
+      ["http://example.com:80/page", "2024", "original:http://.*"],
+      ["https://example.com/page", "2015", "original:https://.*"],
     ]);
     expect(rendered).toContain(
       'read as: "http://example.com:80/page"; the first pair mixed HTTP and HTTPS captures',
@@ -1276,6 +1281,54 @@ describe("archives MCP server", () => {
     expect(rendered).toContain('read as: "https://example.com/page"; the first pair mixed');
     expect(rendered).toContain("before: 2017-02-01T00:00:00Z (later than requested);");
     expect(rendered).toContain("after: 2024-12-20T00:00:00Z;");
+  });
+
+  it("tries the other scheme when the nearest pair cannot be compared", async () => {
+    mixedSchemeArchive({
+      "http:2024": { timestamp: "2024-12-19T00:00:00Z", mime: "image/png" },
+      "https:2015": "2016-06-01T00:00:00Z",
+    });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_diff",
+      arguments: {
+        target: "example.com/page",
+        provider: "wayback",
+        before: "2015",
+        after: "2024",
+      },
+    });
+
+    const rendered = text(response.content);
+    expect(response.isError).toBeUndefined();
+    expect(rendered).toContain('read as: "https://example.com/page"; the first pair mixed');
+    expect(rendered).toContain("before: 2016-06-01T00:00:00Z (later than requested);");
+  });
+
+  it("prefers a pair of recorded pages over a nearer redirect stub", async () => {
+    mixedSchemeArchive({
+      "http:2024": {
+        timestamp: "2024-12-19T00:00:00Z",
+        _meta: { provider: "wayback", status: 301 },
+      },
+      "https:2015": "2016-06-01T00:00:00Z",
+    });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_diff",
+      arguments: {
+        target: "example.com/page",
+        provider: "wayback",
+        before: "2015",
+        after: "2024",
+      },
+    });
+
+    expect(text(response.content)).toContain(
+      'read as: "https://example.com/page"; the first pair mixed',
+    );
   });
 
   it("falls back to the later scheme when the earlier one has no later capture", async () => {

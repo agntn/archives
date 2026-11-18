@@ -286,6 +286,20 @@ describe("wayback content", () => {
     expect(rawMock.mock.calls[0][0]).toBe("/web/20200101000000id_/https://example.com/");
   });
 
+  it("passes a CDX filter on to the lookup behind a read", async () => {
+    fetchMock.mockResolvedValueOnce(cdxRows([["http://example.com/", "20200101000000", "200"]]));
+    rawMock.mockResolvedValueOnce(rawResponse("archived", { url: "" }));
+
+    await createArchive(createWayback()).content("http://example.com/", {
+      timestamp: "2020",
+      filter: "original:http://.*",
+    });
+
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      params: { url: "example.com/", to: "2020", limit: "-5", filter: "original:http://.*" },
+    });
+  });
+
   it("replays the URL that was asked for, not a canonical match of it", async () => {
     // A CDX exact match folds userinfo into the same key, so the index answers a
     // query for example.com with captures of sample@example.com too.

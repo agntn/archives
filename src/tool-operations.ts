@@ -594,9 +594,9 @@ interface DiffWinner {
 }
 
 interface DiffPair {
-  before: ArchivedContent;
-  after: ArchivedContent;
-  target?: string;
+  readonly before: ArchivedContent;
+  readonly after: ArchivedContent;
+  readonly target?: string;
 }
 
 interface ResolvedDiffRequest {
@@ -675,17 +675,29 @@ async function resolveDiffRequest(
   };
 }
 
+interface DiffRead {
+  target: string;
+  side: "before" | "after";
+  /** Keeps a second read on the scheme of its URL, where the index can filter. */
+  sameScheme?: boolean;
+}
+
+function schemeFilter(target: string): { filter?: string } {
+  const scheme = /^https?(?=:\/\/)/iu.exec(target)?.[0].toLowerCase();
+  return scheme ? { filter: `original:${scheme}://.*` } : {};
+}
+
 async function readDiffSide(
   archive: Readonly<ArchiveInterface>,
   request: Readonly<ResolvedDiffRequest>,
-  target: string,
-  side: "before" | "after",
+  read: Readonly<DiffRead>,
 ): Promise<ArchivedContent | string> {
-  const response = await archive.content(target, {
+  const response = await archive.content(read.target, {
     ...request.requestedOptions,
-    timestamp: request[side],
+    ...(read.sameScheme ? schemeFilter(read.target) : {}),
+    timestamp: request[read.side],
   });
-  return response.content ?? `${side}: ${contentReadFailureMessage(response)}`;
+  return response.content ?? `${read.side}: ${contentReadFailureMessage(response)}`;
 }
 
 function orderedPair(
@@ -702,33 +714,52 @@ function captureGap(left: string, right: string): number {
   return Math.abs(Date.parse(left) - Date.parse(right));
 }
 
+function isRecordedPage(capture: ArchivedContent): boolean {
+  const { status } = capture._meta;
+  return typeof status !== "number" || (status >= 200 && status < 300);
+}
+
 /**
- * Reads each side again under the other's scheme and keeps the pair nearest the first one.
+ * Orders pairs for comparison: recorded pages before stubs, then nearest the first read.
+ *
+ * @param candidates - Pairs that share a scheme.
+ * @param first - Both captures as first read.
+ * @returns {DiffPair[]} The pairs, best first.
+ */
+function rankPairs(candidates: readonly DiffPair[], first: Readonly<DiffPair>): DiffPair[] {
+  return candidates
+    .map((candidate) => ({
+      candidate,
+      stubs: [candidate.before, candidate.after].filter((side) => !isRecordedPage(side)).length,
+      moved:
+        captureGap(candidate.before.timestamp, first.before.timestamp) +
+        captureGap(candidate.after.timestamp, first.after.timestamp),
+    }))
+    .toSorted((left, right) => left.stubs - right.stubs || left.moved - right.moved)
+    .map(({ candidate }) => candidate);
+}
+
+/**
+ * Reads each side again under the other's scheme, since one index key holds both.
  *
  * @param archive - Archive of one provider.
  * @param request - The diff request.
  * @param pair - Both captures as first read, one per scheme.
- * @returns {Promise<DiffPair | string>} A pair under one scheme, or why there is none.
+ * @returns {Promise<DiffPair[] | string>} Pairs under one scheme, best first, or why there is none.
  */
-async function sameSchemePair(
+async function sameSchemePairs(
   archive: Readonly<ArchiveInterface>,
   request: Readonly<ResolvedDiffRequest>,
   pair: Readonly<DiffPair>,
-): Promise<DiffPair | string> {
+): Promise<DiffPair[] | string> {
   const [after, before] = await Promise.all([
-    readDiffSide(archive, request, pair.before.url, "after"),
-    readDiffSide(archive, request, pair.after.url, "before"),
+    readDiffSide(archive, request, { target: pair.before.url, side: "after", sameScheme: true }),
+    readDiffSide(archive, request, { target: pair.after.url, side: "before", sameScheme: true }),
   ]);
-  const candidates = [orderedPair(pair.before, after), orderedPair(before, pair.after)]
-    .filter((candidate) => candidate !== undefined)
-    .map((candidate) => ({
-      candidate,
-      moved:
-        captureGap(candidate.before.timestamp, pair.before.timestamp) +
-        captureGap(candidate.after.timestamp, pair.after.timestamp),
-    }))
-    .toSorted((left, right) => left.moved - right.moved);
-  if (candidates[0]) return candidates[0].candidate;
+  const candidates = [orderedPair(pair.before, after), orderedPair(before, pair.after)].filter(
+    (candidate) => candidate !== undefined,
+  );
+  if (candidates.length > 0) return rankPairs(candidates, pair);
 
   return [
     `Cannot diff captures of different original URLs: before is ${JSON.stringify(pair.before.url)}, after is ${JSON.stringify(pair.after.url)}`,
@@ -737,16 +768,16 @@ async function sameSchemePair(
   ].join(". ");
 }
 
-async function readDiffPair(
+async function readDiffPairs(
   archive: Readonly<ArchiveInterface>,
   request: Readonly<ResolvedDiffRequest>,
-): Promise<DiffPair | string> {
-  const before = await readDiffSide(archive, request, request.target, "before");
+): Promise<DiffPair[] | string> {
+  const before = await readDiffSide(archive, request, { target: request.target, side: "before" });
   if (typeof before === "string") return before;
-  const after = await readDiffSide(archive, request, request.target, "after");
+  const after = await readDiffSide(archive, request, { target: request.target, side: "after" });
   if (typeof after === "string") return after;
-  if (compareOriginalUrls(before.url, after.url) !== "scheme") return { before, after };
-  return sameSchemePair(archive, request, { before, after });
+  if (compareOriginalUrls(before.url, after.url) !== "scheme") return [{ before, after }];
+  return sameSchemePairs(archive, request, { before, after });
 }
 
 function compareDiffPair(
@@ -767,6 +798,30 @@ function compareDiffPair(
   };
 }
 
+/**
+ * Compares the pairs in order and keeps the first one the diff accepts.
+ *
+ * @param provider - Provider both captures came from.
+ * @param request - The diff request.
+ * @param pairs - Candidate pairs, best first.
+ * @returns {DiffWinner | string} The comparison, or why the best pair was refused.
+ */
+function firstComparable(
+  provider: ProviderName,
+  request: Readonly<ResolvedDiffRequest>,
+  pairs: readonly DiffPair[],
+): DiffWinner | string {
+  const refusals: string[] = [];
+  for (const pair of pairs) {
+    try {
+      return compareDiffPair(provider, request, pair);
+    } catch (error) {
+      refusals.push(errorMessage(error));
+    }
+  }
+  return refusals[0] ?? "archive returned no capture pair";
+}
+
 async function findDiffWinner(request: Readonly<ResolvedDiffRequest>): Promise<DiffSearchResult> {
   const candidates = await createProvider(request.provider, request.requestedOptions);
   const providerArray = Array.isArray(candidates) ? candidates : [candidates];
@@ -774,17 +829,10 @@ async function findDiffWinner(request: Readonly<ResolvedDiffRequest>): Promise<D
 
   for (const candidate of providerArray) {
     const provider = normalizeProvider(candidate.slug ?? candidate.name);
-    const pair = await readDiffPair(createArchive(candidate, request.requestedOptions), request);
-    if (typeof pair === "string") {
-      attempts.push({ provider, error: sanitizeField(pair) });
-      continue;
-    }
-
-    try {
-      return { winner: compareDiffPair(provider, request, pair), attempts };
-    } catch (error) {
-      attempts.push({ provider, error: sanitizeField(errorMessage(error)) });
-    }
+    const pairs = await readDiffPairs(createArchive(candidate, request.requestedOptions), request);
+    const winner = typeof pairs === "string" ? pairs : firstComparable(provider, request, pairs);
+    if (typeof winner !== "string") return { winner, attempts };
+    attempts.push({ provider, error: sanitizeField(winner) });
   }
 
   return { attempts };
