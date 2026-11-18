@@ -124,8 +124,12 @@ function assertSameSource(before: ArchivedContentView, after: ArchivedContentVie
   const beforeUrl = canonicalUrl(before.url);
   const afterUrl = canonicalUrl(after.url);
   if (beforeUrl !== afterUrl) {
+    const hint =
+      compareOriginalUrls(beforeUrl, afterUrl) === "scheme"
+        ? "Only the scheme differs: read both captures from one of these two URLs"
+        : "Pass the full URL of the page so both reads resolve to one record";
     throw new Error(
-      `Cannot diff captures of different original URLs: ${pair(JSON.stringify(beforeUrl), JSON.stringify(afterUrl))}. Pass the full URL of the page so both reads resolve to one record`,
+      `Cannot diff captures of different original URLs: ${pair(JSON.stringify(beforeUrl), JSON.stringify(afterUrl))}. ${hint}`,
     );
   }
   assertTextual(before, after);
@@ -187,6 +191,27 @@ function canonicalUrl(value: string): string {
   } catch {
     return value.trim();
   }
+}
+
+/**
+ * Tells one page recorded under both HTTP and HTTPS from two different pages.
+ *
+ * @param left - One original URL.
+ * @param right - The other original URL.
+ * @returns {"same" | "scheme" | "different"} `scheme` when only HTTP against HTTPS sets them apart.
+ */
+export function compareOriginalUrls(left: string, right: string): "same" | "scheme" | "different" {
+  if (canonicalUrl(left) === canonicalUrl(right)) return "same";
+  const leftRest = withoutWebScheme(left);
+  return leftRest !== undefined && leftRest === withoutWebScheme(right) ? "scheme" : "different";
+}
+
+function withoutWebScheme(value: string): string | undefined {
+  if (!URL.canParse(value)) return undefined;
+  const url = new URL(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+  url.hash = "";
+  return url.href.slice(url.protocol.length);
 }
 
 function captureProvider(capture: ArchivedContentView): string | undefined {
