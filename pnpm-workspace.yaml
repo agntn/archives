@@ -10,8 +10,8 @@ catalog:
 # docs/ bundles the library from ../src, so a name both of them use gets one version here.
 catalogs:
   deps:
-    "@agntn/compressions": 0.1.1
-    "@agntn/hashes": 0.5.0
+    "@agntn/compressions": 0.2.0
+    "@agntn/hashes": 0.7.3
     "@agntn/tools": 0.2.4
     "@modelcontextprotocol/sdk": 1.32.2
     "@modelcontextprotocol/server": 2.2.0
