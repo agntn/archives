@@ -111,7 +111,7 @@ describe("wayback machine", () => {
       "/cdx/search/cdx",
       objectContaining({
         params: objectContaining({
-          fl: "original,timestamp,statuscode,digest,mimetype,length",
+          fl: "original,timestamp,statuscode,digest,mimetype,length,urlkey",
           filter: "digest:HT2DYGA5UKZCPBSFVCV3JOBXGW2G5UUA",
         }),
       }),
@@ -143,7 +143,7 @@ describe("wayback machine", () => {
         params: objectContaining({
           collapse: "digest",
           filter: "statuscode:200",
-          limit: "25",
+          limit: "26",
         }),
       }),
     );
@@ -263,7 +263,7 @@ describe("wayback machine", () => {
 
     expect(fetchData).toHaveBeenCalledWith(
       "/cdx/search/cdx",
-      objectContaining({ params: objectContaining({ limit: "2" }) }),
+      objectContaining({ params: objectContaining({ limit: "3" }) }),
     );
   });
 

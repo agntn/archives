@@ -50,6 +50,7 @@ import {
   MAX_CONTENT_CHARS,
   MAX_CONTENT_FETCH_BYTES,
   MAX_CONTENT_OFFSET,
+  MAX_CURSOR_LENGTH,
   MAX_DIFF_CONTEXT,
   MAX_DIFF_OFFSET,
   MAX_LIMIT,
@@ -160,6 +161,20 @@ export interface SnapshotParams {
   filter?: string;
   from?: string;
   to?: string;
+  /** Wayback cursor from the previous page's continue line. */
+  cursor?: string;
+}
+
+/** Arguments that fetch the next page of a Wayback listing, the cursor among them. */
+export interface SnapshotContinuation {
+  target: string;
+  provider: "wayback";
+  limit: number;
+  collapse?: string;
+  filter?: string;
+  from?: string;
+  to?: string;
+  cursor: string;
 }
 
 /** The queried window plus the response it came from. */
@@ -169,6 +184,8 @@ export interface SnapshotDetails {
   provider: ProviderName;
   options: RedactedSnapshotOptions;
   count: number;
+  /** Arguments for the next page, while the listing goes on. */
+  continuation?: Readonly<SnapshotContinuation>;
   response: ArchiveResponse;
 }
 
@@ -348,19 +365,21 @@ export async function snapshotArchives(
 
   const provider = normalizeProvider(params.provider);
   checkOrder(target, params.order);
+  checkCursor(provider, params);
   const options = { ...buildSnapshotOptions(params, provider), signal };
   const archiveProvider = await createProvider(provider, options);
   const archive = createArchive(archiveProvider, options);
   const response = await archive.snapshots(target, options);
+  const continuation = snapshotContinuation(target, response, options);
 
   return {
     content: [
       {
         type: "text",
-        text: withHeader(
-          buildSnapshotHeader(provider, target, response, options),
-          formatSnapshots(response),
-        ),
+        text: withHeader(buildSnapshotHeader(provider, target, response, options), [
+          ...formatSnapshots(response),
+          ...snapshotContinueLines(continuation),
+        ]),
       },
     ],
     // A query that reached no provider successfully is a failed call, not an
@@ -373,9 +392,81 @@ export async function snapshotArchives(
       provider,
       options: redactOptions(options),
       count: response.pages.length,
+      ...(continuation ? { continuation } : {}),
       response: sanitizeResponse(response),
     },
   };
+}
+
+/**
+ * Refuses a cursor where no Wayback listing can take it.
+ * @param provider - Queried provider
+ * @param params - Tool arguments
+ * @throws {ToolInputError} For a cursor on another provider or a listing newest first
+ */
+function checkCursor(
+  provider: ProviderName,
+  params: Readonly<Omit<SnapshotParams, "target">>,
+): void {
+  if (params.cursor === undefined) return;
+  if (provider !== "wayback") {
+    throw new ToolInputError([
+      `cursor continues Wayback listings only; pass provider=wayback, not provider=${provider}`,
+    ]);
+  }
+  if (params.order === "newest") {
+    throw new ToolInputError([
+      "cursor only continues a listing oldest first; drop order=newest, or drop the cursor",
+    ]);
+  }
+}
+
+/**
+ * The arguments for the next page, while a Wayback listing names one.
+ * @param target - Listed target
+ * @param response - The listing
+ * @param options - Request options
+ * @returns {SnapshotContinuation | undefined} The arguments, or nothing at the end
+ */
+function snapshotContinuation(
+  target: string,
+  response: ArchiveResponse,
+  options: Readonly<SnapshotOptions>,
+): SnapshotContinuation | undefined {
+  const cursor = response._meta?.cursor;
+  if (!response.success || typeof cursor !== "string" || response._meta?.provider !== "wayback") {
+    return undefined;
+  }
+  const bound = (["collapse", "filter", "from", "to"] as const).filter(
+    (name) => options[name] !== undefined,
+  );
+  return {
+    target,
+    provider: "wayback",
+    limit: options.limit ?? DEFAULT_LIMIT,
+    ...Object.fromEntries(bound.map((name) => [name, options[name]])),
+    cursor,
+  };
+}
+
+/**
+ * The continue line below a listing that goes on.
+ * @param continuation - Arguments for the next page
+ * @returns {string[]} The line after a blank one, or nothing
+ */
+function snapshotContinueLines(continuation: Readonly<SnapshotContinuation> | undefined): string[] {
+  if (!continuation) return [];
+  const fields = [
+    `target=${JSON.stringify(sanitizeField(continuation.target))}`,
+    "provider=wayback",
+    `limit=${continuation.limit}`,
+    ...(["collapse", "filter", "from", "to"] as const).flatMap((name) => {
+      const value = continuation[name];
+      return value === undefined ? [] : [`${name}=${JSON.stringify(sanitizeField(value))}`];
+    }),
+    `cursor=${continuation.cursor}`,
+  ];
+  return ["", `continue: ${fields.join("; ")}`];
 }
 
 /**
@@ -403,6 +494,11 @@ export async function snapshotBatchArchives(
   }
 
   const targets = validateSnapshotTargets(requested);
+  if (params.cursor !== undefined) {
+    throw new ToolInputError([
+      "cursor continues one listing; pass the target it came with, not a list",
+    ]);
+  }
   const provider = normalizeProvider(params.provider);
   for (const target of targets) checkOrder(target, params.order);
   const options = { ...buildSnapshotOptions(params, provider), signal };
@@ -1057,6 +1153,7 @@ const TEXT_BOUNDS = {
   to: MAX_TIMESTAMP_LENGTH,
   digest: 64,
   path: MAX_PATH_LENGTH,
+  cursor: MAX_CURSOR_LENGTH,
 } as const satisfies Record<string, number>;
 
 /* Validates every bounded argument an operation's parameters happen to carry. */
@@ -1142,6 +1239,7 @@ const SNAPSHOT_OPTION_KEYS = [
   "filter",
   "from",
   "to",
+  "cursor",
 ] as const satisfies readonly (keyof SnapshotParams & keyof SnapshotOptions)[];
 
 /**

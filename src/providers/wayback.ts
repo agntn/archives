@@ -24,6 +24,7 @@ import {
   listingPattern,
 } from "../utils/index.ts";
 import { BaseProvider } from "./base-provider.ts";
+import { pageRequest, readPage } from "./_wayback-cursor.ts";
 
 /** One capture as the CDX index describes it. */
 interface CdxCapture {
@@ -48,12 +49,81 @@ function waybackQuery(domain: string, options: Readonly<WaybackOptions>): Record
   const params: Record<string, string> = {
     url: listingPattern(domain, options.order),
     output: "json",
-    fl: "original,timestamp,statuscode,digest,mimetype,length",
+    fl: "original,timestamp,statuscode,digest,mimetype,length,urlkey",
     collapse: options.collapse ?? "timestamp:4",
-    limit: waybackLimit(options),
   };
   if (options.filter !== undefined) params.filter = options.filter;
   return { ...params, ...requestedWindow(options) };
+}
+
+/** A resume key only moves forward, so newest first has no next page. */
+const NEWEST_CURSOR =
+  "A Wayback cursor only continues a listing oldest first with a positive limit: drop order=newest, or drop the cursor";
+
+/** One listing page as CDX answered it. */
+interface Listing {
+  rows: (readonly string[])[];
+  sent: Record<string, string>;
+  cursor?: string;
+  exhausted?: boolean;
+}
+
+/**
+ * Fetches one CDX answer.
+ * @param query - Query parameters
+ * @param options - Request options
+ * @returns {Promise<unknown>} The parsed body
+ */
+async function queryCdx(
+  query: Readonly<Record<string, string>>,
+  options: Readonly<WaybackOptions>,
+): Promise<unknown> {
+  const fetchOptions = await createFetchOptions(BASE_URL, query, {
+    retries: options.retries,
+    signal: options.signal,
+    timeout: options.timeout,
+  });
+  return fetchData("/cdx/search/cdx", fetchOptions);
+}
+
+/**
+ * Lists one page: through a resume key oldest first, else in one plain query.
+ * @param params - CDX query without a limit
+ * @param options - Request options
+ * @returns {Promise<Listing>} The rows, the query sent, and where the rows stop
+ */
+async function fetchListing(
+  params: Readonly<Record<string, string>>,
+  options: Readonly<WaybackOptions>,
+): Promise<Listing> {
+  const limit = options.limit ?? 1000;
+  if (options.order === "newest" || !Number.isSafeInteger(limit) || limit < 1) {
+    return fetchPlain(params, options);
+  }
+  const request = await pageRequest(params, {
+    limit,
+    ...(options.cursor === undefined ? {} : { cursor: options.cursor }),
+  });
+  const page = await readPage(await queryCdx(request.params, options), request);
+  return { ...page, sent: request.params };
+}
+
+/**
+ * Lists in one query with no cursor: newest first, or under a limit CDX takes as is.
+ * @param params - CDX query without a limit
+ * @param options - Request options
+ * @returns {Promise<Listing>} The rows and the query sent
+ * @throws {Error} When a cursor came along, which this listing can't continue
+ */
+async function fetchPlain(
+  params: Readonly<Record<string, string>>,
+  options: Readonly<WaybackOptions>,
+): Promise<Listing> {
+  if (options.cursor !== undefined) throw new Error(NEWEST_CURSOR);
+  const sent = { ...params, limit: waybackLimit(options) };
+  const response = await queryCdx(sent, options);
+  const rows = Array.isArray(response) ? (response as string[][]).slice(1) : [];
+  return { rows: options.order === "newest" ? rows.toReversed() : rows, sent };
 }
 
 /**
@@ -62,6 +132,9 @@ function waybackQuery(domain: string, options: Readonly<WaybackOptions>): Record
 export class WaybackProvider extends BaseProvider<WaybackOptions> {
   readonly name = "Internet Archive Wayback Machine";
   readonly slug = "wayback";
+
+  /** CDX narrows a listing to `from` and `to` itself, so a window keeps the limit. */
+  readonly appliesWindow = true;
 
   /** CDX lookups took 11 to 57 s in September 2026, past the ten second default. */
   protected override readonly defaultTimeout = 60_000;
@@ -85,29 +158,14 @@ export class WaybackProvider extends BaseProvider<WaybackOptions> {
     try {
       const options = await this.resolveOptions(reqOptions);
       const params = waybackQuery(domain, options);
-      const fetchOptions = await createFetchOptions(BASE_URL, params, {
-        retries: options.retries,
-        signal: options.signal,
-        timeout: options.timeout,
+      const { rows, sent, cursor, exhausted } = await fetchListing(params, options);
+      const pages: ArchivedPage[] = await mapCdxRows(rows, `${BASE_URL}/web`, "wayback", options);
+
+      return createSuccessResponse(pages, "wayback", {
+        queryParams: sent,
+        ...(cursor === undefined ? {} : { cursor }),
+        ...(exhausted === undefined ? {} : { exhausted }),
       });
-
-      type WaybackResponse = [string[], ...string[][]];
-      const response = (await fetchData("/cdx/search/cdx", fetchOptions)) as WaybackResponse;
-
-      if (!Array.isArray(response) || response.length <= 1) {
-        return createSuccessResponse([], "wayback", { queryParams: fetchOptions.params ?? {} });
-      }
-
-      const rows = response.slice(1);
-      const dataRows = options.order === "newest" ? rows.toReversed() : rows;
-      const pages: ArchivedPage[] = await mapCdxRows(
-        dataRows,
-        `${BASE_URL}/web`,
-        "wayback",
-        options,
-      );
-
-      return createSuccessResponse(pages, "wayback", { queryParams: fetchOptions.params ?? {} });
     } catch (error) {
       return createErrorResponse(error, "wayback");
     }

@@ -459,6 +459,49 @@ describe("archives MCP server", () => {
     expect(rendered.indexOf("2024-01-02")).toBeLessThan(rendered.indexOf("2019-03-01"));
   });
 
+  it("prints a continue line that pages a Wayback listing on", async () => {
+    const snapshots = vi.fn().mockResolvedValue({
+      ...success([page()]),
+      _meta: { source: "wayback", provider: "wayback", cursor: "eyJ2IjoxfQ", exhausted: false },
+    });
+    providersMock.wayback.mockResolvedValue({ name: "wayback", slug: "wayback", snapshots });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "https://example.com/", provider: "wayback", limit: 1, from: "2019" },
+    });
+    await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "https://example.com/", provider: "wayback", cursor: "eyJ2IjoxfQ" },
+    });
+
+    expect(text(response.content).split("\n").at(-1)).toBe(
+      'continue: target="https://example.com/"; provider=wayback; limit=1; from="2019"; cursor=eyJ2IjoxfQ',
+    );
+    expect(snapshots).toHaveBeenLastCalledWith(
+      "https://example.com/",
+      objectContaining({ cursor: "eyJ2IjoxfQ" }),
+    );
+  });
+
+  it.each([
+    [{ target: "example.com", cursor: "e30" }, "cursor continues Wayback listings only"],
+    [
+      { target: "https://example.com/", provider: "wayback", order: "newest", cursor: "e30" },
+      "cursor only continues a listing oldest first",
+    ],
+    [{ target: ["a.example", "b.example"], provider: "wayback", cursor: "e30" }, "not a list"],
+  ])("refuses a cursor it can't continue: %j", async (args, message) => {
+    const client = await connectTestClient();
+
+    const response = await client.callTool({ name: "archives_snapshots", arguments: args });
+
+    expect(response.isError).toBe(true);
+    expect(text(response.content)).toContain(message);
+    expect(providersMock.wayback).not.toHaveBeenCalled();
+  });
+
   it("offers both orders and refuses any other", async () => {
     const client = await connectTestClient();
     const { tools } = await client.listTools();
