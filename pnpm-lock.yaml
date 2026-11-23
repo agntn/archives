@@ -78,14 +78,14 @@ catalogs:
       specifier: 1.1.0
       version: 1.1.0
     '@iconify-json/lucide':
-      specifier: 1.2.151
-      version: 1.2.151
+      specifier: 1.2.157
+      version: 1.2.157
     '@iconify-json/simple-icons':
-      specifier: 1.2.101
-      version: 1.2.101
+      specifier: 1.2.103
+      version: 1.2.103
     '@iconify-json/vscode-icons':
-      specifier: 1.2.96
-      version: 1.2.96
+      specifier: 1.2.99
+      version: 1.2.99
     '@modelcontextprotocol/client':
       specifier: 2.2.0
       version: 2.2.0
@@ -234,13 +234,13 @@ importers:
     devDependencies:
       '@iconify-json/lucide':
         specifier: catalog:dev
-        version: 1.2.151
+        version: 1.2.157
       '@iconify-json/simple-icons':
         specifier: catalog:dev
-        version: 1.2.101
+        version: 1.2.103
       '@iconify-json/vscode-icons':
         specifier: catalog:dev
-        version: 1.2.96
+        version: 1.2.99
       webmcp-types:
         specifier: catalog:dev
         version: 0.1.10
@@ -1404,14 +1404,14 @@ packages:
   '@huggingface/transformers@4.2.0':
     resolution: {integrity: sha512-8BRCoBMH0XsWaEIamuR0LrJGAfftgHAfb2Vrffy0VKlSAE/MnUJ5/h/zTfEP3fDIft+nk7TqB8xXEyABGitBjQ==}
 
-  '@iconify-json/lucide@1.2.151':
-    resolution: {integrity: sha512-OCp+cNzynOlOI7zHq8bFGhBBzmSSWFICvOSTxZrajhFJC4YizvlLiBJMbaLzzlpMaGRidmZmAA8GpovoDKiy/w==}
+  '@iconify-json/lucide@1.2.157':
+    resolution: {integrity: sha512-hFOoLrhzbDkDfWdLhrEWHTyUXUkBxV5jrY00XgtI6zDKrwh5jANu0BLXb6xfCS/FeQ6A/9XDvEk4aJovNbOslg==}
 
-  '@iconify-json/simple-icons@1.2.101':
-    resolution: {integrity: sha512-MXJkMZDancJ/9I+Bgdthi9kXvn3AwWStxoTHwEPwAFQ9kMLBASO1BSstg52fNtjXeizm1Wi91R+QnWxNGkWHPQ==}
+  '@iconify-json/simple-icons@1.2.103':
+    resolution: {integrity: sha512-FMn+aVTsqQdYOwf5reCXXtfWapb+4ijI6WrU8ej1spWXWfA+d41TBXcKagHFwiHZyqt7kP7F04AiG1dYj2R06w==}
 
-  '@iconify-json/vscode-icons@1.2.96':
-    resolution: {integrity: sha512-JkH2lqzkp1dimpiZH5X7NmMo5ppPaQHf3ABTDc7BCahT1rHsmfkxroGBtl3JKVY3PwTnN6Sv0ehoR4ScHyOeOg==}
+  '@iconify-json/vscode-icons@1.2.99':
+    resolution: {integrity: sha512-1wYd60jxxMXxOj4vj3sXVN99Xjk4tyKjvdqmS+C3D91dGwuXUcwW60tzQwEUt5TPI4icWqFMoUY0GTOhr6syJA==}
 
   '@iconify/collections@1.0.732':
     resolution: {integrity: sha512-q0epTjWdN6L9MyQi5Ww4lCch0oh1/D3Xni7xsScA9iKAtfdM0ENHElE1o5eo2XqXOKfK+b+5Aob3VP/5NG+7kw==}
@@ -9222,27 +9222,34 @@ packages:
   yuku-ast@0.19.0:
     resolution: {integrity: sha512-PyCsiScaelhxBGzL8dyeJkLqvRZycoh78R31Vrt/WqYrm0hMFoKwIw/X7Dx5mBKLWAMlV9I9HEyBOHnj2gZVyw==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-ast@0.9.5:
     resolution: {integrity: sha512-Q8qW8WwQnN5Cm0ZZivdRIfv0sRLTjUq0YumXJkw8CYN1aCdICH9rk4C47/4n6kA5EqDtlj+F608twoTSV2MwdQ==}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-codegen@0.19.0:
     resolution: {integrity: sha512-uymAKHjDuaP4BEpkXC/BSLz4DUEF5oArZ5AuD3888nb2miChjWSgpPdojEJxm3pjpXkgUaCRJQyNAbnMN33wHg==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-codegen@0.9.5:
     resolution: {integrity: sha512-zGUVyDpSK4b6c9B0yyxi2P0wujn1XZTbG9dCb7d6gyAoP63EMgyLzUwPUvwxPG5jgYqhlI7w+S3oCyapqGr4PA==}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-core@0.19.0:
     resolution: {integrity: sha512-kYK9e1XdfirNhkipzW0wmMcSWcVF/CWnuugodfVYRCUwvoBefweL9HzB96OiKEhsx78V5WbUxbJqlizMX869Qg==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-parser@0.19.0:
     resolution: {integrity: sha512-XrBh9ZiQK5mJVRxZBAvD6LwRyAYrK3MFtH3+onyuxFL5hFD44EC3QOmIC1FjTj6H2MMwq46/NAI+NZxLZPZgxg==}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-parser@0.9.5:
     resolution: {integrity: sha512-IBnAdNVMswWbJcM7woPluOudectJzFjJ1N8jVRxP9Uq4CIv5hZdBIcdmtRbFDYF/Ph2j2gVup4YJ4N9mh0jYFA==}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   zip-stream@7.0.5:
     resolution: {integrity: sha512-dSvYKdvLsAHCDqPOhIwk/q5CvuWtTB3Dgpoe0uVEFjTzIOAmsQpprX25InCvrvJsirEbu1OHyy67n/kAj1Sw/w==}
@@ -10427,15 +10434,15 @@ snapshots:
       sharp: 0.34.5
     optional: true
 
-  '@iconify-json/lucide@1.2.151':
+  '@iconify-json/lucide@1.2.157':
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify-json/simple-icons@1.2.101':
+  '@iconify-json/simple-icons@1.2.103':
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify-json/vscode-icons@1.2.96':
+  '@iconify-json/vscode-icons@1.2.99':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -15179,9 +15186,9 @@ snapshots:
       '@ai-sdk/mcp': 2.0.76(zod@4.6.7)
       '@ai-sdk/vue': 4.0.141(vue@3.5.44(typescript@7.0.2))(zod@4.6.7)
       '@comark/vue': 0.7.0(shiki@4.5.0)(vue@3.5.44(typescript@7.0.2))
-      '@iconify-json/lucide': 1.2.151
-      '@iconify-json/simple-icons': 1.2.101
-      '@iconify-json/vscode-icons': 1.2.96
+      '@iconify-json/lucide': 1.2.157
+      '@iconify-json/simple-icons': 1.2.103
+      '@iconify-json/vscode-icons': 1.2.99
       '@nuxt/content': 3.16.2(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(@types/node@26.2.0)(better-sqlite3@13.0.3)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(rollup@4.67.4)(supports-color@10.2.2)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1)
       '@nuxt/image': 2.1.0(@nuxt/schema@4.6.4)(@types/node@26.2.0)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))(unstorage@1.17.6(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2)))
       '@nuxt/kit': 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(unplugin@3.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(rolldown@1.2.11)(rollup@4.67.4)(terser@5.51.2)(typescript@7.0.2)(yaml@2.9.1))
