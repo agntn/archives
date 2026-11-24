@@ -117,6 +117,17 @@ describe("Archive-It", () => {
     );
   });
 
+  it("sends no collapse for none", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce("");
+
+    await createArchive(createArchiveIt({ collection: "4399", collapse: "none" })).snapshots(
+      "example.com",
+    );
+
+    const [, request] = vi.mocked(fetchData).mock.calls[0] ?? [];
+    expect(request?.params).not.toHaveProperty("collapse");
+  });
+
   it("returns an empty success response for an empty CDX result", async () => {
     vi.mocked(fetchData).mockResolvedValueOnce("");
 

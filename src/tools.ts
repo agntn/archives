@@ -156,7 +156,8 @@ export const snapshotsTool = defineTool({
       user,
       collapse: Type.Optional(
         Type.String({
-          description: "Wayback CDX collapse parameter, for example timestamp:4.",
+          description:
+            "Wayback CDX collapse parameter. Wayback defaults to timestamp:4; none lists every capture.",
           minLength: 1,
           maxLength: MAX_PARAMETER_LENGTH,
         }),

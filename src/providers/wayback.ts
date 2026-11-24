@@ -17,6 +17,7 @@ import {
   preferSameUrl,
   readPlaybackCapture,
   requestedWindow,
+  collapseParam,
   resolveRequestedTimestamp,
   selectCapture,
   unwrapSnapshotUrl,
@@ -50,7 +51,7 @@ function waybackQuery(domain: string, options: Readonly<WaybackOptions>): Record
     url: listingPattern(domain, options.order),
     output: "json",
     fl: "original,timestamp,statuscode,digest,mimetype,length,urlkey",
-    collapse: options.collapse ?? "timestamp:4",
+    ...collapseParam(options.collapse, "timestamp:4"),
   };
   if (options.filter !== undefined) params.filter = options.filter;
   return { ...params, ...requestedWindow(options) };

@@ -1,6 +1,7 @@
 import type { ArchiveOptions } from "./types.ts";
 
 export interface WaybackOptions extends ArchiveOptions {
+  /** CDX `collapse`, `timestamp:4` unless set; `none` turns it off. */
   collapse?: string;
   filter?: string;
 }
@@ -17,6 +18,7 @@ export type NlnzOptions = ArchiveOptions;
 
 export interface ArchiveItOptions extends ArchiveOptions {
   collection: number | string;
+  /** CDX `collapse`, off unless set; `none` keeps it off. */
   collapse?: string;
   filter?: string;
 }
