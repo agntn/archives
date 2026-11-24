@@ -485,6 +485,24 @@ describe("archives MCP server", () => {
     );
   });
 
+  it("keeps order=oldest in the continue line, since it decides which URL gets listed", async () => {
+    const snapshots = vi.fn().mockResolvedValue({
+      ...success([page()]),
+      _meta: { source: "wayback", provider: "wayback", cursor: "eyJ2IjoxfQ" },
+    });
+    providersMock.wayback.mockResolvedValue({ name: "wayback", slug: "wayback", snapshots });
+    const client = await connectTestClient();
+
+    const response = await client.callTool({
+      name: "archives_snapshots",
+      arguments: { target: "https://example.com/", provider: "wayback", order: "oldest" },
+    });
+
+    expect(text(response.content).split("\n").at(-1)).toBe(
+      'continue: target="https://example.com/"; provider=wayback; limit=10; order=oldest; cursor=eyJ2IjoxfQ',
+    );
+  });
+
   it.each([
     [{ target: "example.com", cursor: "e30" }, "cursor continues Wayback listings only"],
     [

@@ -170,6 +170,8 @@ export interface SnapshotContinuation {
   target: string;
   provider: "wayback";
   limit: number;
+  /** Kept when set: an ordered page URL lists that one page, unordered its whole site. */
+  order?: "oldest";
   collapse?: string;
   filter?: string;
   from?: string;
@@ -444,6 +446,7 @@ function snapshotContinuation(
     target,
     provider: "wayback",
     limit: options.limit ?? DEFAULT_LIMIT,
+    ...(options.order === "oldest" ? { order: "oldest" } : {}),
     ...Object.fromEntries(bound.map((name) => [name, options[name]])),
     cursor,
   };
@@ -460,6 +463,7 @@ function snapshotContinueLines(continuation: Readonly<SnapshotContinuation> | un
     `target=${JSON.stringify(sanitizeField(continuation.target))}`,
     "provider=wayback",
     `limit=${continuation.limit}`,
+    ...(continuation.order ? [`order=${continuation.order}`] : []),
     ...(["collapse", "filter", "from", "to"] as const).flatMap((name) => {
       const value = continuation[name];
       return value === undefined ? [] : [`${name}=${JSON.stringify(sanitizeField(value))}`];
