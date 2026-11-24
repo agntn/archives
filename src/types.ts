@@ -20,6 +20,8 @@ export interface ArchiveOptions {
    * with its scheme: a bare domain lists by URL, not time, and `snapshots()` throws for one.
    */
   order?: CaptureOrder;
+  /** `_meta.cursor` of the previous page. Wayback pages with it; other providers don't. */
+  cursor?: string;
 
   // Performance options
   concurrency?: number; // Maximum number of concurrent requests (default: 3)
@@ -283,6 +285,8 @@ export interface ArchiveProvider {
    * index has no way to apply its own init-level bounds.
    */
   readonly options?: ArchiveOptions;
+  /** The index applies `from` and `to` itself, so a lone windowed listing keeps its limit. */
+  readonly appliesWindow?: boolean;
   snapshots: (domain: string, options?: ArchiveOptions) => Promise<ArchiveResponse>;
 
   /**

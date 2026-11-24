@@ -323,6 +323,28 @@ function windowPages(response: ArchiveResponse, from: string, to: string): Archi
   return pages.length === response.pages.length ? response : { ...response, pages };
 }
 
+/**
+ * Whether a windowed fetch may keep its limit: one provider whose index applies the window.
+ * @param provider - The provider asked
+ * @param count - Providers in the call
+ * @returns {boolean} True when nothing filters the rows after the provider cut them
+ */
+function keepsLimit(provider: Readonly<ArchiveProvider>, count: number): boolean {
+  return count === 1 && provider.appliesWindow === true;
+}
+
+/**
+ * Refuses a cursor on a merged listing, where it would page one provider and not the rest.
+ * @param options - Options of the call
+ * @param count - Providers in the call
+ * @throws {Error} When a cursor comes with more than one provider
+ */
+function assertSingleCursor(options: Readonly<Record<string, unknown>>, count: number): void {
+  if (count > 1 && options["cursor"] !== undefined) {
+    throw new Error("A cursor continues one provider's listing, and a merged listing has none");
+  }
+}
+
 /* One shared clamp, so the merge and the windowed paths cannot drift on limit semantics. */
 function limitPages(pages: readonly ArchivedPage[], limit: number | undefined): ArchivedPage[] {
   if (typeof limit !== "number" || !Number.isFinite(limit)) return [...pages];
@@ -477,11 +499,13 @@ export class Archive implements ArchiveInterface {
    * A `from`/`to` window is validated once here, normalized to digits, and
    * completed per provider, because init-level bounds count too and a provider
    * without a window-aware index cannot apply them itself. A windowed fetch
-   * runs with the provider limits lifted; every cap returns after the filter,
+   * runs with the provider limits lifted, unless one provider whose index
+   * applies the window answers alone; every cap returns after the filter,
    * the caller's after the newest-first merge, since a cap taken earlier turns
    * a tight limit into a false "nothing captured in this window". An inverted
    * window throws before the fan-out, where the parallel runner would swallow
-   * the error, and so does an `order` on a domain, which no index sorts by time.
+   * the error, and so does an `order` on a domain, which no index sorts by time,
+   * and a `cursor` on more than one provider.
    *
    * @param domain - The domain to search for in archive services (e.g., "example.com")
    * @param listOptions - Request-specific options that override the default options
@@ -525,6 +549,7 @@ export class Archive implements ArchiveInterface {
     const to = resolveRequestedTimestamp(rawTo, "to");
 
     const providerArray = await this.resolveProviders();
+    assertSingleCursor(merged, providerArray.length);
 
     /** Effective per-provider window: request and archive bounds win per edge, init bounds complete the cascade, and an inverted result throws ahead of the fan-out. */
     const windowed = providerArray.map((provider) => {
@@ -537,7 +562,8 @@ export class Archive implements ArchiveInterface {
     });
 
     /*
-     * One provider's windowed listing. The fetch runs with every limit lifted,
+     * One provider's windowed listing. The fetch runs with every limit lifted
+     * (a lone `appliesWindow` provider keeps it, so its cursor pages the window),
      * as an explicit undefined so the provider's own cascade cannot restore an
      * init-level value, and with the validated digits in the request options,
      * so a pushdown index never sees a raw init-level date. The provider's own cap
@@ -559,7 +585,7 @@ export class Archive implements ArchiveInterface {
 
       const bounded: ArchiveOptions = {
         ...ordered,
-        limit: undefined,
+        ...(keepsLimit(provider, providerArray.length) ? {} : { limit: undefined }),
         ...(windowFrom ? { from: windowFrom } : {}),
         ...(windowTo ? { to: windowTo } : {}),
       };

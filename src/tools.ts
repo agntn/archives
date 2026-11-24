@@ -19,6 +19,7 @@ import {
   DEFAULT_MAX_CHARS,
   MAX_CONTENT_CHARS,
   MAX_CONTENT_OFFSET,
+  MAX_CURSOR_LENGTH,
   MAX_DIFF_CONTEXT,
   MAX_DIFF_OFFSET,
   MAX_LIMIT,
@@ -31,6 +32,7 @@ import {
   MAX_TIMESTAMP_LENGTH,
   PROVIDER_HINT,
   PROVIDER_INPUTS,
+  SNAPSHOT_CURSOR_HINT,
   SNAPSHOT_FROM_HINT,
   SNAPSHOT_ORDER_HINT,
   SNAPSHOT_TARGET_HINT,
@@ -100,6 +102,7 @@ export const snapshotsTool = defineTool({
     "Use archives_snapshots when the user asks which captures exist, their timestamps, or their snapshot URLs.",
     "Use provider=wayback for fast lookup; use provider=all when coverage matters and unsupported providers are acceptable metadata.",
     "Pass limit conservatively (5-10) unless the user asks for a larger archive sample.",
+    "Use every argument from the returned continue line together for the next Wayback page.",
     "Do not put API keys in tool arguments; Perma.cc keys are read only from the fixed PERMA_CC_API_KEY/PERMACC_API_KEY environment names.",
   ],
   effect: "read",
@@ -177,6 +180,13 @@ export const snapshotsTool = defineTool({
           description: SNAPSHOT_TO_HINT,
           minLength: 1,
           maxLength: MAX_TIMESTAMP_LENGTH,
+        }),
+      ),
+      cursor: Type.Optional(
+        Type.String({
+          description: SNAPSHOT_CURSOR_HINT,
+          minLength: 1,
+          maxLength: MAX_CURSOR_LENGTH,
         }),
       ),
     },
@@ -375,7 +385,7 @@ function preview(value: unknown): string {
 }
 
 const SUMMARY_FIELDS: Readonly<Record<string, readonly string[]>> = {
-  archives_snapshots: ["provider", "limit", "from", "to", "collection", "timeout"],
+  archives_snapshots: ["provider", "limit", "from", "to", "collection", "timeout", "cursor"],
   archives_content: ["timestamp", "provider", "format", "maxChars", "offset", "path", "headers"],
   archives_diff: ["provider", "format", "context", "offset"],
 };

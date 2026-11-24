@@ -64,6 +64,11 @@ export const SNAPSHOT_ORDER_HINT = `Which end of the page's history the limit ke
 
 export const SNAPSHOT_TO_HINT = `Latest capture to list, in the same formats as "from". Inclusive; a partial stamp stretches the window to the end of the period it names, so from=2019 with to=2019 covers the whole year.`;
 
+export const SNAPSHOT_CURSOR_HINT = `Wayback only: the cursor from the previous page's continue line, which also names the arguments to repeat. Lists oldest first; order=newest and provider=all take no cursor.`;
+
+/** Longest cursor accepted; one carries a key and a hash per row tied at it. */
+export const MAX_CURSOR_LENGTH = 4096;
+
 export const DEFAULT_LIMIT = 10;
 export const MAX_LIMIT = 100;
 export const DEFAULT_MAX_CHARS = 20_000;
