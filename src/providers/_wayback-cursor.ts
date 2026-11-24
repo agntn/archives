@@ -1,5 +1,6 @@
 /** Continuation of Wayback CDX listings through the index's own `resumeKey`. */
 import { sha256 } from "@agntn/hashes/sha2";
+import { MAX_CURSOR_LENGTH } from "../tool-contract.ts";
 
 /** Where a listing stopped: the last row's key, and the rows at that key already listed. */
 interface Position {
@@ -8,8 +9,10 @@ interface Position {
   readonly q: string;
   /** `urlkey timestamp` of the last listed row. */
   readonly k: string;
-  /** Short hashes of the rows listed at `k`, each with its count. */
-  readonly t: Readonly<Record<string, number>>;
+  /** How many rows at `k` were listed; CDX sorts them, so they come back first. */
+  readonly s: number;
+  /** Hash of those rows, so a changed index can't shift the page. */
+  readonly h: string;
 }
 
 /** The CDX query for one page, with what reading its answer needs. */
@@ -95,15 +98,12 @@ async function unpackKey(packed: string): Promise<string | undefined> {
 }
 
 /**
- * Checks that every tie count is a positive integer.
- * @param ties - Decoded `t` field
- * @returns {boolean} Whether the counts are usable
+ * Checks the count of listed ties.
+ * @param ties - Decoded `s` field
+ * @returns {boolean} Whether the count is usable
  */
-function validTies(ties: unknown): ties is Record<string, number> {
-  if (typeof ties !== "object" || ties === null || Array.isArray(ties)) return false;
-  const counts = Object.values(ties);
-  if (!counts.every((count) => Number.isSafeInteger(count) && Number(count) > 0)) return false;
-  return counts.reduce((sum: number, count) => sum + Number(count), 0) <= MAX_TIES;
+function validTies(ties: unknown): ties is number {
+  return Number.isSafeInteger(ties) && Number(ties) >= 0 && Number(ties) <= MAX_TIES;
 }
 
 /**
@@ -115,8 +115,10 @@ function isPosition(value: unknown): value is Position {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Readonly<Record<string, unknown>>;
   const key = record["k"];
-  if (record["v"] !== 1 || typeof record["q"] !== "string") return false;
-  return typeof key === "string" && key !== "" && validTies(record["t"]);
+  if (record["v"] !== 1 || typeof record["q"] !== "string" || typeof record["h"] !== "string") {
+    return false;
+  }
+  return typeof key === "string" && key !== "" && validTies(record["s"]);
 }
 
 /**
@@ -145,9 +147,15 @@ function readCursor(cursor: string, binding: string): Position {
  * @returns {string} The cursor
  */
 function writeCursor(position: Position): string {
-  return new TextEncoder()
+  const cursor = new TextEncoder()
     .encode(JSON.stringify(position))
     .toBase64({ alphabet: "base64url", omitPadding: true });
+  if (cursor.length > MAX_CURSOR_LENGTH) {
+    throw new Error(
+      `Wayback capture key is too long to continue from: ${position.k.length} characters`,
+    );
+  }
+  return cursor;
 }
 
 /**
@@ -166,11 +174,10 @@ export async function pageRequest(
 ): Promise<PageRequest> {
   const binding = shortHash(JSON.stringify(BOUND_PARAMS.map((name) => params[name] ?? "")), 16);
   const position = options.cursor === undefined ? undefined : readCursor(options.cursor, binding);
-  const listed = Object.values(position?.t ?? {}).reduce((sum, count) => sum + count, 0);
   return {
     params: {
       ...params,
-      limit: String(listed + options.limit + 1),
+      limit: String((position?.s ?? 0) + options.limit + 1),
       showResumeKey: "true",
       ...(position ? { resumeKey: await packKey(keyBefore(position.k)) } : {}),
     },
@@ -225,55 +232,57 @@ function leadingAt(rows: readonly Row[], keyOf: KeyOf, key: string): number {
 }
 
 /**
- * Drops the rows at the cursor's key that an earlier page listed.
- *
- * Rows are told apart by hash, not place, so the same row listed twice drops twice.
- *
+ * Hash of a run of rows.
+ * @param rows - The rows
+ * @returns {string} Short hex digest
+ */
+function rowsHash(rows: readonly Row[]): string {
+  return shortHash(JSON.stringify(rows), 16);
+}
+
+/**
+ * How many rows of a resumed answer an earlier page already listed.
  * @param rows - Rows of the resumed answer
  * @param keyOf - Key reader
  * @param position - The cursor's position
  * @param cut - CDX stopped the answer early, so rows at the key may be missing
- * @returns {Row[]} The rows no earlier page listed
- * @throws {Error} When a listed row is gone, so the index changed under the cursor
+ * @returns {number | undefined} The count to drop, or nothing when the answer stopped inside them
+ * @throws {Error} When those rows changed, so the index moved under the cursor
  */
-function dropListed(
+function listedCount(
   rows: readonly Row[],
   keyOf: KeyOf,
   position: Position | undefined,
   cut: boolean,
-): Row[] {
-  if (!position) return [...rows];
+): number | undefined {
+  if (!position || position.s === 0) return 0;
   const tied = leadingAt(rows, keyOf, position.k);
-  const complete = tied < rows.length || !cut;
-  const left = { ...position.t };
-  const fresh = rows.slice(0, tied).filter((row) => {
-    const hash = shortHash(JSON.stringify(row), 8);
-    const count = left[hash] ?? 0;
-    if (count === 0) return true;
-    left[hash] = count - 1;
-    return false;
-  });
-  if (complete && Object.values(left).some((count) => count > 0)) throw new Error(STALE);
-  return [...fresh, ...rows.slice(tied)];
+  if (tied < position.s && cut && tied === rows.length) return undefined;
+  if (tied < position.s || rowsHash(rows.slice(0, position.s)) !== position.h) {
+    throw new Error(STALE);
+  }
+  return position.s;
 }
 
 /**
- * The cursor that continues after the last row of a page.
- * @param page - Rows of the page
+ * The cursor that continues after the last row listed so far.
+ * @param listed - Rows of the answer up to the page's end, earlier pages' ties included
  * @param keyOf - Key reader
  * @param request - The page's request
  * @returns {string | undefined} The cursor, or nothing when the last row has no key
+ * @throws {Error} When more rows share that key than a cursor may count
  */
-function cursorAfter(page: readonly Row[], keyOf: KeyOf, request: PageRequest): string | undefined {
-  const key = keyOf(page.at(-1) ?? []);
+function cursorAfter(
+  listed: readonly Row[],
+  keyOf: KeyOf,
+  request: PageRequest,
+): string | undefined {
+  const key = keyOf(listed.at(-1) ?? []);
   if (!key) return undefined;
-  const ties: Record<string, number> = request.position?.k === key ? { ...request.position.t } : {};
-  for (const row of page.toReversed().slice(0, leadingAt(page.toReversed(), keyOf, key))) {
-    const hash = shortHash(JSON.stringify(row), 8);
-    ties[hash] = (ties[hash] ?? 0) + 1;
-  }
+  const ties = leadingAt(listed.toReversed(), keyOf, key);
   if (!validTies(ties)) throw new Error(`Wayback lists over ${MAX_TIES} captures at ${key}`);
-  return writeCursor({ v: 1, q: request.binding, k: key, t: ties });
+  const run = listed.slice(listed.length - ties);
+  return writeCursor({ v: 1, q: request.binding, k: key, s: ties, h: rowsHash(run) });
 }
 
 /**
@@ -290,7 +299,7 @@ async function stoppedPage(resumeKey: string, request: PageRequest): Promise<Pag
   return {
     rows: [],
     exhausted: false,
-    cursor: writeCursor({ v: 1, q: request.binding, k: stopped, t: {} }),
+    cursor: writeCursor({ v: 1, q: request.binding, k: stopped, s: 0, h: "" }),
   };
 }
 
@@ -304,14 +313,12 @@ async function stoppedPage(resumeKey: string, request: PageRequest): Promise<Pag
 export async function readPage(response: unknown, request: PageRequest): Promise<Page> {
   const { header, rows, resumeKey } = splitAnswer(response);
   const keyOf = keyReader(header);
-  const fresh = dropListed(rows, keyOf, request.position, resumeKey !== undefined);
-  const page = fresh.slice(0, request.limit);
-  if (fresh.length > request.limit) {
-    const cursor = cursorAfter(page, keyOf, request);
-    return { rows: page, exhausted: false, ...(cursor ? { cursor } : {}) };
-  }
-  if (!resumeKey) return { rows: page, exhausted: true };
-  if (page.length === 0) return stoppedPage(resumeKey, request);
-  const cursor = cursorAfter(page, keyOf, request);
+  const skip = listedCount(rows, keyOf, request.position, resumeKey !== undefined);
+  if (skip === undefined) return { rows: [], exhausted: false };
+  const page = rows.slice(skip, skip + request.limit);
+  if (!resumeKey && rows.length <= skip + request.limit) return { rows: page, exhausted: true };
+  if (page.length === 0)
+    return resumeKey ? stoppedPage(resumeKey, request) : { rows: [], exhausted: true };
+  const cursor = cursorAfter(rows.slice(0, skip + page.length), keyOf, request);
   return { rows: page, exhausted: false, ...(cursor ? { cursor } : {}) };
 }

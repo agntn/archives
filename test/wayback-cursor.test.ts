@@ -167,7 +167,7 @@ describe("wayback listing continuation", () => {
     const position: unknown = JSON.parse(
       Buffer.from(String(first._meta?.cursor), "base64url").toString(),
     );
-    const forged = Buffer.from(JSON.stringify({ ...(position as object), t: { x: 1e9 } })).toString(
+    const forged = Buffer.from(JSON.stringify({ ...(position as object), s: 1e9 })).toString(
       "base64url",
     );
 
@@ -175,6 +175,20 @@ describe("wayback listing continuation", () => {
 
     expect(result.error).toContain("Invalid Wayback cursor");
     expect(fetchData).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a cursor short however many distinct captures share one second", async () => {
+    const tied = Array.from({ length: 300 }, (_, index) => row("20150102021455", `D${index}`));
+    vi.mocked(fetchData)
+      .mockResolvedValueOnce(answer([...tied, row("20150102021455", "Z")], "next"))
+      .mockResolvedValueOnce(answer([...tied, row("20150102021455", "Z")]));
+
+    const first = await list({ limit: 300 });
+    const second = await list({ limit: 300, cursor: first._meta?.cursor });
+
+    expect(String(first._meta?.cursor).length).toBeLessThan(400);
+    expect(paramsOf(1).limit).toBe("601");
+    expect(listed(second)).toEqual(["20150102021455/Z"]);
   });
 
   it("refuses a cursor on a listing newest first", async () => {
