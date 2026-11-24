@@ -149,6 +149,19 @@ describe("wayback machine", () => {
     );
   });
 
+  it("leaves collapse out of the CDX query when it is none", async () => {
+    vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
+
+    const result = await createArchive(createWayback()).snapshots("example.com", {
+      collapse: "none",
+    });
+
+    expect(result.success).toBe(true);
+    const [, request] = vi.mocked(fetchData).mock.calls[0] ?? [];
+    expect(request?.params).not.toHaveProperty("collapse");
+    expect(result._meta?.queryParams).not.toHaveProperty("collapse");
+  });
+
   it("narrows the CDX query to the requested window", async () => {
     vi.mocked(fetchData).mockResolvedValueOnce([["original", "timestamp", "statuscode"]]);
 

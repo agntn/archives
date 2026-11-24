@@ -27,6 +27,20 @@ export function requestedWindow(
 }
 
 /**
+ * The CDX `collapse` parameter, or nothing for `none`.
+ * @param collapse - The caller's value
+ * @param fallback - What applies when the caller says nothing
+ * @returns {Record<string, string>} The parameter, or nothing
+ */
+export function collapseParam(
+  collapse: string | undefined,
+  fallback?: string,
+): Record<string, string> {
+  const value = collapse ?? fallback;
+  return value === undefined || value === "none" ? {} : { collapse: value };
+}
+
+/**
  * Reads one CDX field. pywb writes "-" for one it doesn't know, and that's no value.
  * @param value - The field as parsed from the row
  * @returns {string} The field, or an empty string

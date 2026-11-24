@@ -11,6 +11,7 @@ import {
   normalizeDomain,
   preferSameUrl,
   readPlaybackCapture,
+  collapseParam,
   resolveRequestedTimestamp,
   selectCapture,
   timestampUpperBound,
@@ -68,9 +69,9 @@ export class ArchiveItProvider extends BaseProvider<ArchiveItOptions> {
         url: urlPattern,
         fl: "original,timestamp,statuscode",
         limit: String(options.limit ?? 1000),
+        ...collapseParam(options.collapse),
       };
 
-      if (options.collapse !== undefined) params.collapse = options.collapse;
       if (options.filter !== undefined) params.filter = options.filter;
       const from = resolveRequestedTimestamp(options.from, "from");
       const to = resolveRequestedTimestamp(options.to, "to");
