@@ -12,7 +12,7 @@ catalogs:
   deps:
     "@agntn/compressions": 0.2.0
     "@agntn/hashes": 0.7.3
-    "@agntn/tools": 0.2.4
+    "@agntn/tools": 0.3.3
     "@modelcontextprotocol/sdk": 1.32.2
     "@modelcontextprotocol/server": 2.2.0
     "@nuxtjs/mcp-toolkit": 0.24.3
@@ -28,7 +28,7 @@ catalogs:
     ufo: 1.6.4
     zod: 4.6.7
   dev:
-    "@agntn/ox": ^0.1.0
+    "@agntn/ox": 0.1.0
     "@earendil-works/pi-coding-agent": 0.99.2
     "@earendil-works/pi-tui": 1.1.0
     "@iconify-json/lucide": 1.2.157
